@@ -246,7 +246,7 @@ export function Storefront() {
       <section className="hero" id="top">
         <div className="hero-copy">
           <span className="eyebrow">Roasted in Union, New Jersey</span>
-          <h1>Coffee from El Salvador. <em>Made for Union.</em></h1>
+          <h1><span>Coffee from</span><span>El Salvador.</span><em>Roasted in Union.</em></h1>
           <p>Fresh coffee, breakfast, sandwiches, and Latin favorites, ready when you are.</p>
           <div className="hero-actions">
             <a className="primary-button" href="#menu">Order pickup</a>
@@ -424,4 +424,3 @@ function Checkout({ cart, subtotal, onClose, onComplete }: { cart: CartItem[]; s
     </div>
   );
 }
-

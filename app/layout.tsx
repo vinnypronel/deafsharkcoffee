@@ -25,7 +25,7 @@ export async function generateMetadata(): Promise<Metadata> {
       title,
       description,
       type: "website",
-      images: [{ url: new URL("/og.png", base).toString(), width: 1200, height: 630, alt: "Deaf Shark Coffee, coffee from El Salvador made for Union" }],
+      images: [{ url: new URL("/og.png", base).toString(), width: 1200, height: 630, alt: "Deaf Shark Coffee, coffee from El Salvador roasted in Union" }],
     },
     twitter: { card: "summary_large_image", title, description, images: [new URL("/og.png", base).toString()] },
   };
