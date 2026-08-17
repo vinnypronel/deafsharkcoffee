@@ -228,6 +228,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
       const current = JSON.parse(window.localStorage.getItem(key) ?? "[]") as { orderNumber: string; phone: string }[];
       const next = [order, ...current.filter((item) => item.orderNumber !== order.orderNumber)].slice(0, 12);
       window.localStorage.setItem(key, JSON.stringify(next));
+      window.dispatchEvent(new Event("deaf-shark-orders-updated"));
     } catch {
       // Order confirmation still works when browser storage is unavailable.
     }
@@ -352,7 +353,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
             <span className="eyebrow">Order received</span>
             <h2>We have it, {confirmation.number}.</h2>
             <p>Your pickup estimate is <strong>{confirmation.eta}</strong>. We will update your order status as it moves through the counter.</p>
-            <div className="confirmation-actions"><a className="primary-button" href="/orders">Track my order</a><button className="soft-button" onClick={() => setConfirmation(null)}>Back to the menu</button></div>
+            <div className="confirmation-actions"><button className="primary-button" onClick={() => { setConfirmation(null); window.dispatchEvent(new Event("deaf-shark-open-order")); }}>View order status</button><button className="soft-button" onClick={() => setConfirmation(null)}>Back to the menu</button></div>
           </section>
         </div>
       )}
