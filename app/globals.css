@@ -458,6 +458,17 @@ footer > a { margin-top: 16px; color: #d7a25e; font-size: 12px; text-transform: 
     top: clamp(30px, 5vh, 62px);
     right: clamp(30px, 4vw, 62px);
   }
+  .menu-content { padding: 20px 32px 36px; }
+  .category-nav { padding: 8px 0 12px; }
+  .category-nav button { min-height: 38px; padding: 0 14px; font-size: 13px; }
+  .menu-heading { padding: 20px 0 12px; }
+  .menu-heading h3 { font-size: 38px; }
+  .product-row { min-height: 82px; padding: 10px 0; }
+  .product-row > span:first-child { gap: 4px; }
+  .product-row strong { font-size: 18px; }
+  .product-row small { font-size: 12px; line-height: 1.35; }
+  .row-price { gap: 12px; font-size: 14px; }
+  .row-price i { width: 30px; height: 30px; font-size: 18px; }
 }
 
 @media (max-width: 780px) {
