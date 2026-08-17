@@ -185,6 +185,17 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   }, [interactionStarted]);
 
   useEffect(() => {
+    const itemId = new URLSearchParams(window.location.search).get("item");
+    if (!itemId) return;
+    const product = menuProducts.find((candidate) => candidate.id === itemId);
+    if (!product) return;
+    setInteractionStarted(true);
+    setDisplayProduct(product);
+    setActiveCategory(product.category);
+    setSelectedProduct(product);
+  }, []);
+
+  useEffect(() => {
     async function loadAvailability() {
       try {
         const response = await fetch("/api/menu-state", { cache: "no-store" });

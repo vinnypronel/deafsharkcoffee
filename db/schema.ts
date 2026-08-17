@@ -15,6 +15,7 @@ export const orders = sqliteTable(
     source: text("source").notNull().default("website"),
     paymentMethod: text("payment_method").notNull().default("pickup"),
     pickupEta: text("pickup_eta").notNull().default("15 min"),
+    customerUserId: text("customer_user_id"),
     createdAt: integer("created_at", { mode: "timestamp" })
       .notNull()
       .$defaultFn(() => new Date()),
@@ -24,6 +25,15 @@ export const orders = sqliteTable(
   ],
 );
 
+export const customerProfiles = sqliteTable("customer_profiles", {
+  userId: text("user_id").primaryKey(),
+  email: text("email").notNull(),
+  displayName: text("display_name").notNull(),
+  points: integer("points").notNull().default(0),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+});
+
 export const menuAvailability = sqliteTable("menu_availability", {
   productId: text("product_id").primaryKey(),
   available: integer("available", { mode: "boolean" }).notNull().default(true),
@@ -31,4 +41,3 @@ export const menuAvailability = sqliteTable("menu_availability", {
     .notNull()
     .$defaultFn(() => new Date()),
 });
-

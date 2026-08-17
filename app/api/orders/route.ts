@@ -1,6 +1,7 @@
-import { desc } from "drizzle-orm";
+import { desc, sql } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../db";
-import { orders } from "../../../db/schema";
+import { customerProfiles, orders } from "../../../db/schema";
+import { getChatGPTUser } from "../../chatgpt-auth";
 
 type CartPayload = {
   id: string;
@@ -62,6 +63,7 @@ export async function POST(request: Request) {
     );
     const taxCents = Math.round(subtotalCents * 0.06625);
     const totalCents = subtotalCents + taxCents;
+    const user = await getChatGPTUser();
 
     const [created] = await getDb()
       .insert(orders)
@@ -77,8 +79,26 @@ export async function POST(request: Request) {
         source: "website",
         paymentMethod: payload.paymentMethod === "card" ? "card-demo" : "pickup",
         pickupEta: payload.pickupEta ?? "15 min",
+        customerUserId: user?.userId ?? null,
       })
       .returning();
+
+    if (user) {
+      const earnedPoints = Math.max(1, Math.floor(totalCents / 100));
+      await getDb().insert(customerProfiles).values({
+        userId: user.userId,
+        email: user.email,
+        displayName: user.fullName ?? user.email.split("@")[0],
+        points: earnedPoints,
+      }).onConflictDoUpdate({
+        target: customerProfiles.userId,
+        set: {
+          email: user.email,
+          points: sql`${customerProfiles.points} + ${earnedPoints}`,
+          updatedAt: new Date(),
+        },
+      });
+    }
 
     return Response.json(
       { order: { ...created, items: JSON.parse(created.itemsJson) } },

@@ -65,6 +65,24 @@ h1, h2, h3, p { margin-top: 0; }
 .header-cart span { display: inline-grid; place-items: center; min-width: 26px; height: 26px; margin-left: 8px; border-radius: 50%; background: var(--gold); color: var(--deep); }
 .header-action { position: relative; display: flex; align-items: center; gap: 9px; justify-self: end; }
 .header-order-link { display: inline-flex; min-height: 44px; align-items: center; border-radius: 999px; padding: 0 19px; background: var(--gold); color: var(--deep); font-size: 13px; font-weight: 800; }
+.header-icon-button { width: 44px; height: 44px; display: grid; flex: 0 0 auto; place-items: center; border: 1px solid rgba(255,255,255,.18); border-radius: 50%; background: rgba(255,255,255,.04); color: var(--paper); cursor: pointer; }
+.search-glyph { position: relative; width: 17px; height: 17px; display: block; border: 2px solid currentColor; border-radius: 50%; }
+.search-glyph::after { content: ""; position: absolute; right: -5px; bottom: -3px; width: 7px; height: 2px; transform: rotate(45deg); border-radius: 2px; background: currentColor; }
+.profile-glyph { position: relative; width: 18px; height: 19px; display: block; border: 2px solid currentColor; border-top-color: transparent; border-right-color: transparent; border-left-color: transparent; border-radius: 50%; }
+.profile-glyph::before { content: ""; position: absolute; top: -2px; left: 4px; width: 7px; height: 7px; border: 2px solid currentColor; border-radius: 50%; }
+.profile-glyph::after { content: ""; position: absolute; right: 0; bottom: 0; left: 0; height: 8px; border: 2px solid currentColor; border-bottom: 0; border-radius: 12px 12px 0 0; }
+.header-search-panel { position: absolute; z-index: 85; top: calc(100% + 20px); right: 0; width: min(540px, calc(100vw - 28px)); overflow: hidden; border: 1px solid var(--line); border-radius: 24px; background: var(--paper); color: var(--ink); box-shadow: 0 26px 80px rgba(20,11,8,.3); }
+.search-field { min-height: 70px; display: grid; grid-template-columns: 24px 1fr 36px; align-items: center; gap: 12px; padding: 0 18px; border-bottom: 1px solid var(--line); }
+.search-field .search-glyph { color: var(--teal-dark); }
+.search-field input { width: 100%; height: 68px; border: 0; background: transparent; outline: none; color: var(--ink); font-size: 16px; }
+.search-field button { width: 34px; height: 34px; border: 0; border-radius: 50%; background: var(--cream); font-size: 22px; cursor: pointer; }
+.search-results { display: grid; padding: 18px; }
+.search-results > span { padding: 2px 8px 11px; color: var(--gold); font-size: 10px; font-weight: 850; letter-spacing: .16em; text-transform: uppercase; }
+.search-results > a { min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 20px; border-radius: 13px; padding: 9px 10px; }
+.search-results > a:hover { background: var(--cream); }
+.search-results > a div { display: grid; gap: 3px; }
+.search-results small, .search-results p { color: var(--muted); }
+.search-results b { color: var(--teal-dark); }
 .order-status-trigger { min-height: 44px; display: inline-flex; align-items: center; gap: 9px; border: 1px solid rgba(255,255,255,.2); border-radius: 999px; padding: 0 15px; background: rgba(255,255,255,.07); color: var(--paper); font-size: 12px; font-weight: 800; cursor: pointer; }
 .order-status-trigger i { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 4px rgba(183,130,61,.14); }
 .order-status-trigger.ready { border-color: var(--teal); background: var(--teal); }
@@ -78,6 +96,23 @@ h1, h2, h3, p { margin-top: 0; }
 .header-order-popover > p { margin: 16px 0; color: var(--muted); line-height: 1.45; }
 .popover-items { display: grid; gap: 7px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 15px 0; color: var(--muted); font-size: 13px; }
 .popover-total { display: flex; justify-content: space-between; padding-top: 16px; }
+.account-backdrop { position: fixed; z-index: 120; inset: 0; display: grid; place-items: center; padding: 24px; background: rgba(20,11,8,.72); backdrop-filter: blur(10px); }
+.account-modal { position: relative; width: min(520px, 100%); max-height: min(760px, 92dvh); overflow-y: auto; border-radius: 30px; padding: 48px; background: var(--paper); color: var(--ink); text-align: center; box-shadow: 0 28px 90px rgba(20,11,8,.38); }
+.account-modal > img { width: 72px; height: 48px; object-fit: contain; margin: 0 auto 24px; opacity: .82; }
+.account-modal h2 { margin-bottom: 16px; font-family: Georgia, serif; font-size: clamp(36px, 5vw, 52px); line-height: 1.02; }
+.account-modal > p { color: var(--muted); line-height: 1.6; }
+.account-close { position: absolute; top: 16px; right: 16px; width: 38px; height: 38px; border: 0; border-radius: 50%; background: var(--cream); font-size: 24px; cursor: pointer; }
+.account-continue { width: 100%; margin: 16px 0 14px; }
+.account-modal > small { display: block; color: var(--muted); line-height: 1.5; }
+.account-welcome { display: block; margin-bottom: 8px; color: var(--gold); font-size: 11px; font-weight: 850; letter-spacing: .15em; text-transform: uppercase; }
+.loyalty-card { display: grid; gap: 12px; margin: 28px 0 20px; border-radius: 22px; padding: 26px; background: var(--espresso); color: var(--paper); text-align: left; }
+.loyalty-card > span { color: #dca86b; font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.loyalty-card > strong { font-family: Georgia, serif; font-size: 34px; }
+.loyalty-card > div { height: 9px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.14); }
+.loyalty-card > div i { height: 100%; display: block; border-radius: inherit; background: var(--gold); }
+.loyalty-card small { color: rgba(255,250,243,.64); }
+.loyalty-note { font-size: 13px; }
+.account-signout { display: inline-block; margin-top: 10px; color: var(--teal-dark); font-size: 13px; font-weight: 800; }
 .mobile-site-nav { display: none; }
 
 .hero {
@@ -498,13 +533,16 @@ footer > a { margin-top: 16px; color: #d7a25e; font-size: 12px; text-transform: 
   .site-header nav { display: none; }
   .brand-mark { font-size: 17px; }
   .brand-mark img { width: 38px; height: 26px; }
+  .brand-mark > span { display: none; }
   .header-cart { min-height: 42px; padding: 6px 8px 6px 14px; }
   .header-order-link { min-height: 42px; padding: 0 14px; font-size: 12px; }
   .header-action { gap: 6px; }
+  .header-icon-button { width: 40px; height: 40px; }
   .order-status-trigger { min-height: 42px; padding: 0 11px; }
   .order-status-trigger span { font-size: 0; }
   .order-status-trigger span::after { content: "Status"; font-size: 11px; }
   .header-order-popover { position: fixed; top: 76px; right: 10px; left: 10px; width: auto; }
+  .header-search-panel { position: fixed; top: 76px; right: 10px; left: 10px; width: auto; }
   .header-order-popover::before { display: none; }
   .mobile-site-nav { position: fixed; z-index: 55; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom)); left: 10px; display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid rgba(255,255,255,.1); border-radius: 18px; padding: 5px; background: rgba(25,13,9,.96); color: rgba(255,250,243,.62); box-shadow: 0 16px 45px rgba(20,11,8,.3); backdrop-filter: blur(18px); }
   .mobile-site-nav a { min-height: 48px; display: grid; place-items: center; border-radius: 13px; font-size: 11px; font-weight: 750; }
@@ -587,6 +625,8 @@ footer > a { margin-top: 16px; color: #d7a25e; font-size: 12px; text-transform: 
   .customer-order-body { display: block; padding: 24px 22px; }
   .customer-order-total { margin-top: 22px; border-top: 1px solid var(--line); border-left: 0; padding-top: 22px; padding-left: 0; }
   .confirmation-actions { flex-direction: column; }
+  .account-backdrop { padding: 0; }
+  .account-modal { width: 100vw; max-height: 100dvh; min-height: 100dvh; border-radius: 0; padding: 58px 22px 110px; }
 
   .dashboard-header { height: 68px; grid-template-columns: 1fr auto; padding: 0 16px; }
   .dashboard-tabs { position: fixed; z-index: 20; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); left: 12px; justify-content: stretch; box-shadow: 0 14px 40px rgba(0,0,0,.25); background: var(--deep); }

@@ -37,7 +37,16 @@ export function ensureSchema() {
           source text DEFAULT 'website' NOT NULL,
           payment_method text DEFAULT 'pickup' NOT NULL,
           pickup_eta text DEFAULT '15 min' NOT NULL,
+          customer_user_id text,
           created_at integer NOT NULL
+        )`),
+        d1.prepare(`CREATE TABLE IF NOT EXISTS customer_profiles (
+          user_id text PRIMARY KEY NOT NULL,
+          email text NOT NULL,
+          display_name text NOT NULL,
+          points integer DEFAULT 0 NOT NULL,
+          created_at integer NOT NULL,
+          updated_at integer NOT NULL
         )`),
         d1.prepare("CREATE INDEX IF NOT EXISTS idx_orders_status_created_at ON orders (status, created_at)"),
       ]);
