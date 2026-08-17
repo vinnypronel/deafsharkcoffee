@@ -55,6 +55,9 @@ function ProductVisual({ product, compact = false }: { product: Product; compact
           <span /><span /><span /><span />
         </div>
       )}
+      {product.visual === "bag" && (
+        <img className="coffee-bag-photo" src="/ocean-blend-bags.jpg" alt="Deaf Shark Ocean Blend medium roast coffee bags" />
+      )}
       <span className="visual-shadow" />
     </div>
   );
@@ -172,6 +175,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   const [interactionStarted, setInteractionStarted] = useState(false);
   const [confirmation, setConfirmation] = useState<{ number: string; eta: string } | null>(null);
   const isMenuPage = page === "menu";
+  const oceanBlend = menuProducts.find((product) => product.id === "ocean-blend-bag")!;
 
   useEffect(() => {
     if (interactionStarted) return;
@@ -320,6 +324,25 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
           </div>
         </div>
       </section>
+
+      {!isMenuPage && <section className="take-home-section">
+        <div className="take-home-image">
+          <img src="/ocean-blend-bags.jpg" alt="Deaf Shark Ocean Blend coffee bags displayed in the Union shop" />
+        </div>
+        <div className="take-home-copy">
+          <span>Ocean Blend</span>
+          <h2>Take the roast home.</h2>
+          <p>A 12 oz bag of medium roast whole bean coffee from El Salvador, roasted in Union and ready for your home setup.</p>
+          <ul><li>Medium roast</li><li>Whole bean</li><li>12 oz bag</li></ul>
+          <button className="primary-button" onClick={() => openProduct(oceanBlend)}>Order a bag · {money(oceanBlend.price)}</button>
+          <small>Demo price, final price to be confirmed</small>
+        </div>
+        <div className="take-home-film">
+          <video autoPlay muted loop playsInline preload="metadata" poster="/ocean-blend-bags.jpg" aria-label="Deaf Shark Ocean Blend bags on display">
+            <source src="/ocean-blend-bags.mp4" type="video/mp4" />
+          </video>
+        </div>
+      </section>}
 
       {!isMenuPage && <section className="origin-section" id="coffee">
         <div className="origin-art">

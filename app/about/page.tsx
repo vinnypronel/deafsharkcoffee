@@ -18,6 +18,18 @@ export default function AboutPage() {
         </div>
         <img src="/deafshark-dog-art.png" alt="Deaf Shark illustrated character with Salvadoran coffee artwork" />
       </section>
+      <section className="origin-media-story">
+        <div className="origin-nursery-photo">
+          <img src="/el-salvador-nursery.jpg" alt="Coffee plant nursery beneath shade trees in El Salvador" />
+          <span>At the source in El Salvador</span>
+        </div>
+        <div className="origin-roast-film">
+          <video autoPlay muted loop playsInline preload="metadata" poster="/roasting-poster.jpg" aria-label="Coffee beans roasting at Deaf Shark Coffee in Union">
+            <source src="/deaf-shark-roasting.mp4" type="video/mp4" />
+          </video>
+          <div><h2>From green landscape to fresh roast.</h2><p>The origin is part of the product, and the roast happens here in Union. This is the real path behind the cup and every bag on the shelf.</p></div>
+        </div>
+      </section>
       <section className="story-grid">
         <article><span>01</span><h2>From the farm</h2><p>The featured roast comes from Finca Montevideo in El Salvador. It is a washed Red Bourbon with a clear connection to where it was grown.</p></article>
         <article><span>02</span><h2>Made locally</h2><p>The beans are roasted in Union, New Jersey, then served alongside breakfast, sandwiches, and familiar Latin favorites.</p></article>

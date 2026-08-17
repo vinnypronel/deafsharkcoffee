@@ -4,7 +4,8 @@ export type MenuCategory =
   | "Non-Coffee"
   | "Breakfast"
   | "Sandwiches"
-  | "Bites";
+  | "Bites"
+  | "Coffee Bags";
 
 export type Product = {
   id: string;
@@ -24,9 +25,19 @@ export const categories: MenuCategory[] = [
   "Breakfast",
   "Sandwiches",
   "Bites",
+  "Coffee Bags",
 ];
 
 export const menuProducts: Product[] = [
+  {
+    id: "ocean-blend-bag",
+    name: "Ocean Blend",
+    category: "Coffee Bags",
+    price: 18,
+    description: "12 oz medium roast whole bean coffee from El Salvador. Demo price, final price to be confirmed.",
+    popular: true,
+    visual: "bag",
+  },
   {
     id: "latte",
     name: "Latte",
@@ -228,7 +239,7 @@ export const menuProducts: Product[] = [
 
 export const featuredProducts = [
   menuProducts.find((product) => product.id === "latte")!,
+  menuProducts.find((product) => product.id === "ocean-blend-bag")!,
   menuProducts.find((product) => product.id === "shark-cubano")!,
   menuProducts.find((product) => product.id === "cachapa")!,
 ];
-
