@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { categories, featuredProducts, menuProducts, type MenuCategory, type Product } from "./menu-data";
+import { CustomerHeader, SiteFooter } from "./site-chrome";
 
 type CartItem = {
   key: string;
@@ -22,15 +23,6 @@ type Configuration = {
 };
 
 const money = (value: number) => `$${value.toFixed(2)}`;
-
-function BrandMark({ dark = false }: { dark?: boolean }) {
-  return (
-    <span className={`brand-mark ${dark ? "brand-mark-dark" : ""}`}>
-      <img src="/favicon.png" alt="" />
-      <span>Deaf Shark Coffee</span>
-    </span>
-  );
-}
 
 function CupMark() {
   return (
@@ -169,7 +161,7 @@ function OptionGroup({ label, values, selected, suffix, onSelect }: { label: str
   );
 }
 
-export function Storefront() {
+export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   const [activeCategory, setActiveCategory] = useState<MenuCategory>("Popular");
   const [displayProduct, setDisplayProduct] = useState(featuredProducts[0]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -179,6 +171,7 @@ export function Storefront() {
   const [availability, setAvailability] = useState<Record<string, boolean>>({});
   const [interactionStarted, setInteractionStarted] = useState(false);
   const [confirmation, setConfirmation] = useState<{ number: string; eta: string } | null>(null);
+  const isMenuPage = page === "menu";
 
   useEffect(() => {
     if (interactionStarted) return;
@@ -229,28 +222,31 @@ export function Storefront() {
     setCartOpen(true);
   }
 
+  function rememberOrder(order: { orderNumber: string; phone: string }) {
+    try {
+      const key = "deaf-shark-customer-orders";
+      const current = JSON.parse(window.localStorage.getItem(key) ?? "[]") as { orderNumber: string; phone: string }[];
+      const next = [order, ...current.filter((item) => item.orderNumber !== order.orderNumber)].slice(0, 12);
+      window.localStorage.setItem(key, JSON.stringify(next));
+    } catch {
+      // Order confirmation still works when browser storage is unavailable.
+    }
+  }
+
   return (
     <main>
-      <header className="site-header">
-        <a href="#top" aria-label="Deaf Shark Coffee home"><BrandMark /></a>
-        <nav aria-label="Primary navigation">
-          <a href="#menu">Menu</a>
-          <a href="#coffee">Our Coffee</a>
-          <a href="#visit">Visit</a>
-        </nav>
-        <button className="header-cart" onClick={() => setCartOpen(true)} aria-label={`Open cart with ${cartCount} items`}>
+      <CustomerHeader active={isMenuPage ? "/menu" : "/"} action={<button className="header-cart" onClick={() => setCartOpen(true)} aria-label={`Open cart with ${cartCount} items`}>
           Cart <span>{cartCount}</span>
-        </button>
-      </header>
+        </button>} />
 
-      <section className="hero" id="top">
+      {!isMenuPage && <section className="hero" id="top">
         <div className="hero-copy">
           <span className="eyebrow">Roasted in Union, New Jersey</span>
           <h1><span>Coffee from</span><span>El Salvador.</span><em>Roasted in Union.</em></h1>
           <p>Fresh coffee, breakfast, sandwiches, and Latin favorites, ready when you are.</p>
           <div className="hero-actions">
-            <a className="primary-button" href="#menu">Order pickup</a>
-            <a className="text-button" href="#coffee">Meet the coffee <span>↘</span></a>
+            <a className="primary-button" href="/menu">Order pickup</a>
+            <a className="text-button" href="/about">Meet the coffee <span>↘</span></a>
           </div>
           <div className="hero-details">
             <span><strong>Open today</strong> Demo hours</span>
@@ -270,12 +266,12 @@ export function Storefront() {
             ))}
           </div>
         </div>
-      </section>
+      </section>}
 
-      <section className="order-section" id="menu">
+      <section className={`order-section ${isMenuPage ? "standalone-order" : ""}`} id="menu">
         <div className="order-intro">
           <span className="eyebrow">Order for pickup</span>
-          <h2>Your favorites, without the wait.</h2>
+          <h2>{isMenuPage ? "The full menu, ready your way." : "Your favorites, without the wait."}</h2>
           <p>Browse the menu, customize your order, and choose how you want to pay.</p>
         </div>
         <div className="menu-shell">
@@ -313,7 +309,7 @@ export function Storefront() {
         </div>
       </section>
 
-      <section className="origin-section" id="coffee">
+      {!isMenuPage && <section className="origin-section" id="coffee">
         <div className="origin-art">
           <img src="/deafshark-dog-art.png" alt="Deaf Shark illustrated dog character beside coffee artwork" />
         </div>
@@ -328,19 +324,15 @@ export function Storefront() {
             <div><dt>Process</dt><dd>Washed</dd></div>
           </dl>
         </div>
-      </section>
+      </section>}
 
-      <section className="visit-section" id="visit">
+      {!isMenuPage && <section className="visit-section" id="visit">
         <div><span className="eyebrow">Come visit</span><h2>Deaf Shark Coffee<br />Union, New Jersey</h2></div>
         <div className="visit-card"><strong>900 Green Lane</strong><span>Union, NJ 07083</span><a href="https://maps.google.com/?q=900+Green+Lane+Union+NJ+07083">Get directions ↗</a></div>
         <div className="visit-card"><strong>(908) 481-8884</strong><span>Call ahead or stop in</span><a href="tel:+19084818884">Call the shop</a></div>
-      </section>
+      </section>}
 
-      <footer>
-        <BrandMark dark />
-        <p>Premium Coffee Beans · Roasted in Union, NJ</p>
-        <a href="/dashboard">Open demo dashboard</a>
-      </footer>
+      <SiteFooter />
 
       <button className={`mobile-cart ${cartCount ? "visible" : ""}`} onClick={() => setCartOpen(true)}>
         <span>{cartCount} {cartCount === 1 ? "item" : "items"}</span><strong>View cart · {money(subtotal)}</strong>
@@ -351,7 +343,7 @@ export function Storefront() {
         <CartDrawer cart={cart} subtotal={subtotal} onClose={() => setCartOpen(false)} onRemove={(key) => setCart((current) => current.filter((item) => item.key !== key))} onCheckout={() => { setCartOpen(false); setCheckoutOpen(true); }} />
       )}
       {checkoutOpen && (
-        <Checkout cart={cart} subtotal={subtotal} onClose={() => setCheckoutOpen(false)} onComplete={(number, eta) => { setCheckoutOpen(false); setCart([]); setConfirmation({ number, eta }); }} />
+        <Checkout cart={cart} subtotal={subtotal} onClose={() => setCheckoutOpen(false)} onComplete={(number, eta, phone) => { rememberOrder({ orderNumber: number, phone }); setCheckoutOpen(false); setCart([]); setConfirmation({ number, eta }); }} />
       )}
       {confirmation && (
         <div className="modal-backdrop">
@@ -360,7 +352,7 @@ export function Storefront() {
             <span className="eyebrow">Order received</span>
             <h2>We have it, {confirmation.number}.</h2>
             <p>Your pickup estimate is <strong>{confirmation.eta}</strong>. We will update your order status as it moves through the counter.</p>
-            <button className="primary-button" onClick={() => setConfirmation(null)}>Back to the menu</button>
+            <div className="confirmation-actions"><a className="primary-button" href="/orders">Track my order</a><button className="soft-button" onClick={() => setConfirmation(null)}>Back to the menu</button></div>
           </section>
         </div>
       )}
@@ -385,7 +377,7 @@ function CartDrawer({ cart, subtotal, onClose, onRemove, onCheckout }: { cart: C
   );
 }
 
-function Checkout({ cart, subtotal, onClose, onComplete }: { cart: CartItem[]; subtotal: number; onClose: () => void; onComplete: (number: string, eta: string) => void }) {
+function Checkout({ cart, subtotal, onClose, onComplete }: { cart: CartItem[]; subtotal: number; onClose: () => void; onComplete: (number: string, eta: string, phone: string) => void }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [payment, setPayment] = useState<"pickup" | "card">("pickup");
@@ -401,7 +393,7 @@ function Checkout({ cart, subtotal, onClose, onComplete }: { cart: CartItem[]; s
       const response = await fetch("/api/orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ customerName: name, phone, paymentMethod: payment, pickupEta: "15 min", items: cart }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Unable to place order");
-      onComplete(data.order.orderNumber, data.order.pickupEta);
+      onComplete(data.order.orderNumber, data.order.pickupEta, phone);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to place order");
     } finally {
