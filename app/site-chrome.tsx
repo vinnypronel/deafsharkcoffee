@@ -116,7 +116,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
       <nav className="mobile-site-nav" aria-label="Mobile navigation">{links.map(([href, label]) => <a key={href} href={href} className={active === href ? "active" : ""}>{label}</a>)}</nav>
       {profileOpen && (
         <div className="account-backdrop" onMouseDown={() => setProfileOpen(false)}>
-          <section className="account-modal" role="dialog" aria-modal="true" aria-label="Customer account" onMouseDown={(event) => event.stopPropagation()}>
+          <section className="account-modal" data-lenis-prevent role="dialog" aria-modal="true" aria-label="Customer account" onMouseDown={(event) => event.stopPropagation()}>
             <button className="account-close" onClick={() => setProfileOpen(false)} aria-label="Close account">×</button>
             <img src="/favicon.png" alt="" />
             {!profile && <><h2>Opening your account...</h2><p>Loading your Deaf Shark profile and loyalty points.</p></>}

@@ -107,7 +107,7 @@ function ProductConfigurator({
 
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
-      <section className="configurator" role="dialog" aria-modal="true" aria-label={`Customize ${product.name}`} onMouseDown={(event) => event.stopPropagation()}>
+      <section className="configurator" data-lenis-prevent role="dialog" aria-modal="true" aria-label={`Customize ${product.name}`} onMouseDown={(event) => event.stopPropagation()}>
         <button className="modal-close" onClick={onClose} aria-label="Close product configurator">×</button>
         <div className="config-product">
           <ProductVisual product={{ ...product, visual: isCoffee && config.temperature === "Iced" ? "iced" : product.visual }} compact />
@@ -398,7 +398,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
 function CartDrawer({ cart, subtotal, onClose, onRemove, onCheckout }: { cart: CartItem[]; subtotal: number; onClose: () => void; onRemove: (key: string) => void; onCheckout: () => void }) {
   return (
     <div className="drawer-backdrop" onMouseDown={onClose}>
-      <aside className="cart-drawer" onMouseDown={(event) => event.stopPropagation()}>
+      <aside className="cart-drawer" data-lenis-prevent onMouseDown={(event) => event.stopPropagation()}>
         <div className="drawer-header"><div><span className="eyebrow">Pickup order</span><h2>Your cart</h2></div><button onClick={onClose} aria-label="Close cart">×</button></div>
         <div className="cart-items">
           {cart.length === 0 && <div className="empty-cart"><img src="/favicon.png" alt="" /><h3>Your cart is ready when you are.</h3><p>Choose a drink, breakfast, sandwich, or bite from the menu.</p></div>}
@@ -438,7 +438,7 @@ function Checkout({ cart, subtotal, onClose, onComplete }: { cart: CartItem[]; s
 
   return (
     <div className="modal-backdrop" onMouseDown={onClose}>
-      <form className="checkout-card" onSubmit={submit} onMouseDown={(event) => event.stopPropagation()}>
+      <form className="checkout-card" data-lenis-prevent onSubmit={submit} onMouseDown={(event) => event.stopPropagation()}>
         <button type="button" className="modal-close" onClick={onClose} aria-label="Close checkout">×</button>
         <span className="eyebrow">Pickup in about 15 minutes</span><h2>Finish your order</h2>
         <label><span>Name for the order</span><input required value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name" /></label>
