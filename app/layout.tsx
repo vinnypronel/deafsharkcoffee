@@ -22,12 +22,9 @@ export async function generateMetadata(): Promise<Metadata> {
     title,
     description,
     icons: {
-      icon: [
-        { url: "/favicon.ico", sizes: "64x64" },
-        { url: "/favicon-tab.png", type: "image/png", sizes: "512x512" },
-      ],
-      shortcut: "/favicon.ico",
-      apple: { url: "/favicon-tab.png", type: "image/png", sizes: "512x512" },
+      icon: { url: "/favicon.png", type: "image/png" },
+      shortcut: "/favicon.png",
+      apple: { url: "/favicon.png", type: "image/png" },
     },
     openGraph: {
       title,
@@ -42,6 +39,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
+      <head><link rel="icon" type="image/png" href="/favicon.png" /><link rel="apple-touch-icon" href="/favicon.png" /></head>
       <body className={geist.variable}><SmoothScrollProvider>{children}</SmoothScrollProvider></body>
     </html>
   );
