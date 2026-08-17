@@ -90,6 +90,15 @@ h1, h2, h3, p { margin-top: 0; }
 }
 .hero-copy { display: flex; flex-direction: column; justify-content: center; padding: 8vw 5vw 7vw max(5vw, calc((100vw - 1440px) / 2)); }
 .eyebrow { display: block; margin-bottom: 18px; color: var(--gold); font-size: 12px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; }
+.hero-copy > .eyebrow,
+.order-intro > .eyebrow,
+.menu-display > div:last-child > .eyebrow,
+.menu-heading .eyebrow,
+.origin-copy > .eyebrow,
+.visit-section > div:first-child > .eyebrow,
+.page-hero > div > .eyebrow,
+.origin-facts > div > .eyebrow,
+.contact-note > .eyebrow { display: none; }
 .hero h1 { max-width: 790px; margin-bottom: 26px; font-family: Georgia, serif; font-size: clamp(58px, 6.3vw, 106px); line-height: .94; letter-spacing: -.055em; }
 .hero h1 > span { display: block; }
 .hero h1 em { display: block; color: #dca86b; font-weight: 400; }
