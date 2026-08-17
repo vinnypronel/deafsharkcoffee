@@ -119,7 +119,7 @@ export function Dashboard() {
       </header>
 
       <section className="rush-bar">
-        <div><span>Pickup time</span><button onClick={() => setPrepTime(Math.max(5, prepTime - 5))}>−</button><strong>{prepTime} min</strong><button onClick={() => setPrepTime(prepTime + 5)}>+</button></div>
+        <div><span>Current customer wait time</span><button onClick={() => setPrepTime(Math.max(5, prepTime - 5))}>−</button><strong>{prepTime} min</strong><button onClick={() => setPrepTime(prepTime + 5)}>+</button></div>
         <div className="rush-summary"><span><strong>{newCount}</strong> new</span><span><strong>{orders.filter((order) => order.status === "preparing").length}</strong> preparing</span><span><strong>${todayTotal.toFixed(2)}</strong> demo sales</span></div>
         <button className={`pause-button ${paused ? "paused" : ""}`} onClick={() => setPaused(!paused)}>{paused ? "Resume online orders" : "Pause online orders"}</button>
       </section>
