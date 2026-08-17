@@ -506,7 +506,7 @@ footer > a { margin-top: 16px; color: #d7a25e; font-size: 12px; text-transform: 
   .order-status-trigger span::after { content: "Status"; font-size: 11px; }
   .header-order-popover { position: fixed; top: 76px; right: 10px; left: 10px; width: auto; }
   .header-order-popover::before { display: none; }
-  .mobile-site-nav { position: fixed; z-index: 55; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom)); left: 10px; display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid rgba(255,255,255,.1); border-radius: 18px; padding: 5px; background: rgba(25,13,9,.96); color: rgba(255,250,243,.62); box-shadow: 0 16px 45px rgba(20,11,8,.3); backdrop-filter: blur(18px); }
+  .mobile-site-nav { position: fixed; z-index: 55; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom)); left: 10px; display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid rgba(255,255,255,.1); border-radius: 18px; padding: 5px; background: rgba(25,13,9,.96); color: rgba(255,250,243,.62); box-shadow: 0 16px 45px rgba(20,11,8,.3); backdrop-filter: blur(18px); }
   .mobile-site-nav a { min-height: 48px; display: grid; place-items: center; border-radius: 13px; font-size: 11px; font-weight: 750; }
   .mobile-site-nav a.active { background: var(--gold); color: var(--deep); }
   .hero { min-height: auto; display: flex; flex-direction: column; }

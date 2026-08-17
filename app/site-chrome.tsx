@@ -31,7 +31,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
   const [reference, setReference] = useState<SavedOrder | null>(null);
   const [order, setOrder] = useState<HeaderOrder | null>(null);
   const [open, setOpen] = useState(false);
-  const links = [["/menu", "Menu"], ["/about", "About"], ["/contact", "Contact"]];
+  const links = [["/", "Home"], ["/menu", "Menu"], ["/about", "About"], ["/contact", "Contact"]];
   const loadReference = useCallback(() => setReference(latestSavedOrder()), []);
 
   useEffect(() => {
@@ -89,5 +89,5 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
 }
 
 export function SiteFooter() {
-  return <footer><BrandMark dark /><p>Premium Coffee Beans · Roasted in Union, NJ</p><div className="footer-links"><a href="/menu">Menu</a><a href="/about">About</a><a href="/contact">Contact</a></div><a href="/dashboard">Open demo dashboard</a></footer>;
+  return <footer><BrandMark dark /><p>Premium Coffee Beans · Roasted in Union, NJ</p><div className="footer-links"><a href="/">Home</a><a href="/menu">Menu</a><a href="/about">About</a><a href="/contact">Contact</a></div><a href="/dashboard">Open demo dashboard</a></footer>;
 }
