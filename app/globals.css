@@ -241,7 +241,7 @@ footer > a { margin-top: 16px; color: #d7a25e; font-size: 12px; text-transform: 
 .checkout-card > .primary-button { width: 100%; }
 .form-error { color: #a43d2e; font-size: 13px; }
 .confirmation-card { text-align: center; }
-.confirmation-card > img { width: 170px; height: 134px; object-fit: cover; object-position: right; border-radius: 28px; margin-bottom: 28px; mix-blend-mode: multiply; }
+.confirmation-card > img { display: block; width: 170px; height: 134px; object-fit: cover; object-position: right; border-radius: 28px; margin: 0 auto 28px; mix-blend-mode: multiply; }
 .confirmation-card p { color: var(--muted); line-height: 1.6; }
 .mobile-cart { position: fixed; z-index: 60; right: 14px; bottom: 14px; left: 14px; min-height: 58px; display: none; align-items: center; justify-content: space-between; border: 0; border-radius: 18px; padding: 0 18px; background: var(--teal); color: white; box-shadow: 0 15px 40px rgba(13,95,92,.35); cursor: pointer; transform: translateY(120%); transition: transform .25s ease; }
 .mobile-cart.visible { transform: translateY(0); }
