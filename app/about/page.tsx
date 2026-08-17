@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { CustomerHeader, SiteFooter } from "../site-chrome";
 
 export const metadata: Metadata = {
-  title: "About | Deaf Shark Coffee",
+  title: "Our Story | Deaf Shark Coffee",
   description: "Learn about Deaf Shark Coffee, El Salvador grown beans, and the coffee roasted in Union, New Jersey.",
 };
 

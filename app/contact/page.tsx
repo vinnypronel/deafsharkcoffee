@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { CustomerHeader, SiteFooter } from "../site-chrome";
 
 export const metadata: Metadata = {
-  title: "Contact and Visit | Deaf Shark Coffee",
+  title: "Visit Us | Deaf Shark Coffee",
   description: "Visit Deaf Shark Coffee at 900 Green Lane in Union, New Jersey, get directions, or call the shop.",
 };
 
