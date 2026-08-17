@@ -328,7 +328,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
 
       {!isMenuPage && <section className="visit-section" id="visit">
         <div><span className="eyebrow">Come visit</span><h2>Deaf Shark Coffee<br />Union, New Jersey</h2></div>
-        <div className="visit-card"><strong>900 Green Lane</strong><span>Union, NJ 07083</span><a href="https://maps.google.com/?q=900+Green+Lane+Union+NJ+07083">Get directions ↗</a></div>
+        <div className="visit-card"><strong>900 Green Lane</strong><span>Union, NJ 07083</span><a href="https://maps.google.com/?q=900+Green+Lane+Union+NJ+07083">Get directions</a></div>
         <div className="visit-card"><strong>(908) 481-8884</strong><span>Call ahead or stop in</span><a href="tel:+19084818884">Call the shop</a></div>
       </section>}
 
