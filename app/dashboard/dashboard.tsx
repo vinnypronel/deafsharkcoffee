@@ -43,9 +43,13 @@ const nextLabel: Record<string, string> = {
   ready: "Complete pickup",
 };
 
-function formatTime(value: string) {
+function formatDateTime(value: string) {
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "Just now" : date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  if (Number.isNaN(date.getTime())) return "Just now";
+
+  const calendarDate = date.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
+  const time = date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return `${calendarDate} · ${time}`;
 }
 
 export function Dashboard() {
@@ -158,7 +162,7 @@ export function Dashboard() {
 function OrderCard({ order, onAdvance, onCancel }: { order: Order; onAdvance: () => void; onCancel: () => void }) {
   return (
     <article className="order-card">
-      <div className="order-card-top"><div><span className={`source-badge source-${order.source}`}>{order.source === "website" ? "Website" : order.source}</span><strong>#{order.orderNumber.replace("DS", "")}</strong></div><time>{formatTime(order.createdAt)}</time></div>
+      <div className="order-card-top"><div><span className={`source-badge source-${order.source}`}>{order.source === "website" ? "Website" : order.source}</span><strong>#{order.orderNumber.replace("DS", "")}</strong></div><time dateTime={order.createdAt}>{formatDateTime(order.createdAt)}</time></div>
       <div className="customer-line"><strong>{order.customerName}</strong><span>Pickup · {order.pickupEta}</span></div>
       <div className="order-items">
         {order.items.map((item, index) => <div key={`${item.id}-${index}`}><b>{item.quantity}</b><span><strong>{item.name}</strong>{item.options && item.options.length > 0 && <small>{item.options.join(" · ")}</small>}</span></div>)}
@@ -169,4 +173,3 @@ function OrderCard({ order, onAdvance, onCancel }: { order: Order; onAdvance: ()
     </article>
   );
 }
-

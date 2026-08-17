@@ -460,7 +460,7 @@ footer > a:hover, footer > a:focus-visible { background-size: 100% 2px; }
 .order-card { border: 1px solid rgba(45,26,18,.1); border-radius: 16px; padding: 16px; background: white; box-shadow: 0 8px 28px rgba(45,26,18,.06); }
 .order-card-top, .customer-line, .payment-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .order-card-top > div { display: flex; align-items: center; gap: 8px; }
-.order-card-top time { color: var(--muted); font-size: 12px; }
+.order-card-top time { color: var(--muted); font-size: 12px; white-space: nowrap; }
 .source-badge { display: inline-flex; min-height: 24px; align-items: center; border-radius: 999px; padding: 0 8px; background: var(--teal); color: white; font-size: 10px; font-weight: 850; text-transform: uppercase; letter-spacing: .06em; }
 .customer-line { margin: 16px 0 12px; }
 .customer-line strong { font-size: 17px; }
