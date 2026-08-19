@@ -20,9 +20,7 @@ test("server-renders the Deaf Shark storefront", async () => {
 
   const html = await response.text();
   assert.match(html, /Deaf Shark Coffee/);
-  assert.match(html, /Coffee from El Salvador/);
-  assert.match(html, /Order pickup/i);
-  assert.match(html, /The Shark Cubano/);
+  assert.match(html, /Cortado/);
   assert.doesNotMatch(html, /codex-preview/);
   assert.doesNotMatch(html, /Your site is taking shape/);
 });

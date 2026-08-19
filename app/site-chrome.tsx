@@ -37,7 +37,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
   const [profileOpen, setProfileOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
-  const links = [["/", "Home"], ["/menu", "Menu"], ["/about", "Our Story"], ["/contact", "Visit Us"]];
+  const links = [["/", "Home"], ["/menu", "Menu"], ["/about", "Our Story"], ["/events", "Events"], ["/contact", "Visit Us"], ["/employment", "Employment"]];
   const loadReference = useCallback(() => setReference(latestSavedOrder()), []);
 
   useEffect(() => {
@@ -90,13 +90,23 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
   return (
     <>
       <header className="site-header">
-        <a href="/" aria-label="Deaf Shark Coffee home"><BrandMark /></a>
         <nav aria-label="Primary navigation">{links.map(([href, label]) => <a key={href} href={href} className={active === href ? "active" : ""}>{label}</a>)}</nav>
+        <a className="header-brand" href="/" aria-label="Deaf Shark Coffee home"><BrandMark /></a>
         <div className="header-action">
-          <button className="header-icon-button" onClick={() => { setOpen(false); setSearchOpen((current) => !current); }} aria-label="Search menu"><span className="search-glyph" /></button>
-          <button className="header-icon-button" onClick={openProfile} aria-label="Open profile"><span className="profile-glyph" /></button>
+          <button className="header-icon-button" onClick={() => { setOpen(false); setSearchOpen((current) => !current); }} aria-label="Search menu">
+            <svg className="header-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </button>
+          <button className="header-icon-button" onClick={openProfile} aria-label="Open profile">
+            <svg className="header-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+          </button>
           {reference && <button className={`order-status-trigger ${order?.status === "ready" ? "ready" : ""}`} onClick={() => setOpen((current) => !current)}><span>{order?.status === "ready" ? "Ready" : "Order status"}</span><i /></button>}
-          {action ?? <a className="header-order-link" href="/menu">Order pickup</a>}
+          {action ?? <a className="header-order-link" href="/menu">Order</a>}
           {searchOpen && (
             <section className="header-search-panel" aria-label="Search the menu">
               <div className="search-field"><span className="search-glyph" /><input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search coffee, breakfast, sandwiches..." /><button onClick={() => setSearchOpen(false)} aria-label="Close search">×</button></div>
@@ -130,5 +140,142 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
 }
 
 export function SiteFooter() {
-  return <footer><BrandMark dark /><p>Premium Coffee Beans · Roasted in Union, NJ</p><div className="footer-links"><a href="/">Home</a><a href="/menu">Menu</a><a href="/about">Our Story</a><a href="/contact">Visit Us</a></div><a href="/dashboard">Open demo dashboard</a></footer>;
+  const [email, setEmail] = useState("");
+  const [subscribed, setSubscribed] = useState(false);
+
+  function handleSubscribe(e: React.FormEvent) {
+    e.preventDefault();
+    if (email.trim()) {
+      setSubscribed(true);
+    }
+  }
+
+  return (
+    <footer className="site-footer">
+      <div className="footer-container">
+        {/* Top Newsletter / Club Section */}
+        <div className="footer-newsletter">
+          <div className="newsletter-copy">
+            <h2>Join the club.</h2>
+            <p>A free upgrade on your birthday, early access to new roasts, and invites to coffee tastings in Union.</p>
+          </div>
+          <div className="newsletter-form-wrap">
+            {subscribed ? (
+              <p className="newsletter-success">✓ You&#39;re in! We&#39;ll send your welcome perks soon.</p>
+            ) : (
+              <form className="newsletter-form" onSubmit={handleSubscribe}>
+                <label htmlFor="footer-email">E-MAIL</label>
+                <div className="newsletter-input-row">
+                  <input
+                    id="footer-email"
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                  />
+                  <button type="submit">Join <span>→</span></button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+
+        <div className="footer-divider" />
+
+        {/* 4-Column Navigation Section */}
+        <div className="footer-columns">
+          <div className="footer-col footer-col-brand">
+            <div className="footer-logo">
+              <img src="/favicon.png" alt="" />
+              <div>
+                <strong>DEAF SHARK</strong>
+                <small>COFFEE</small>
+              </div>
+            </div>
+            <p className="footer-tagline">One Farm. One Variety.<br />Roasted in Union, NJ.</p>
+            <div className="footer-socials">
+              <a
+                href="https://www.instagram.com/deafsharkcoffee/"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Deaf Shark on Instagram"
+                className="footer-social-icon"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+                  <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+                  <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+                </svg>
+              </a>
+              <a
+                href="http://facebook.com/p/Deaf-Shark-Fishing-and-Coffee-100087250954811/"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Deaf Shark on Facebook"
+                className="footer-social-icon"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                </svg>
+              </a>
+              <a
+                href="https://www.tiktok.com/@deafsharkcoffee"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Deaf Shark on TikTok"
+                className="footer-social-icon"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1.04-.1z"/>
+                </svg>
+              </a>
+            </div>
+          </div>
+
+          <div className="footer-col">
+            <h4>MENU</h4>
+            <ul>
+              <li><a href="/menu">Coffee Beans</a></li>
+              <li><a href="/menu">Cold Brew &amp; Iced</a></li>
+              <li><a href="/menu">Hot Classics</a></li>
+              <li><a href="/menu">Breakfast &amp; Sandwiches</a></li>
+              <li><a href="/menu">Bites &amp; Pastries</a></li>
+            </ul>
+          </div>
+
+          <div className="footer-col">
+            <h4>CLUB &amp; STORY</h4>
+            <ul>
+              <li><a href="/about">About Deaf Shark</a></li>
+              <li><a href="/about#farm">Finca Montevideo</a></li>
+              <li><a href="/events">Community Events</a></li>
+              <li><a href="/employment">Jobs &amp; Careers</a></li>
+              <li><a href="/orders">Order Status</a></li>
+            </ul>
+          </div>
+
+          <div className="footer-col">
+            <h4>SERVICE &amp; VISIT</h4>
+            <ul>
+              <li><a href="/contact">Location &amp; Hours</a></li>
+              <li><a href="/contact">Catering &amp; Inquiries</a></li>
+              <li><a href="/contact">Contact Us</a></li>
+              <li><a href="https://maps.google.com/?q=900+Green+Lane+Union+NJ+07083" target="_blank" rel="noopener noreferrer">Get Directions ↗</a></li>
+              <li><a href="tel:9084818884">(908) 481-8884</a></li>
+            </ul>
+          </div>
+        </div>
+
+        {/* Bottom Bar */}
+        <div className="footer-bottom">
+          <span>© {new Date().getFullYear()} Deaf Shark Coffee — Roasted in Union, New Jersey</span>
+          <div className="footer-legal">
+            <a href="/contact">Contact</a>
+            <a href="/dashboard">Staff Dashboard</a>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
 }

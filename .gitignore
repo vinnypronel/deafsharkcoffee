@@ -1,7 +1,5 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
-/node_modules
+# Dependencies
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -10,32 +8,67 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
-/coverage
+# AI Assistants & Agents
+.claude/
+.gemini/
+.agents/
 
-# next.js
-/.next/
-/.vinext/
-/out/
+# Build Outputs & Framework Caches
+.next/
+.vinext/
+dist/
+out/
+build/
+.vercel/
+.wrangler/
+/outputs/
+/work/
+/.codex-temp/
+*.tsbuildinfo
+tsconfig.tsbuildinfo
 
-# misc
-.DS_Store
+# Environment & Secret Files
+.env
+.env.*
+!.env.example
 *.pem
 
-# debug
+# Testing & Coverage
+coverage/
+.nyc_output/
+
+# Logs & Debugging
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# Python / Scripts Cache
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
 
-# vercel
-.vercel
+# Editor & OS Artifacts
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.sublime-project
+*.sublime-workspace
 
-/dist/
-/.wrangler/
-/outputs/
-/work/
-/.codex-temp/
+# Root Raw Uploads / Scratch Downloads
+/SaveClip*
+/Using_the_exact_cup_design*
