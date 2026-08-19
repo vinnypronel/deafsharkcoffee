@@ -357,26 +357,31 @@ h1, h2, h3, p { margin-top: 0; }
   right: clamp(24px, 3vw, 44px);
   bottom: clamp(18px, 3vh, 28px);
   left: clamp(24px, 3vw, 44px);
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: end;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
   gap: 12px;
   color: var(--ink);
 }
-.hero-product-caption span { grid-column: 1; font-size: 11px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
-.hero-product-caption strong {
-  grid-column: 1;
+.hero-product-text {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+.hero-product-text span {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+.hero-product-text strong {
   margin-top: 3px;
   font-family: Georgia, serif;
   font-size: clamp(20px, 1.85vw, 26px);
   white-space: nowrap;
   line-height: 1.15;
 }
-.hero-product-caption button {
-  grid-column: 2;
-  grid-row: 2;
-  align-self: center;
-  justify-self: start;
+.hero-product-caption .hero-add-btn {
   min-height: 44px;
   border: 0;
   border-radius: 6px;
@@ -391,27 +396,30 @@ h1, h2, h3, p { margin-top: 0; }
   justify-content: flex-start;
   white-space: nowrap;
   position: relative;
-  transition: transform 0.28s cubic-bezier(0.2, 0, 0, 1), background 0.25s ease, box-shadow 0.28s ease !important;
-  will-change: transform;
+  transition: background 0.25s ease, box-shadow 0.28s ease;
   box-shadow: 0 4px 14px rgba(45, 26, 18, 0.2);
+  flex-shrink: 0;
 }
-.hero-product-caption button .btn-cart-glyph {
+.hero-product-caption .hero-add-btn > span {
+  flex-shrink: 0;
+  display: inline-block;
+}
+.hero-product-caption .hero-add-btn .btn-cart-glyph {
   width: 0;
   height: 15px;
   opacity: 0;
   margin-left: 0;
-  transform: translateX(-6px) scale(0.7);
+  transform: translateX(-4px) scale(0.7);
   transition: width 0.28s cubic-bezier(0.2, 0, 0, 1), opacity 0.22s ease, margin-left 0.28s cubic-bezier(0.2, 0, 0, 1), transform 0.28s cubic-bezier(0.2, 0, 0, 1);
   overflow: hidden;
   flex-shrink: 0;
   display: block;
 }
-.hero-product-caption button:hover {
+.hero-product-caption .hero-add-btn:hover {
   background: var(--ink);
-  transform: translate(3px, -3px) !important;
-  box-shadow: -4px 6px 20px rgba(45, 26, 18, 0.35);
+  box-shadow: 0 6px 20px rgba(45, 26, 18, 0.35);
 }
-.hero-product-caption button:hover .btn-cart-glyph {
+.hero-product-caption .hero-add-btn:hover .btn-cart-glyph {
   width: 16px;
   opacity: 1;
   margin-left: 8px;

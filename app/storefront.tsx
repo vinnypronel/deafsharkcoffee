@@ -360,8 +360,10 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
             <ProductVisual product={heroProduct} />
           )}
           <div className="hero-product-caption">
-            <span>{heroProduct.category}</span>
-            <strong>{heroProduct.name}</strong>
+            <div className="hero-product-text">
+              <span>{heroProduct.category}</span>
+              <strong>{heroProduct.name}</strong>
+            </div>
             <button className="hero-add-btn" onClick={() => openProduct(heroProduct)}>
               <span>Add to cart · {money(heroProduct.price)}</span>
               <svg className="btn-cart-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
