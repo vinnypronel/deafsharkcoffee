@@ -41,9 +41,6 @@ export default function AboutPage() {
         <div>
           <span className="eyebrow">Featured coffee</span>
           <h2>A cup with a place behind it.</h2>
-          <div className="origin-flag-wrap">
-            <img src="/el-salvador-flag.jpg" alt="Flag of El Salvador" className="origin-flag-img" />
-          </div>
         </div>
         <dl>
           <div><dt>Country</dt><dd>El Salvador</dd></div>

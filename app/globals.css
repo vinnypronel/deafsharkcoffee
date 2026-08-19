@@ -1239,15 +1239,35 @@ h1, h2, h3, p { margin-top: 0; }
 .story-grid h2 { margin: 0 0 16px; font-family: Georgia, serif; font-size: clamp(28px, 2.6vw, 42px); line-height: 1.08; color: var(--paper); }
 .story-grid p { margin: 0; color: rgba(255, 250, 243, 0.72); font-size: 15px; line-height: 1.65; }
 .contact-number { color: var(--gold); font-size: 12px; font-weight: 800; letter-spacing: .16em; }
-.contact-grid h2, .contact-note h2, .origin-facts h2 { margin: 55px 0 20px; font-family: Georgia, serif; font-size: clamp(34px, 3vw, 50px); line-height: 1; }
-.origin-facts { display: grid; grid-template-columns: 1.1fr 1fr; gap: 8vw; padding: 100px max(5vw, calc((100vw - 1440px) / 2)); background: var(--orange); align-items: center; }
-.origin-facts h2 { max-width: 600px; margin-top: 0; font-size: clamp(44px, 4.7vw, 76px); }
-.origin-flag-wrap { margin-top: 24px; margin-left: 360px; max-width: 360px; border-radius: 16px; overflow: hidden; box-shadow: 0 14px 35px rgba(45, 26, 18, 0.22); border: 0; }
-.origin-flag-img { width: 100%; height: auto; display: block; object-fit: cover; }
-.origin-facts dl { margin: 0; border-top: 2px solid rgba(33,19,14,.3); }
-.origin-facts dl div { display: flex; justify-content: space-between; align-items: baseline; padding: 28px 0; border-bottom: 2px solid rgba(33,19,14,.3); }
-.origin-facts dt { font-size: 15px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; color: rgba(33,19,14,0.75); }
-.origin-facts dd { margin: 0; font-size: clamp(24px, 2.3vw, 34px); font-family: Georgia, serif; font-weight: 700; color: var(--deep); }
+.origin-facts {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5vw;
+  padding: 64px max(5vw, calc((100vw - 1440px) / 2));
+  background: #f2e3d5;
+  color: var(--deep);
+  align-items: center;
+  overflow: hidden;
+}
+.origin-facts::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background: url("/el-salvador-flag.jpg") center / cover no-repeat;
+  opacity: .36;
+  filter: grayscale(0.2);
+  mix-blend-mode: multiply;
+}
+.origin-facts > * { position: relative; z-index: 1; }
+.origin-facts h2 { max-width: 500px; margin-top: 0; font-size: clamp(32px, 3.4vw, 48px); line-height: 1.12; }
+.origin-facts dl { margin: 0; border-top: 1px solid rgba(33,19,14,.2); }
+.origin-facts dl div { display: flex; justify-content: space-between; align-items: baseline; padding: 16px 0; border-bottom: 1px solid rgba(33,19,14,.2); }
+.origin-facts dt { font-size: 11px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; color: rgba(33,19,14,0.75); }
+.origin-facts dd { margin: 0; font-size: clamp(18px, 1.9vw, 24px); font-family: Georgia, serif; font-weight: 700; color: var(--deep); }
 .contact-hero { background: #be8e5d; color: var(--deep); }
 .contact-hero .eyebrow { color: #5c321c; }
 .contact-hero p { color: rgba(33,19,14,.72); }
@@ -1732,9 +1752,8 @@ h1, h2, h3, p { margin-top: 0; }
   .story-grid article { min-height: auto; border-bottom: 1px solid rgba(255, 250, 243, 0.08); border-right: 0; padding: 48px 24px; }
   .story-grid article:last-child { border-bottom: 0; }
   .story-grid h2 { margin-top: 0; }
-  .origin-facts { display: block; padding: 75px 22px; }
-  .origin-flag-wrap { margin-left: 0; }
-  .origin-facts dl { margin-top: 40px; }
+  .origin-facts { display: block; padding: 48px 20px; }
+  .origin-facts dl { margin-top: 24px; }
   .contact-stamp { width: min(84vw, 420px); }
   .contact-grid { display: block; }
   .contact-grid article { min-height: 360px; padding: 54px 24px; }
