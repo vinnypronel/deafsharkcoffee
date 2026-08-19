@@ -275,12 +275,12 @@ h1, h2, h3, p { margin-top: 0; }
 .hero-product .product-visual { width: min(88%, 380px); height: min(44vh, 380px); margin-top: -36px; }
 .hero-featured-video-wrap {
   position: relative;
-  width: min(92%, 365px);
-  height: min(52vh, 420px);
-  aspect-ratio: 0.85;
+  width: min(92%, 360px);
+  height: min(58vh, 455px);
+  aspect-ratio: 0.78;
   border-radius: 26px;
   overflow: hidden;
-  margin-top: -12px;
+  margin-top: -8px;
   box-shadow: 0 28px 50px rgba(50, 25, 15, 0.32);
   background: #2a160d;
 }
@@ -302,28 +302,28 @@ h1, h2, h3, p { margin-top: 0; }
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: 3;
-  width: 60px;
-  height: 60px;
+  width: 46px;
+  height: 46px;
   border-radius: 50%;
   background: rgba(26, 14, 8, 0.72);
   backdrop-filter: blur(8px);
-  border: 2px solid rgba(255, 250, 243, 0.5);
+  border: 1.5px solid rgba(255, 250, 243, 0.5);
   color: var(--gold);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1), background 0.2s ease, border-color 0.2s ease;
 }
 .hero-video-play-btn svg {
-  margin-left: 3px;
+  margin-left: 2px;
 }
 .hero-video-play-btn:hover {
   background: var(--espresso);
   border-color: var(--gold);
   transform: translate(-50%, -50%) scale(1.12);
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55);
   color: #fffaf3;
 }
 .hero-product .product-photo,

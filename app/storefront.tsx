@@ -351,7 +351,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
                 aria-label={`Play ${heroProduct.name} video with sound`}
                 title="Play video with sound"
               >
-                <svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true">
                   <path d="M8 5v14l11-7z" />
                 </svg>
               </button>
