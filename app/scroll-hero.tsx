@@ -175,9 +175,9 @@ export default function ScrollHero({
       if (dx > 0 && gapB > 0) mirror(0, sh - srcB, srcL, srcB, 0, dy + dh, dx, gapB, true, true);
       ctx.drawImage(source, dx, dy, dw, dh);
 
-      /* Cover the extra mirrored arm and bracelets on the right half of the bottom gap */
+      /* Cover the extra mirrored arm and bracelets on the rightmost quarter of the bottom gap */
       if (gapB > 0) {
-        const armStartX = Math.max(0, dx + dw * 0.50);
+        const armStartX = Math.max(0, dx + dw * 0.75);
         const armW = cw - armStartX;
         if (armW > 0) {
           const grad = ctx.createLinearGradient(armStartX, dy + dh, cw, dy + dh);
