@@ -76,6 +76,8 @@ export function Dashboard() {
       if (menuResponse.ok) {
         const data = await menuResponse.json();
         setAvailability(data.availability ?? {});
+        if (typeof data.prepTime === "number") setPrepTime(data.prepTime);
+        if (typeof data.paused === "boolean") setPaused(data.paused);
       }
     } catch {
       setConnection("waiting");
@@ -104,24 +106,44 @@ export function Dashboard() {
     loadData();
   }
 
+  async function setItemAvailability(productId: string, isAvailable: boolean) {
+    setAvailability((current) => ({ ...current, [productId]: isAvailable }));
+    await fetch("/api/menu-state", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ productId, available: isAvailable }),
+    });
+  }
+
   async function toggleAvailability(productId: string) {
     const available = availability[productId] !== false;
-    setAvailability((current) => ({ ...current, [productId]: !available }));
-    await fetch("/api/menu-state", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ productId, available: !available }) });
+    setItemAvailability(productId, !available);
+  }
+
+  async function changePrepTime(newTime: number) {
+    const valid = Math.max(5, newTime);
+    setPrepTime(valid);
+    await fetch("/api/menu-state", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prepTime: valid }) });
+  }
+
+  async function togglePaused() {
+    const next = !paused;
+    setPaused(next);
+    await fetch("/api/menu-state", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paused: next }) });
   }
 
   return (
     <main className="dashboard-page">
       <header className="dashboard-header">
-        <a className="dashboard-brand" href="/"><img src="/favicon.png" alt="" /><span><strong>Deaf Shark</strong><small>Counter dashboard</small></span></a>
+        <a className="dashboard-brand" href="/"><img src="/favicon.png" alt="" /><span><strong>Deaf Shark Coffee</strong></span></a>
         <div className="dashboard-tabs"><button className={activeView === "orders" ? "active" : ""} onClick={() => setActiveView("orders")}>Orders <span>{openOrders.length}</span></button><button className={activeView === "menu" ? "active" : ""} onClick={() => setActiveView("menu")}>Menu controls</button></div>
         <div className={`connection-status ${connection}`}><i />{connection === "live" ? "Live" : "Connecting"}</div>
       </header>
 
       <section className="rush-bar">
-        <div><span>Current customer wait time</span><button onClick={() => setPrepTime(Math.max(5, prepTime - 5))}>−</button><strong>{prepTime} min</strong><button onClick={() => setPrepTime(prepTime + 5)}>+</button></div>
+        <div><span>Current customer wait time</span><button onClick={() => changePrepTime(prepTime - 5)}>−</button><strong>{prepTime} min</strong><button onClick={() => changePrepTime(prepTime + 5)}>+</button></div>
         <div className="rush-summary"><span><strong>{newCount}</strong> new</span><span><strong>{orders.filter((order) => order.status === "preparing").length}</strong> preparing</span><span><strong>${todayTotal.toFixed(2)}</strong> demo sales</span></div>
-        <button className={`pause-button ${paused ? "paused" : ""}`} onClick={() => setPaused(!paused)}>{paused ? "Resume online orders" : "Pause online orders"}</button>
+        <button className={`pause-button ${paused ? "paused" : ""}`} onClick={togglePaused}>{paused ? "Resume online orders" : "Pause online orders"}</button>
       </section>
 
       {activeView === "orders" ? (
@@ -146,11 +168,37 @@ export function Dashboard() {
         </section>
       ) : (
         <section className="menu-control-area">
-          <div className="menu-control-heading"><div><span className="eyebrow">Live menu controls</span><h1>What is available right now?</h1><p>Changes appear on the customer menu within a few seconds.</p></div><span>{menuProducts.filter((product) => availability[product.id] === false).length} sold out</span></div>
+          <div className="menu-control-heading"><div><h1>What is available right now?</h1><p>Changes appear on the customer menu within a few seconds.</p></div><span>{menuProducts.filter((product) => availability[product.id] === false).length} sold out</span></div>
           <div className="availability-grid">
             {menuProducts.map((product) => {
               const available = availability[product.id] !== false;
-              return <button key={product.id} className={available ? "available" : "unavailable"} onClick={() => toggleAvailability(product.id)}><span><small>{product.category}</small><strong>{product.name}</strong><i>${product.price.toFixed(2)}</i></span><b>{available ? "Available" : "Sold out"}</b></button>;
+              return (
+                <div key={product.id} className={`availability-card ${available ? "is-available" : "is-sold-out"}`}>
+                  <div className="avail-info">
+                    <small>{product.category}</small>
+                    <strong>{product.name}</strong>
+                    <i>${product.price.toFixed(2)}</i>
+                  </div>
+                  <div className="avail-actions">
+                    <button
+                      type="button"
+                      className={`avail-btn btn-available ${available ? "active" : ""}`}
+                      onClick={() => setItemAvailability(product.id, true)}
+                      aria-pressed={available}
+                    >
+                      Available
+                    </button>
+                    <button
+                      type="button"
+                      className={`avail-btn btn-soldout ${!available ? "active" : ""}`}
+                      onClick={() => setItemAvailability(product.id, false)}
+                      aria-pressed={!available}
+                    >
+                      Sold Out
+                    </button>
+                  </div>
+                </div>
+              );
             })}
           </div>
         </section>

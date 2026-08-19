@@ -10,19 +10,36 @@ type ScrollHeroProps = {
   children?: React.ReactNode;
 };
 
-/*
-  Scroll-bound video rendered to a <canvas>.
+// Module-level cached media elements so navigating back to the home page is instantaneous
+let cachedVideo: HTMLVideoElement | null = null;
+let cachedPoster: HTMLImageElement | null = null;
 
-  A hidden <video> element drives the timing while a <canvas> displays
-  each frame. This avoids exposing a <video> tag in the visible DOM,
-  which prevents browser extensions from overlaying controls on it.
+function getSharedVideo(src: string): HTMLVideoElement | null {
+  if (typeof document === "undefined") return null;
+  if (!cachedVideo) {
+    cachedVideo = document.createElement("video");
+    cachedVideo.src = src;
+    cachedVideo.muted = true;
+    cachedVideo.playsInline = true;
+    cachedVideo.preload = "auto";
+    cachedVideo.crossOrigin = "anonymous";
+    cachedVideo.load();
+  } else if (!cachedVideo.src.endsWith(src) && cachedVideo.src !== src) {
+    cachedVideo.src = src;
+    cachedVideo.load();
+  }
+  return cachedVideo;
+}
 
-  The page runs Lenis smooth scrolling, which writes its interpolated position back
-  to window.scrollY, so reading scrollY inside a rAF loop already gives the eased
-  value. That is why the scroll listener is a loop rather than a scroll event: the
-  loop samples once per frame, in sync with the compositor, instead of firing many
-  times per frame and fighting the browser for seek work.
-*/
+function getSharedPoster(poster: string): HTMLImageElement | null {
+  if (typeof document === "undefined") return null;
+  if (!cachedPoster || (!cachedPoster.src.endsWith(poster) && cachedPoster.src !== poster)) {
+    cachedPoster = new Image();
+    cachedPoster.src = poster;
+  }
+  return cachedPoster;
+}
+
 export default function ScrollHero({
   src = "/hero-scrub.mp4",
   poster = "/hero-scrub-poster.jpg",
@@ -42,13 +59,9 @@ export default function ScrollHero({
 
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    // Create video element off-DOM so extensions cannot detect it
-    const video = document.createElement("video");
-    video.src = src;
-    video.muted = true;
-    video.playsInline = true;
-    video.preload = "auto";
-    video.crossOrigin = "anonymous";
+    // Use cached video off-DOM so browser keeps decode cache and extensions cannot detect it
+    const video = getSharedVideo(src);
+    if (!video) return;
     videoRef.current = video;
 
     const ctx = canvas.getContext("2d");
@@ -60,15 +73,8 @@ export default function ScrollHero({
     let seeking = false;
     let posterDrawn = false;
 
-    // Draw the poster image as the initial frame
-    const posterImg = new Image();
-    posterImg.src = poster;
-    posterImg.onload = () => {
-      if (!posterDrawn) {
-        drawSource(posterImg, posterImg.naturalWidth, posterImg.naturalHeight);
-        posterDrawn = true;
-      }
-    };
+    const posterImg = getSharedPoster(poster) || new Image();
+    if (!posterImg.src) posterImg.src = poster;
 
     const resizeCanvas = () => {
       const rect = pin.getBoundingClientRect();
@@ -81,20 +87,6 @@ export default function ScrollHero({
       }
     };
 
-    /*
-      Cover-fit with a focal point, done here rather than with a CSS transform.
-
-      A CSS scale below 1 shrinks the element and exposes the panel background as
-      bands down the sides. Drawing the frame ourselves cannot do that: the source
-      is always scaled to at least fill the canvas, and panning only changes WHICH
-      part of the frame is shown, never whether it fills.
-
-        scale = max(cw / vw, ch / vh) * zoom     zoom >= 1, so it always covers
-        dx    = (cw - vw * scale) * focusX       focusX 0 hugs the left edge,
-        dy    = (ch - vh * scale) * focusY       1 hugs the right edge
-
-      Both slack terms are negative or zero, so there is no way to leave a gap.
-    */
     const readVar = (name: string, fallback: number) => {
       const v = parseFloat(getComputedStyle(canvas).getPropertyValue(name));
       return Number.isFinite(v) ? v : fallback;
@@ -105,16 +97,10 @@ export default function ScrollHero({
       resizeCanvas();
       const cw = canvas.width;
       const ch = canvas.height;
+      if (!cw || !ch) return;
       const zoom = Math.min(Math.max(readVar("--hero-zoom", 1), 0.2), 2);
       const focusX = Math.min(Math.max(readVar("--hero-focus-x", 0.5), 0), 1);
       const focusY = Math.min(Math.max(readVar("--hero-focus-y", 0.5), 0), 1);
-      /*
-        --hero-fit blends the base scale between contain (0) and cover (1).
-        Contain suits the wide desktop panel, where leaving espresso around the frame
-        is the point. On a tall narrow phone panel the two aspects diverge so far that
-        contain would shrink the video to a stamp with huge empty bands, so mobile
-        switches to cover and crops instead.
-      */
       const fit = Math.min(Math.max(readVar("--hero-fit", 0), 0), 1);
       const contain = Math.min(cw / sw, ch / sh);
       const cover = Math.max(cw / sw, ch / sh);
@@ -128,23 +114,9 @@ export default function ScrollHero({
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "high";
 
-      /*
-        Fill the surround by mirroring the frame outward across each edge.
-
-        A flat colour cannot blend, because the footage is vignetted: its backdrop is
-        lighter toward the centre and darker at the corners, so any single brown leaves
-        a seam somewhere. Stretching the outermost strip fixes the colour but smears
-        bright detail into streaks, which was visible along the top where the droplets
-        are. Mirroring reflects real image content back across the boundary, so the
-        pixels either side of every seam are identical by construction and the result
-        stays organic. Measured seam difference is 0.00 on all four edges.
-
-        All of this is skipped when the frame covers the panel, since the gaps are zero.
-      */
       const gapR = cw - (dx + dw);
       const gapB = ch - (dy + dh);
 
-      /* reflect a source region into place, flipping across the shared edge */
       const mirror = (
         sxS: number, syS: number, swS: number, shS: number,
         dxD: number, dyD: number, dwD: number, dhD: number,
@@ -158,7 +130,6 @@ export default function ScrollHero({
         ctx.restore();
       };
 
-      /* band depths expressed back in source pixels, clamped to the frame */
       const srcL = Math.min(sw, dx / scale);
       const srcR = Math.min(sw, gapR / scale);
       const srcT = Math.min(sh, dy / scale);
@@ -169,32 +140,51 @@ export default function ScrollHero({
       if (dy > 0) mirror(0, 0, sw, srcT, dx, 0, dw, dy, false, true);
       if (gapB > 0) mirror(0, sh - srcB, sw, srcB, dx, dy + dh, dw, gapB, false, true);
 
-      /* corners reflect across both axes at once */
       if (dx > 0 && dy > 0) mirror(0, 0, srcL, srcT, 0, 0, dx, dy, true, true);
       if (gapR > 0 && dy > 0) mirror(sw - srcR, 0, srcR, srcT, dx + dw, 0, gapR, dy, true, true);
       if (dx > 0 && gapB > 0) mirror(0, sh - srcB, srcL, srcB, 0, dy + dh, dx, gapB, true, true);
       ctx.drawImage(source, dx, dy, dw, dh);
 
-      /* Seamlessly cover the extra mirrored arm on the right side of the bottom gap */
       if (gapB > 0) {
-        const armStartX = Math.max(0, dx + dw * 0.52);
+        const armStartX = Math.max(0, dx + dw * 0.65);
         const armW = cw - armStartX;
         if (armW > 0) {
           const topY = Math.floor(dy + dh) - 1;
           const botH = ch - topY + 2;
           const grad = ctx.createLinearGradient(armStartX, topY, cw, topY);
           grad.addColorStop(0, "rgba(36, 21, 13, 0)");
-          grad.addColorStop(0.28, "rgba(38, 23, 14, 0.7)");
-          grad.addColorStop(0.55, "rgba(46, 28, 18, 0.98)");
-          grad.addColorStop(0.8, "rgba(65, 42, 28, 1)");
-          grad.addColorStop(1, "rgba(92, 62, 42, 1)");
+          grad.addColorStop(0.18, "rgba(36, 21, 13, 0.4)");
+          grad.addColorStop(0.42, "rgba(36, 21, 13, 0.95)");
+          grad.addColorStop(0.65, "rgba(36, 21, 13, 1)");
+          grad.addColorStop(1, "rgba(36, 21, 13, 1)");
           ctx.fillStyle = grad;
           ctx.fillRect(armStartX, topY, armW, botH);
         }
       }
     };
 
-    const drawFrame = () => drawSource(video, video.videoWidth, video.videoHeight);
+    const drawFrame = () => {
+      if (video.readyState >= 2 && video.videoWidth > 0) {
+        drawSource(video, video.videoWidth, video.videoHeight);
+      } else if (posterImg.complete && posterImg.naturalWidth > 0) {
+        drawSource(posterImg, posterImg.naturalWidth, posterImg.naturalHeight);
+      }
+    };
+
+    // Draw synchronously on mount if poster or video frame is ready in cache
+    if (video.readyState >= 2 && video.videoWidth > 0) {
+      drawFrame();
+    } else if (posterImg.complete && posterImg.naturalWidth > 0) {
+      drawSource(posterImg, posterImg.naturalWidth, posterImg.naturalHeight);
+      posterDrawn = true;
+    } else {
+      posterImg.onload = () => {
+        if (!posterDrawn) {
+          drawSource(posterImg, posterImg.naturalWidth, posterImg.naturalHeight);
+          posterDrawn = true;
+        }
+      };
+    }
 
     const readDuration = () => {
       duration = Number.isFinite(video.duration) ? video.duration : 0;
@@ -202,11 +192,6 @@ export default function ScrollHero({
     readDuration();
     video.addEventListener("loadedmetadata", readDuration);
 
-    /*
-      Nothing else paints the first frame: the loop only issues seeks, and frames are
-      drawn on seeked. Without this the canvas stays an empty 0x0 bitmap until the
-      first scroll, so the hero shows bare panel background on load.
-    */
     const onLoadedData = () => drawFrame();
     video.addEventListener("loadeddata", onLoadedData);
     if (video.readyState >= 2) drawFrame();
@@ -215,28 +200,20 @@ export default function ScrollHero({
 
     const tick = () => {
       frame = requestAnimationFrame(tick);
-      if (!duration) return;
+      if (!duration) {
+        readDuration();
+        return;
+      }
 
       const rect = wrap.getBoundingClientRect();
       const pinRect = pin.getBoundingClientRect();
 
-      /*
-        Keep the bitmap matched to the panel.
-
-        The canvas has a fixed pixel buffer, so if the panel resizes and the buffer is
-        not rebuilt, CSS stretches the old bitmap to the new box and the whole hero is
-        distorted. A window resize listener misses cases where the panel changes on its
-        own, and a ResizeObserver is the usual answer but cannot be relied on alone.
-        The loop already measures the panel every frame, so comparing two numbers here
-        costs nothing and covers every case.
-      */
       const dprNow = Math.min(window.devicePixelRatio || 1, 2);
       const wantW = Math.round(pinRect.width * dprNow);
       const wantH = Math.round(pinRect.height * dprNow);
       if (wantW > 0 && wantH > 0 && (canvas.width !== wantW || canvas.height !== wantH)) {
         resizeCanvas();
-        if (video.readyState >= 2) drawFrame();
-        else if (posterDrawn) drawSource(posterImg, posterImg.naturalWidth, posterImg.naturalHeight);
+        drawFrame();
       }
       const pinTop = parseFloat(getComputedStyle(pin).top) || 0;
 
@@ -268,8 +245,7 @@ export default function ScrollHero({
 
     const handleResize = () => {
       resizeCanvas();
-      if (video.readyState >= 2) drawFrame();
-      else if (posterDrawn) drawSource(posterImg, posterImg.naturalWidth, posterImg.naturalHeight);
+      drawFrame();
     };
     window.addEventListener("resize", handleResize);
 
@@ -281,12 +257,11 @@ export default function ScrollHero({
       video.removeEventListener("loadedmetadata", readDuration);
       video.removeEventListener("loadeddata", onLoadedData);
       video.removeEventListener("seeked", onSeeked);
-      video.pause();
-      video.src = "";
+      video.removeEventListener("error", () => {});
       window.removeEventListener("resize", handleResize);
       observer.disconnect();
     };
-  }, []);
+  }, [src, poster]);
 
   return (
     <div

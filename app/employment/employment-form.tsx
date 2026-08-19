@@ -115,10 +115,9 @@ export default function EmploymentForm() {
   }
 
   return (
-    <section className="emp-form-section" aria-labelledby="emp-form-heading">
+    <section className="emp-form-section" id="apply" aria-labelledby="emp-form-heading">
       <div className="emp-form-intro">
-        <span className="emp-eyebrow">Application</span>
-        <h2 id="emp-form-heading">Tell us about you.</h2>
+        <h2 id="emp-form-heading">Apply now.</h2>
         <p>Fields marked required need an answer before the form will continue. Everything else is optional.</p>
       </div>
 

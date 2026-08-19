@@ -1,6 +1,7 @@
 import "./events.css";
 import type { Metadata } from "next";
 import { CustomerHeader, SiteFooter } from "../site-chrome";
+import { EventVideos } from "./event-videos";
 
 export const metadata: Metadata = {
   title: "Events | Deaf Shark Coffee",
@@ -81,23 +82,7 @@ export default function EventsPage() {
             <p>The Mayor of Union stopped in during the evening and spoke with the neighbors, business owners, and families who filled the room. Press play to watch the moment.</p>
             <p className="ev-note">Mayor Patricia Guerra-Frazier, Township of Union.</p>
           </div>
-          <div className="ev-films">
-            <figure className="ev-mayor-film">
-              {/* No caption track exists for this clip yet. Add a VTT file and a track element once one is produced. */}
-              {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-              <video controls playsInline preload="metadata" aria-label="Video of the Mayor of Union speaking at Deaf Shark Coffee">
-                <source src="/events/mayor-visit.mp4" type="video/mp4" />
-              </video>
-              <figcaption>The Mayor of Union at Deaf Shark Coffee, 900 Green Lane. Video has sound.</figcaption>
-            </figure>
-            <figure className="ev-mayor-film">
-              {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-              <video controls playsInline preload="metadata" aria-label="Video from the Salsa and Networking night at Deaf Shark Coffee">
-                <source src="/events/salsa-night.mp4" type="video/mp4" />
-              </video>
-              <figcaption>Salsa and Networking night on the pavilion. Video has sound.</figcaption>
-            </figure>
-          </div>
+          <EventVideos />
         </div>
       </section>
 

@@ -25,7 +25,7 @@ export function ensureSchema() {
           updated_at integer NOT NULL
         )`),
         d1.prepare(`CREATE TABLE IF NOT EXISTS orders (
-          id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+          id integer PRIMARY KEY AUTOINCREMENT,
           order_number text NOT NULL UNIQUE,
           customer_name text NOT NULL,
           phone text NOT NULL,
@@ -50,6 +50,13 @@ export function ensureSchema() {
         )`),
         d1.prepare("CREATE INDEX IF NOT EXISTS idx_orders_status_created_at ON orders (status, created_at)"),
       ]);
+
+      try {
+        await d1.prepare("ALTER TABLE orders ADD COLUMN customer_user_id text").run();
+      } catch {
+        // column already exists
+      }
+
       await d1.prepare("PRAGMA optimize").run();
     })();
   }

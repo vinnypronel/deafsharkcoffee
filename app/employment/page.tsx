@@ -14,12 +14,44 @@ export default function EmploymentPage() {
       <CustomerHeader active="/employment" />
       <section className="page-hero emp-hero">
         <div>
-          <span className="emp-eyebrow">Work with us</span>
           <h1>Join the counter in Union.</h1>
           <p>Deaf Shark Coffee is a veteran-owned neighborhood shop. Our coffee comes from El Salvador and is roasted right here in Union, then served across the counter to the people who live and work nearby. If that is the kind of place you want to spend your shifts, tell us about yourself.</p>
         </div>
         <div className="emp-hero-mark">
           <img src="/deafshark-logo.png" alt="Deaf Shark Coffee logo" />
+        </div>
+      </section>
+
+      {/* Featured We're Hiring Announcement Card */}
+      <section className="emp-flyer-section" aria-label="We're Hiring Announcement">
+        <div className="emp-flyer-card">
+          <div className="emp-flyer-media">
+            <img
+              src="/hiring-flyer.png"
+              alt="Deaf Shark Coffee - We're Hiring! Experienced Barista Wanted"
+              className="emp-flyer-img"
+            />
+          </div>
+          <div className="emp-flyer-copy">
+            <span className="emp-eyebrow">Now Hiring</span>
+            <h2>Experienced Barista Wanted</h2>
+            <p className="emp-flyer-lead">
+              Deaf Shark Coffee is seeking an experienced barista who wants to be part of creating a unique coffee experience — from helping curate the menu to shaping the customer experience and growing the brand with us.
+            </p>
+            <div className="emp-flyer-looking-for">
+              <h3>Come join the family. We are looking for someone who:</h3>
+              <ul className="emp-flyer-list">
+                <li>Has real barista experience</li>
+                <li>Understands quality, workflow, and presentation</li>
+                <li>Wants creative input on drinks & menu development</li>
+                <li>Brings positive energy and leadership</li>
+                <li>Wants to grow with a serious new brand</li>
+              </ul>
+            </div>
+            <div className="emp-flyer-actions">
+              <a href="#apply" className="primary-button emp-flyer-btn">Apply below</a>
+            </div>
+          </div>
         </div>
       </section>
 

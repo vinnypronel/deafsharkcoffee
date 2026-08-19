@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ScrollHero from "./scroll-hero";
 import { categories, featuredProducts, menuProducts, type MenuCategory, type Product } from "./menu-data";
 import { CustomerHeader, SiteFooter } from "./site-chrome";
@@ -18,13 +18,20 @@ type CartItem = {
 type Configuration = {
   temperature: "Hot" | "Iced";
   size: "Regular" | "Large";
-  milk: "Whole" | "Oat" | "Almond";
+  milk: "None" | "Whole" | "Oat" | "Almond";
   extraShot: number;
+  syrups: SyrupFlavor[];
   notes: string;
   quantity: number;
 };
 
+const SYRUP_OPTIONS = ["Coconut", "Hazelnut", "Caramel", "Salted Caramel", "French Vanilla"] as const;
+type SyrupFlavor = (typeof SYRUP_OPTIONS)[number];
+
 const MAX_SHOTS = 5;
+
+const DRINK_CATEGORIES: MenuCategory[] = ["Coffee", "Non-Coffee"];
+const categoryId = (category: string) => "menu-cat-" + category.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
 const money = (value: number) => `$${value.toFixed(2)}`;
 
@@ -88,28 +95,51 @@ function ProductConfigurator({
   onClose: () => void;
   onAdd: (item: CartItem) => void;
 }) {
+  const isDrink = product.category === "Coffee" || product.category === "Non-Coffee";
+  const hasMilkOptions = isDrink && !["chicha", "malta", "san-pellegrino"].includes(product.id);
+  const hasTempOptions = isDrink;
+  const hasSyrupOptions = isDrink;
+  const hasShotOptions = product.category === "Coffee" || ["matcha-latte", "strawberry-matcha"].includes(product.id);
+
+  const defaultMilk: Configuration["milk"] = ["americano", "drip-coffee", "espresso", "cold-brew", "chicha", "malta", "san-pellegrino"].includes(product.id) ? "None" : "Whole";
   const [config, setConfig] = useState<Configuration>({
-    temperature: "Hot",
+    temperature: "Iced",
     size: "Regular",
-    milk: "Whole",
+    milk: defaultMilk,
     extraShot: 0,
+    syrups: [],
     notes: "",
     quantity: 1,
   });
 
-  const isCoffee = product.category === "Coffee";
   const hasTwoSizes = ["shark-cubano", "chicken-sandwich", "emilia"].includes(product.id);
   const unitPrice =
     product.price +
     (hasTwoSizes && config.size === "Large" ? 6 : 0) +
-    (isCoffee && config.milk !== "Whole" ? 0.75 : 0) +
-    (isCoffee ? config.extraShot * 1.25 : 0);
+    (hasMilkOptions && (config.milk === "Oat" || config.milk === "Almond") ? 0.75 : 0) +
+    (hasShotOptions ? config.extraShot * 1.25 : 0) +
+    (hasSyrupOptions ? config.syrups.length * 0.75 : 0);
 
   function add() {
     const options: string[] = [];
-    if (isCoffee) options.push(config.temperature, config.milk, config.size);
+    if (isDrink) {
+      if (hasTempOptions) options.push(config.temperature);
+      if (hasMilkOptions) {
+        if (config.milk === "None") {
+          options.push("No milk");
+        } else {
+          options.push(config.milk);
+        }
+      }
+      options.push(config.size);
+      if (hasSyrupOptions && config.syrups.length) {
+        options.push(`Syrup: ${config.syrups.join(", ")}`);
+      }
+    }
     if (hasTwoSizes) options.push(config.size);
-    if (config.extraShot) options.push(config.extraShot === 1 ? "Extra shot" : `${config.extraShot} extra shots`);
+    if (hasShotOptions && config.extraShot) {
+      options.push(config.extraShot === 1 ? "Extra shot" : `${config.extraShot} extra shots`);
+    }
     if (config.notes.trim()) options.push(config.notes.trim());
     onAdd({
       key: `${product.id}-${Date.now()}`,
@@ -129,34 +159,79 @@ function ProductConfigurator({
           <ProductVisual
             product={{
               ...product,
-              visual: isCoffee ? (config.temperature === "Hot" ? "hot" : "iced") : product.visual,
-              photo: isCoffee
+              visual: isDrink ? (config.temperature === "Hot" ? "hot" : "iced") : product.visual,
+              photo: isDrink
                 ? (config.temperature === "Hot" ? "/cup-hot.png" : (product.photo || "/drink-iced-latte.webp"))
                 : (product.photo || (product.visual === "sandwich" || product.category === "Breakfast" || product.category === "Sandwiches" ? "/chicken-pesto-centered.jpg" : undefined)),
             }}
           />
           <div className="config-product-info">
-            <span className="eyebrow">{product.category}</span>
             <h2>{product.name}</h2>
             <p>{product.description}</p>
             <strong>{money(unitPrice)}</strong>
           </div>
         </div>
         <div className="config-options">
-          {isCoffee && (
-            <>
-              <OptionGroup label="Temperature" values={["Hot", "Iced"]} selected={config.temperature} onSelect={(value) => setConfig({ ...config, temperature: value as Configuration["temperature"] })} />
-              <OptionGroup label="Milk" values={["Whole", "Oat", "Almond"]} selected={config.milk} suffix={{ Oat: "+$0.75", Almond: "+$0.75" }} onSelect={(value) => setConfig({ ...config, milk: value as Configuration["milk"] })} />
-              <div className="toggle-row">
-                <span><strong>Extra espresso shots</strong><small>More coffee, more momentum</small></span>
-                <div className="quantity-control shot-control" aria-label="Extra espresso shots">
-                  <button onClick={() => setConfig({ ...config, extraShot: Math.max(0, config.extraShot - 1) })} disabled={config.extraShot === 0} aria-label="Remove an espresso shot">−</button>
-                  <strong aria-live="polite">{config.extraShot}</strong>
-                  <button onClick={() => setConfig({ ...config, extraShot: Math.min(MAX_SHOTS, config.extraShot + 1) })} disabled={config.extraShot === MAX_SHOTS} aria-label="Add an espresso shot">+</button>
-                </div>
-                <i>+$1.25 each</i>
+          {hasTempOptions && (
+            <OptionGroup
+              label="Temperature"
+              values={["Iced", "Hot"]}
+              selected={config.temperature}
+              onSelect={(value) => setConfig({ ...config, temperature: value as Configuration["temperature"] })}
+            />
+          )}
+          {hasMilkOptions && (
+            <OptionGroup
+              label="Milk"
+              values={["Whole", "Oat", "Almond"]}
+              selected={config.milk}
+              allowDeselect
+              suffix={{ Oat: "+$0.75", Almond: "+$0.75" }}
+              onSelect={(value) => setConfig({ ...config, milk: value as Configuration["milk"] })}
+            />
+          )}
+          {hasSyrupOptions && (
+            <fieldset className="option-group">
+              <legend className="syrup-legend">
+                <span>Flavor syrups</span>
+                <small>+$0.75 each</small>
+              </legend>
+              <div className="syrup-grid">
+                {SYRUP_OPTIONS.map((flavor) => {
+                  const isSelected = config.syrups.includes(flavor);
+                  return (
+                    <button
+                      type="button"
+                      key={flavor}
+                      className={`syrup-pill ${isSelected ? "selected" : ""}`}
+                      onClick={() => {
+                        setConfig({
+                          ...config,
+                          syrups: isSelected
+                            ? config.syrups.filter((s) => s !== flavor)
+                            : [...config.syrups, flavor],
+                        });
+                      }}
+                      aria-pressed={isSelected}
+                    >
+                      <span className="syrup-name">{flavor}</span>
+                      <small>+$0.75</small>
+                    </button>
+                  );
+                })}
               </div>
-            </>
+            </fieldset>
+          )}
+          {hasShotOptions && (
+            <div className="toggle-row">
+              <span><strong>Extra espresso shots</strong><small>More coffee, more momentum</small></span>
+              <div className="quantity-control shot-control" aria-label="Extra espresso shots">
+                <button onClick={() => setConfig({ ...config, extraShot: Math.max(0, config.extraShot - 1) })} disabled={config.extraShot === 0} aria-label="Remove an espresso shot">−</button>
+                <strong aria-live="polite">{config.extraShot}</strong>
+                <button onClick={() => setConfig({ ...config, extraShot: Math.min(MAX_SHOTS, config.extraShot + 1) })} disabled={config.extraShot === MAX_SHOTS} aria-label="Add an espresso shot">+</button>
+              </div>
+              <i>+$1.25 each</i>
+            </div>
           )}
           {hasTwoSizes && (
             <OptionGroup label="Size" values={["Regular", "Large"]} selected={config.size} suffix={{ Large: "+$6.00" }} onSelect={(value) => setConfig({ ...config, size: value as Configuration["size"] })} />
@@ -179,16 +254,25 @@ function ProductConfigurator({
   );
 }
 
-function OptionGroup({ label, values, selected, suffix, onSelect }: { label: string; values: string[]; selected: string; suffix?: Record<string, string>; onSelect: (value: string) => void }) {
+function OptionGroup({ label, values, selected, suffix, allowDeselect, onSelect }: { label: string; values: string[]; selected: string; suffix?: Record<string, string>; allowDeselect?: boolean; onSelect: (value: string) => void }) {
   return (
     <fieldset className="option-group">
       <legend>{label}</legend>
       <div>
-        {values.map((value) => (
-          <button type="button" key={value} className={selected === value ? "selected" : ""} onClick={() => onSelect(value)}>
-            {value} {suffix?.[value] && <small>{suffix[value]}</small>}
-          </button>
-        ))}
+        {values.map((value) => {
+          const isSelected = selected === value;
+          return (
+            <button
+              type="button"
+              key={value}
+              className={isSelected ? "selected" : ""}
+              onClick={() => onSelect(allowDeselect && isSelected ? "None" : value)}
+              aria-pressed={isSelected}
+            >
+              {value} {suffix?.[value] && <small>{suffix[value]}</small>}
+            </button>
+          );
+        })}
       </div>
     </fieldset>
   );
@@ -230,9 +314,12 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   );
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [justAdded, setJustAdded] = useState<string | null>(null);
+  const justAddedTimer = useRef<number | undefined>(undefined);
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [availability, setAvailability] = useState<Record<string, boolean>>({});
+  const [prepTime, setPrepTime] = useState(15);
   const [interactionStarted, setInteractionStarted] = useState(false);
   const [confirmation, setConfirmation] = useState<{ number: string; eta: string } | null>(null);
   const [activeVideoModal, setActiveVideoModal] = useState<Product | null>(null);
@@ -282,6 +369,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
         if (response.ok) {
           const data = await response.json();
           setAvailability(data.availability ?? {});
+          if (typeof data.prepTime === "number") setPrepTime(data.prepTime);
         }
       } catch {
         // Menu remains available if the demo database is not connected yet.
@@ -307,11 +395,97 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
     setSelectedProduct(product);
   }
 
+  function quickAdd(product: Product) {
+    setCart((current) => [...current, {
+      key: `${product.id}-${Date.now()}`,
+      id: product.id,
+      name: product.name,
+      quantity: 1,
+      unitPrice: product.price,
+      options: [],
+    }]);
+    setJustAdded(product.id);
+    window.clearTimeout(justAddedTimer.current);
+    justAddedTimer.current = window.setTimeout(() => setJustAdded(null), 1100);
+  }
+
   function addToCart(item: CartItem) {
     setCart((current) => [...current, item]);
     setSelectedProduct(null);
     setCartOpen(true);
   }
+
+  function scrollToCategory(category: MenuCategory) {
+    const target = document.getElementById(categoryId(category));
+    if (!target) return;
+    const nav = document.querySelector(".standalone-order .category-nav-wrap");
+    const navHeight = nav ? nav.getBoundingClientRect().height : 46;
+    const y = window.scrollY + target.getBoundingClientRect().top - (84 + navHeight + 8);
+    window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+    setActiveCategory(category);
+    const first = menuProducts.find((p) => p.category === category);
+    if (first) setMenuShowcaseProduct(first);
+  }
+
+  function renderRow(product: Product) {
+    const soldOut = availability[product.id] === false;
+    const isSelected = menuShowcaseProduct.id === product.id;
+    return (
+      <div className="menu-item-row-wrap" key={product.id}>
+        <button
+          className={`menu-item-row ${isSelected ? "selected" : ""} ${soldOut ? "sold-out" : ""}`}
+          onClick={() => openProduct(product)}
+          onMouseEnter={() => setMenuShowcaseProduct(product)}
+          disabled={soldOut}
+        >
+          <div className="item-info">
+            <div className="item-name-line">
+              <strong>{product.name}</strong>
+            </div>
+            <small>{product.description}</small>
+          </div>
+          <span className="item-leader" aria-hidden="true" />
+          <div className="item-price-wrap">
+            <span className="item-price">{soldOut ? "Sold out" : money(product.price)}</span>
+          </div>
+        </button>
+        {!soldOut && (
+          <button
+            type="button"
+            className={`item-quick-add ${justAdded === product.id ? "added" : ""}`}
+            onClick={() => quickAdd(product)}
+            aria-label={`Add ${product.name} to cart`}
+            title={`Add ${product.name} to cart`}
+          >
+            <span className="universal-cart-glyph" aria-hidden="true" />
+            <span className="quick-add-plus" aria-hidden="true" />
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  useEffect(() => {
+    if (!isMenuPage) return;
+    const blocks = categories
+      .map((c) => document.getElementById(categoryId(c)))
+      .filter((el): el is HTMLElement => Boolean(el));
+    if (!blocks.length) return;
+    const onScroll = () => {
+      /* the section whose header is closest to just under the sticky nav wins */
+      let best = blocks[0];
+      let bestDist = Infinity;
+      for (const el of blocks) {
+        const d = Math.abs(el.getBoundingClientRect().top - 150);
+        if (d < bestDist) { bestDist = d; best = el; }
+      }
+      const match = categories.find((c) => categoryId(c) === best.id);
+      if (match) setActiveCategory((prev) => (prev === match ? prev : match));
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [isMenuPage]);
 
   function rememberOrder(order: { orderNumber: string; phone: string }) {
     try {
@@ -341,7 +515,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
         <section className="hero" id="top">
           <div className="hero-copy">
             <span className="eyebrow">Roasted in Union, New Jersey</span>
-            <h1><span>Coffee from</span><span>El Salvador.</span><em>Roasted in Union.</em></h1>
+            <h1><span>Coffee from</span><span>El Salvador,</span><em>Roasted in Union</em></h1>
             <div className="hero-actions">
               <a className="primary-button hero-cta-btn" href="/menu">
                 <span>Order pickup</span>
@@ -421,7 +595,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
           {/* Left Column: Title + Clean Product Card + Brand Tag (Sticky) */}
           <aside className="menu-product-card-wrap">
             <div className="menu-sidebar-heading">
-              <h2>{isMenuPage ? "The full menu, ready your way." : "Salvadoran roasts, poured ice-cold."}</h2>
+              <h2>{isMenuPage ? "The Full Deaf Shark Menu" : "Salvadoran roasts, poured ice-cold."}</h2>
             </div>
             <div className="menu-product-card">
               <ProductVisual product={menuShowcaseProduct} />
@@ -454,11 +628,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
                       role="tab"
                       aria-selected={activeCategory === category}
                       className={activeCategory === category ? "active" : ""}
-                      onClick={() => {
-                        setActiveCategory(category);
-                        const firstOfCategory = menuProducts.find((p) => p.category === category);
-                        if (firstOfCategory) setMenuShowcaseProduct(firstOfCategory);
-                      }}
+                      onClick={() => scrollToCategory(category)}
                     >
                       {category}
                     </button>
@@ -467,54 +637,50 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
               </div>
             )}
 
-            <div className="menu-panel-header">
-              <div>
-                <h3>{isMenuPage ? activeCategory : "Our Refreshments"}</h3>
-              </div>
-              <span className="menu-milk-note">Every drink is available with oat or almond milk · +$0.75</span>
-            </div>
-
-            <div className="menu-items-list">
-              {(isMenuPage ? visibleProducts : menuProducts.filter((p) => p.category === "Coffee" || p.category === "Non-Coffee")).map((product) => {
-                const soldOut = availability[product.id] === false;
-                const isSelected = menuShowcaseProduct.id === product.id;
+            {/*
+              The menu page shows every category at once. The buttons jump to a
+              section rather than filtering it, so nothing is hidden behind a click.
+              Each section header pins while its own items pass under it and is then
+              pushed off by the next header, which is plain sticky behaviour.
+            */}
+            {isMenuPage ? (
+              categories.map((category) => {
+                const items = menuProducts.filter((p) => p.category === category);
+                if (!items.length) return null;
                 return (
-                  <button
-                    key={product.id}
-                    className={`menu-item-row ${isSelected ? "selected" : ""} ${soldOut ? "sold-out" : ""}`}
-                    onClick={() => openProduct(product)}
-                    onMouseEnter={() => setMenuShowcaseProduct(product)}
-                    disabled={soldOut}
-                  >
-                    <div className="item-info">
-                      <div className="item-name-line">
-                        <strong>{product.name}</strong>
+                  <section className="menu-category-block" key={category} id={categoryId(category)}>
+                    <div className="menu-panel-header">
+                      <div>
+                        <h3>{category}</h3>
                       </div>
-                      <small>{product.description}</small>
+                      {DRINK_CATEGORIES.includes(category) && (
+                        <span className="menu-milk-note">Every drink is available with oat or almond milk · +$0.75</span>
+                      )}
                     </div>
-                    <span className="item-leader" aria-hidden="true" />
-                    <div className="item-price-wrap">
-                      <span className="item-price">
-                        {soldOut ? "Sold out" : money(product.price)}
-                      </span>
-                      <span className="item-cart-btn" aria-hidden="true" title="Add to cart">
-                        <span className="universal-cart-glyph" />
-                      </span>
-                    </div>
-                  </button>
+                    <div className="menu-items-list">{items.map(renderRow)}</div>
+                  </section>
                 );
-              })}
-            </div>
-
-            {!isMenuPage && (
-              <div className="menu-bottom-actions">
-                <a href="/menu" className="primary-button hero-cta-btn menu-full-button">
-                  <span>View our full menu</span>
-                  <svg className="btn-arrow" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                    <path d="M2.5 8h11M9.5 3.5l4.5 4.5-4.5 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </a>
-              </div>
+              })
+            ) : (
+              <section className="menu-category-block">
+                <div className="menu-panel-header">
+                  <div>
+                    <h3>Our Refreshments</h3>
+                  </div>
+                  <span className="menu-milk-note">Every drink is available with oat or almond milk · +$0.75</span>
+                </div>
+                <div className="menu-items-list">
+                  {menuProducts.filter((p) => p.category === "Coffee" || p.category === "Non-Coffee").map(renderRow)}
+                </div>
+                <div className="menu-bottom-actions">
+                  <a href="/menu" className="primary-button hero-cta-btn menu-full-button">
+                    <span>View our full menu</span>
+                    <svg className="btn-arrow" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                      <path d="M2.5 8h11M9.5 3.5l4.5 4.5-4.5 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </a>
+                </div>
+              </section>
             )}
           </div>
         </div>
@@ -525,14 +691,16 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
           <img src="/ocean-blend-bags.jpg" alt="Deaf Shark Ocean Blend coffee bags displayed in the Union shop" />
         </div>
         <div className="take-home-copy">
-          <h2>Take the roast home.</h2>
-          <p>A 12 oz bag of medium roast whole bean coffee from El Salvador, roasted in Union and ready for your home setup.</p>
-          <ul className="take-home-features">
-            <li><span className="take-home-num">01.</span> Ocean Blend</li>
-            <li><span className="take-home-num">02.</span> Medium roast</li>
-            <li><span className="take-home-num">03.</span> Whole bean</li>
-            <li><span className="take-home-num">04.</span> 12 oz bag</li>
-          </ul>
+          <div className="take-home-body">
+            <h2>Take Our Roast Home</h2>
+            <p>A 12 oz bag of medium roast whole bean coffee from El Salvador, roasted in Union and ready for your home setup.</p>
+            <ul className="take-home-features">
+              <li><span className="take-home-num">01.</span> Ocean Blend</li>
+              <li><span className="take-home-num">02.</span> Medium roast</li>
+              <li><span className="take-home-num">03.</span> Whole bean</li>
+              <li><span className="take-home-num">04.</span> 12 oz bag</li>
+            </ul>
+          </div>
           <button className="primary-button take-home-btn" onClick={() => openProduct(oceanBlend)}>
             <span>Order a bag · {money(oceanBlend.price)}</span>
             <span className="btn-cart-glyph" />
@@ -551,13 +719,13 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
         </div>
         <div className="origin-copy">
           <span className="eyebrow">The coffee</span>
-          <h2>One farm. One variety. A cup with a place behind it.</h2>
-          <p>Our featured coffee comes from Finca Montevideo in El Salvador. Red Bourbon beans are washed, roasted with care, and served here in Union.</p>
+          <h2>A cup with a place behind it.<br />One farm, one variety.</h2>
+          <p>Our featured coffee comes from single-origin harvests in El Salvador. Red Bourbon beans are washed, roasted with care, and served here in Union.</p>
           <dl>
             <div><dt>Origin</dt><dd>El Salvador</dd></div>
-            <div><dt>Farm</dt><dd>Finca Montevideo</dd></div>
             <div><dt>Variety</dt><dd>Red Bourbon</dd></div>
             <div><dt>Process</dt><dd>Washed</dd></div>
+            <div><dt>Roast</dt><dd>Medium</dd></div>
           </dl>
         </div>
       </section>}
@@ -565,8 +733,9 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
       {!isMenuPage && (
         <section className="visit-section" id="visit">
           <div className="visit-header-block">
-            <div>
+            <div className="visit-title-wrap">
               <h2>Deaf Shark Coffee<br />Union, New Jersey</h2>
+              <img src="/deafshark-logo.png" alt="Deaf Shark Coffee" className="visit-brand-stamp" />
             </div>
             <div className="visit-cards-row">
               <div className="visit-card">
@@ -592,11 +761,30 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
           <div className="visit-map-container">
             <iframe
               title="Deaf Shark Coffee Map Location"
-              src="https://maps.google.com/maps?q=900+Green+Lane,+Union,+NJ+07083&t=&z=15&ie=UTF8&iwloc=&output=embed"
+              src="https://maps.google.com/maps?q=Deaf+Shark+Coffee,+900+Green+Lane,+Union,+NJ+07083&t=&z=16&ie=UTF8&iwloc=&output=embed"
               className="visit-map-frame"
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
             />
+            <a
+              href="https://www.google.com/maps/dir/?api=1&destination=Deaf+Shark+Coffee+900+Green+Lane+Union+NJ+07083"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="map-location-banner"
+            >
+              <div className="map-banner-logo-wrap">
+                <img src="/deafshark-logo.png" alt="Deaf Shark Coffee" className="map-banner-logo" />
+              </div>
+              <div className="map-banner-info">
+                <strong>Deaf Shark Coffee</strong>
+                <span>900 Green Lane, Union, NJ 07083</span>
+              </div>
+              <div className="map-banner-nav-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M21.5 2.5L2 9.5l8 4 4 8 7.5-19z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+            </a>
           </div>
         </section>
       )}
@@ -612,7 +800,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
         <CartDrawer cart={cart} subtotal={subtotal} onClose={() => setCartOpen(false)} onRemove={(key) => setCart((current) => current.filter((item) => item.key !== key))} onCheckout={() => { setCartOpen(false); setCheckoutOpen(true); }} />
       )}
       {checkoutOpen && (
-        <Checkout cart={cart} subtotal={subtotal} onClose={() => setCheckoutOpen(false)} onComplete={(number, eta, phone) => { rememberOrder({ orderNumber: number, phone }); setCheckoutOpen(false); setCart([]); setConfirmation({ number, eta }); }} />
+        <Checkout prepTime={prepTime} cart={cart} subtotal={subtotal} onClose={() => setCheckoutOpen(false)} onComplete={(number, eta, phone) => { rememberOrder({ orderNumber: number, phone }); setCheckoutOpen(false); setCart([]); setConfirmation({ number, eta }); }} />
       )}
       {confirmation && (
         <div className="modal-backdrop">
@@ -627,55 +815,241 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
       )}
 
       {activeVideoModal && (
-        <div
-          className="video-modal-backdrop"
-          onClick={() => setActiveVideoModal(null)}
-          role="dialog"
-          aria-modal="true"
-          aria-label={`${activeVideoModal.name} video presentation`}
+        <CustomVideoModal
+          product={activeVideoModal}
+          onClose={() => setActiveVideoModal(null)}
+          onOrder={(product) => openProduct(product)}
+        />
+      )}
+    </main>
+  );
+}
+
+function CustomVideoModal({
+  product,
+  onClose,
+  onOrder,
+}: {
+  product: Product;
+  onClose: () => void;
+  onOrder: (p: Product) => void;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
+  const [volume, setVolume] = useState(0.85);
+  const [progress, setProgress] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [showVolumeSlider, setShowVolumeSlider] = useState(false);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.volume = volume;
+    video.muted = isMuted;
+    video.play().catch(() => {
+      video.muted = true;
+      setIsMuted(true);
+      video.play().catch(() => {});
+    });
+  }, []);
+
+  const togglePlay = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) {
+      video.play();
+      setIsPlaying(true);
+    } else {
+      video.pause();
+      setIsPlaying(false);
+    }
+  };
+
+  const toggleMute = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    const nextMuted = !isMuted;
+    video.muted = nextMuted;
+    setIsMuted(nextMuted);
+    if (!nextMuted && volume === 0) {
+      video.volume = 0.5;
+      setVolume(0.5);
+    }
+  };
+
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = parseFloat(e.target.value);
+    const video = videoRef.current;
+    if (!video) return;
+    video.volume = val;
+    setVolume(val);
+    if (val === 0) {
+      video.muted = true;
+      setIsMuted(true);
+    } else if (isMuted) {
+      video.muted = false;
+      setIsMuted(false);
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    const video = videoRef.current;
+    if (!video || !video.duration) return;
+    setCurrentTime(video.currentTime);
+    setProgress((video.currentTime / video.duration) * 100);
+  };
+
+  const handleLoadedMetadata = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    setDuration(video.duration);
+  };
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const video = videoRef.current;
+    if (!video || !video.duration) return;
+    const seekTo = (parseFloat(e.target.value) / 100) * video.duration;
+    video.currentTime = seekTo;
+    setProgress(parseFloat(e.target.value));
+  };
+
+  const formatTime = (timeInSeconds: number) => {
+    const mins = Math.floor(timeInSeconds / 60);
+    const secs = Math.floor(timeInSeconds % 60);
+    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
+  };
+
+  return (
+    <div
+      className="video-modal-backdrop"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${product.name} video presentation`}
+    >
+      <div className="video-modal-dialog" onClick={(e) => e.stopPropagation()}>
+        <button
+          type="button"
+          className="video-modal-close"
+          onClick={onClose}
+          aria-label="Close video preview"
         >
-          <div
-            className="video-modal-dialog"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              className="video-modal-close"
-              onClick={() => setActiveVideoModal(null)}
-              aria-label="Close video"
-            >
-              ×
-            </button>
-            <div className="video-modal-media-wrap">
-              <video
-                src={activeVideoModal.video}
-                autoPlay
-                controls
-                playsInline
-                className="video-modal-player"
+          ✕
+        </button>
+
+        <div className="custom-video-container">
+          <video
+            ref={videoRef}
+            src={product.video}
+            autoPlay
+            playsInline
+            className="video-modal-player"
+            onTimeUpdate={handleTimeUpdate}
+            onLoadedMetadata={handleLoadedMetadata}
+            onEnded={() => setIsPlaying(false)}
+            onClick={togglePlay}
+          />
+
+          <div className="custom-video-controls">
+            <div className="video-scrubber-wrap">
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="0.1"
+                value={progress || 0}
+                onChange={handleSeek}
+                className="video-progress-bar"
+                aria-label="Video timeline progress"
               />
             </div>
-            <div className="video-modal-details">
-              <div>
-                <span className="video-modal-category">{activeVideoModal.category}</span>
-                <h3>{activeVideoModal.name}</h3>
-                <p>{activeVideoModal.description}</p>
+
+            <div className="video-controls-bottom">
+              <div className="video-controls-left">
+                <button
+                  type="button"
+                  className="video-ctrl-btn"
+                  onClick={togglePlay}
+                  aria-label={isPlaying ? "Pause" : "Play"}
+                >
+                  {isPlaying ? (
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                      <rect x="6" y="4" width="4" height="16" rx="1" />
+                      <rect x="14" y="4" width="4" height="16" rx="1" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                      <polygon points="6,4 20,12 6,20" />
+                    </svg>
+                  )}
+                </button>
+
+                <span className="video-time-display">
+                  {formatTime(currentTime)} / {formatTime(duration)}
+                </span>
               </div>
-              <button
-                className="primary-button video-modal-order-btn"
-                onClick={() => {
-                  const target = activeVideoModal;
-                  setActiveVideoModal(null);
-                  openProduct(target);
-                }}
-              >
-                Order now · {money(activeVideoModal.price)}
-              </button>
+
+              <div className="video-controls-right">
+                <div
+                  className="video-volume-group"
+                  onMouseEnter={() => setShowVolumeSlider(true)}
+                  onMouseLeave={() => setShowVolumeSlider(false)}
+                >
+                  <div className={`vertical-volume-popup ${showVolumeSlider ? "visible" : ""}`}>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.02"
+                      value={isMuted ? 0 : volume}
+                      onChange={handleVolumeChange}
+                      className="vertical-volume-range"
+                      aria-label="Volume level"
+                    />
+                    <span className="vertical-volume-pct">
+                      {isMuted ? "0%" : `${Math.round(volume * 100)}%`}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="video-ctrl-btn volume-btn"
+                    onClick={toggleMute}
+                    aria-label={isMuted ? "Unmute" : "Mute"}
+                    title={isMuted ? "Unmute (Click to toggle sound)" : "Mute (Click to toggle sound)"}
+                  >
+                    {isMuted || volume === 0 ? (
+                      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" />
+                        <line x1="23" y1="9" x2="17" y2="15" />
+                        <line x1="17" y1="9" x2="23" y2="15" />
+                      </svg>
+                    ) : volume < 0.5 ? (
+                      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" />
+                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                      </svg>
+                    ) : (
+                      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" />
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      )}
-    </main>
+
+        <div className="video-modal-caption">
+          <h3>{product.name}</h3>
+          <p>{product.description}</p>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -683,20 +1057,20 @@ function CartDrawer({ cart, subtotal, onClose, onRemove, onCheckout }: { cart: C
   return (
     <div className="drawer-backdrop" onMouseDown={onClose}>
       <aside className="cart-drawer" data-lenis-prevent onMouseDown={(event) => event.stopPropagation()}>
-        <div className="drawer-header"><div><span className="eyebrow">Pickup order</span><h2>Your cart</h2></div><button onClick={onClose} aria-label="Close cart">×</button></div>
+        <div className="drawer-header"><div><h2>Your cart</h2></div><button onClick={onClose} aria-label="Close cart">×</button></div>
         <div className="cart-items">
           {cart.length === 0 && <div className="empty-cart"><img src="/favicon.png" alt="" /><h3>Your cart is ready when you are.</h3><p>Choose a drink, breakfast, sandwich, or bite from the menu.</p></div>}
           {cart.map((item) => (
             <article key={item.key} className="cart-item"><span>{item.quantity}</span><div><strong>{item.name}</strong><small>{item.options.join(" · ")}</small><button onClick={() => onRemove(item.key)}>Remove</button></div><strong>{money(item.unitPrice * item.quantity)}</strong></article>
           ))}
         </div>
-        {cart.length > 0 && <div className="cart-summary"><div><span>Subtotal</span><strong>{money(subtotal)}</strong></div><small>Taxes are calculated at checkout.</small><button className="primary-button" onClick={onCheckout}>Continue to checkout</button></div>}
+        {cart.length > 0 && <div className="cart-summary"><div><span>Subtotal</span><strong>{money(subtotal)}</strong></div><small><em>Taxes are calculated at checkout.</em></small><button className="primary-button" onClick={onCheckout}>Continue to checkout</button></div>}
       </aside>
     </div>
   );
 }
 
-function Checkout({ cart, subtotal, onClose, onComplete }: { cart: CartItem[]; subtotal: number; onClose: () => void; onComplete: (number: string, eta: string, phone: string) => void }) {
+function Checkout({ cart, subtotal, prepTime = 15, onClose, onComplete }: { cart: CartItem[]; subtotal: number; prepTime?: number; onClose: () => void; onComplete: (number: string, eta: string, phone: string) => void }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [payment, setPayment] = useState<"pickup" | "card">("pickup");
@@ -709,7 +1083,17 @@ function Checkout({ cart, subtotal, onClose, onComplete }: { cart: CartItem[]; s
     setError("");
     setSubmitting(true);
     try {
-      const response = await fetch("/api/orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ customerName: name, phone, paymentMethod: payment, pickupEta: "15 min", items: cart }) });
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerName: name,
+          phone,
+          paymentMethod: payment,
+          pickupEta: `${prepTime} min`,
+          items: cart,
+        }),
+      });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Unable to place order");
       onComplete(data.order.orderNumber, data.order.pickupEta, phone);
@@ -720,15 +1104,38 @@ function Checkout({ cart, subtotal, onClose, onComplete }: { cart: CartItem[]; s
     }
   }
 
+  function formatPhoneInput(raw: string) {
+    const digits = raw.replace(/\D/g, "").slice(0, 10);
+    if (!digits) return "";
+    if (digits.length <= 3) return `(${digits}`;
+    if (digits.length <= 6) return `(${digits.slice(0, 3)})-${digits.slice(3)}`;
+    return `(${digits.slice(0, 3)})-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+
   return (
     <div className="modal-backdrop" onMouseDown={onClose}>
       <form className="checkout-card" data-lenis-prevent onSubmit={submit} onMouseDown={(event) => event.stopPropagation()}>
         <button type="button" className="modal-close" onClick={onClose} aria-label="Close checkout">×</button>
-        <span className="eyebrow">Pickup in about 15 minutes</span><h2>Finish your order</h2>
+        <h2>Finish your order</h2>
         <label><span>Name for the order</span><input required value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name" /></label>
-        <label><span>Mobile number</span><input required type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="(908) 555-0123" /></label>
-        <fieldset className="payment-options"><legend>Payment</legend><label><input type="radio" name="payment" checked={payment === "pickup"} onChange={() => setPayment("pickup")} /><span><strong>Pay at pickup</strong><small>Pay at the counter when you arrive</small></span></label><label><input type="radio" name="payment" checked={payment === "card"} onChange={() => setPayment("card")} /><span><strong>Card payment demo</strong><small>Production payment provider to be confirmed</small></span></label></fieldset>
-        <div className="checkout-total"><div><span>Subtotal</span><strong>{money(subtotal)}</strong></div><div><span>Estimated tax</span><strong>{money(tax)}</strong></div><div><span>Total</span><strong>{money(subtotal + tax)}</strong></div></div>
+        <label><span>Mobile number</span><input required type="tel" value={phone} onChange={(event) => setPhone(formatPhoneInput(event.target.value))} placeholder="(908)-555-0123" maxLength={14} /></label>
+        <fieldset className="payment-options">
+          <legend>Payment</legend>
+          <label><input type="radio" name="payment" checked={payment === "pickup"} onChange={() => setPayment("pickup")} /><span><strong>Pay at pickup</strong><small>Pay at the counter when you arrive</small></span></label>
+          <label><input type="radio" name="payment" checked={payment === "card"} onChange={() => setPayment("card")} /><span><strong>Card payment demo</strong><small>Production payment provider to be confirmed</small></span></label>
+        </fieldset>
+        <div className="checkout-total">
+          <div><span>Subtotal</span><strong>{money(subtotal)}</strong></div>
+          <div><span>Estimated tax</span><strong>{money(tax)}</strong></div>
+          <div><span>Total</span><strong>{money(subtotal + tax)}</strong></div>
+        </div>
+        <div className="checkout-pickup-info">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
+          <span>Estimated pickup in <strong>about {prepTime} minutes</strong></span>
+        </div>
         {error && <p className="form-error">{error}</p>}
         <button className="primary-button" disabled={submitting}>{submitting ? "Sending order..." : `Place pickup order · ${money(subtotal + tax)}`}</button>
       </form>

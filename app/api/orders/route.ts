@@ -1,3 +1,4 @@
+import { env } from "cloudflare:workers";
 import { desc, sql } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../db";
 import { customerProfiles, orders } from "../../../db/schema";
@@ -12,7 +13,8 @@ type CartPayload = {
 };
 
 function orderNumber() {
-  return `DS${Date.now().toString().slice(-6)}`;
+  const rand = Math.floor(1000 + Math.random() * 9000);
+  return `DS${Date.now().toString().slice(-4)}${rand}`;
 }
 
 export async function GET() {
@@ -65,23 +67,134 @@ export async function POST(request: Request) {
     const totalCents = subtotalCents + taxCents;
     const user = await getChatGPTUser();
 
-    const [created] = await getDb()
-      .insert(orders)
-      .values({
-        orderNumber: orderNumber(),
-        customerName,
-        phone,
-        itemsJson: JSON.stringify(items),
-        subtotalCents,
-        taxCents,
-        totalCents,
-        status: "new",
-        source: "website",
-        paymentMethod: payload.paymentMethod === "card" ? "card-demo" : "pickup",
-        pickupEta: payload.pickupEta ?? "15 min",
-        customerUserId: user?.userId ?? null,
-      })
-      .returning();
+    const orderNum = orderNumber();
+    const createdTimestamp = Math.floor(Date.now() / 1000);
+    const paymentMethod = payload.paymentMethod === "card" ? "card-demo" : "pickup";
+    const pickupEta = payload.pickupEta ?? "15 min";
+    const customerUserId = user?.userId ?? null;
+
+    const d1 = env.DB;
+    let insertResult: any;
+
+    try {
+      insertResult = await d1
+        .prepare(
+          `INSERT INTO orders (
+            order_number,
+            customer_name,
+            phone,
+            items_json,
+            subtotal_cents,
+            tax_cents,
+            total_cents,
+            status,
+            source,
+            payment_method,
+            pickup_eta,
+            customer_user_id,
+            created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .bind(
+          orderNum,
+          customerName,
+          phone,
+          JSON.stringify(items),
+          subtotalCents,
+          taxCents,
+          totalCents,
+          "new",
+          "website",
+          paymentMethod,
+          pickupEta,
+          customerUserId,
+          createdTimestamp,
+        )
+        .run();
+    } catch (insertError: any) {
+      if (insertError?.message?.includes("customer_user_id")) {
+        try {
+          await d1.prepare("ALTER TABLE orders ADD COLUMN customer_user_id text").run();
+        } catch {
+          // ignore if already added
+        }
+
+        try {
+          insertResult = await d1
+            .prepare(
+              `INSERT INTO orders (
+                order_number,
+                customer_name,
+                phone,
+                items_json,
+                subtotal_cents,
+                tax_cents,
+                total_cents,
+                status,
+                source,
+                payment_method,
+                pickup_eta,
+                customer_user_id,
+                created_at
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            )
+            .bind(
+              orderNum,
+              customerName,
+              phone,
+              JSON.stringify(items),
+              subtotalCents,
+              taxCents,
+              totalCents,
+              "new",
+              "website",
+              paymentMethod,
+              pickupEta,
+              customerUserId,
+              createdTimestamp,
+            )
+            .run();
+        } catch {
+          // fallback without customer_user_id if column still cannot be modified
+          insertResult = await d1
+            .prepare(
+              `INSERT INTO orders (
+                order_number,
+                customer_name,
+                phone,
+                items_json,
+                subtotal_cents,
+                tax_cents,
+                total_cents,
+                status,
+                source,
+                payment_method,
+                pickup_eta,
+                created_at
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            )
+            .bind(
+              orderNum,
+              customerName,
+              phone,
+              JSON.stringify(items),
+              subtotalCents,
+              taxCents,
+              totalCents,
+              "new",
+              "website",
+              paymentMethod,
+              pickupEta,
+              createdTimestamp,
+            )
+            .run();
+        }
+      } else {
+        throw insertError;
+      }
+    }
+
+    const orderId = insertResult?.meta?.last_row_id ?? Date.now();
 
     if (user) {
       const earnedPoints = Math.max(1, Math.floor(totalCents / 100));
@@ -101,7 +214,25 @@ export async function POST(request: Request) {
     }
 
     return Response.json(
-      { order: { ...created, items: JSON.parse(created.itemsJson) } },
+      {
+        order: {
+          id: orderId,
+          orderNumber: orderNum,
+          customerName,
+          phone,
+          itemsJson: JSON.stringify(items),
+          subtotalCents,
+          taxCents,
+          totalCents,
+          status: "new",
+          source: "website",
+          paymentMethod,
+          pickupEta,
+          customerUserId,
+          createdAt: new Date(createdTimestamp * 1000),
+          items,
+        },
+      },
       { status: 201 },
     );
   } catch (error) {

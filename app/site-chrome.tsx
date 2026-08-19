@@ -37,7 +37,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
   const [profileOpen, setProfileOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
-  const links = [["/", "Home"], ["/menu", "Menu"], ["/about", "Our Story"], ["/events", "Events"], ["/contact", "Visit Us"], ["/employment", "Employment"]];
+  const links = [["/", "Home"], ["/menu", "Menu"], ["/about", "Our Story"], ["/events", "Events"], ["/contact", "Visit Us"], ["/employment", "Apply now"]];
   const loadReference = useCallback(() => setReference(latestSavedOrder()), []);
 
   useEffect(() => {
@@ -71,15 +71,70 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
     return () => { activeRequest = false; window.clearInterval(timer); };
   }, [reference]);
 
+  const [authEmail, setAuthEmail] = useState("");
+
   async function openProfile() {
     setSearchOpen(false);
     setProfileOpen(true);
+    try {
+      const saved = window.localStorage.getItem("deaf-shark-local-profile");
+      if (saved) {
+        setProfile(JSON.parse(saved));
+        return;
+      }
+    } catch {}
     setProfile(null);
     try {
       const response = await fetch("/api/profile", { cache: "no-store" });
       setProfile(await response.json());
     } catch {
-      setProfile({ authenticated: false, signInPath: "/signin-with-chatgpt?return_to=%2F" });
+      setProfile({ authenticated: false });
+    }
+  }
+
+  function handleSocialSignIn(provider: string) {
+    const newProfile = {
+      authenticated: true,
+      profile: {
+        displayName: `${provider} Customer`,
+        email: `${provider.toLowerCase()}.user@example.com`,
+        points: 40,
+      },
+    };
+    try {
+      window.localStorage.setItem("deaf-shark-local-profile", JSON.stringify(newProfile));
+    } catch {}
+    setProfile(newProfile);
+  }
+
+  function handleEmailSignIn(e: React.FormEvent) {
+    e.preventDefault();
+    if (!authEmail.trim()) return;
+    const namePart = authEmail.split("@")[0];
+    const capitalized = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+    const newProfile = {
+      authenticated: true,
+      profile: {
+        displayName: capitalized,
+        email: authEmail.trim(),
+        points: 25,
+      },
+    };
+    try {
+      window.localStorage.setItem("deaf-shark-local-profile", JSON.stringify(newProfile));
+    } catch {}
+    setProfile(newProfile);
+  }
+
+  function handleSignOut(e: React.MouseEvent) {
+    e.preventDefault();
+    try {
+      window.localStorage.removeItem("deaf-shark-local-profile");
+    } catch {}
+    if (profile?.signOutPath) {
+      window.location.href = profile.signOutPath;
+    } else {
+      setProfile({ authenticated: false });
     }
   }
 
@@ -107,12 +162,6 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
           </button>
           {reference && <button className={`order-status-trigger ${order?.status === "ready" ? "ready" : ""}`} onClick={() => setOpen((current) => !current)}><span>{order?.status === "ready" ? "Ready" : "Order status"}</span><i /></button>}
           {action ?? <a className="header-order-link" href="/menu">Order now</a>}
-          {searchOpen && (
-            <section className="header-search-panel" aria-label="Search the menu">
-              <div className="search-field"><span className="search-glyph" /><input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search coffee, breakfast, sandwiches..." /><button onClick={() => setSearchOpen(false)} aria-label="Close search">×</button></div>
-              <div className="search-results"><span>{query ? "Search results" : "Popular right now"}</span>{searchResults.length ? searchResults.map((product) => <a key={product.id} href={`/menu?item=${product.id}`}><div><strong>{product.name}</strong><small>{product.category}</small></div><b>${product.price.toFixed(2)}</b></a>) : <p>No menu items match that search.</p>}</div>
-            </section>
-          )}
           {open && reference && (
             <section className="header-order-popover" aria-label="Current order status">
               <button className="popover-close" onClick={() => setOpen(false)} aria-label="Close order status">×</button>
@@ -124,14 +173,172 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
         </div>
       </header>
       <nav className="mobile-site-nav" aria-label="Mobile navigation">{links.map(([href, label]) => <a key={href} href={href} className={active === href ? "active" : ""}>{label}</a>)}</nav>
+
+      {searchOpen && (
+        <div className="search-backdrop" onMouseDown={() => setSearchOpen(false)}>
+          <aside
+            className="search-drawer"
+            data-lenis-prevent
+            role="dialog"
+            aria-modal="true"
+            aria-label="Search menu"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="search-drawer-header">
+              <div>
+                <span className="eyebrow">Search the menu</span>
+                <h2>Search menu</h2>
+              </div>
+              <button
+                type="button"
+                className="search-drawer-close"
+                onClick={() => setSearchOpen(false)}
+                aria-label="Close search"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="search-drawer-input-wrap">
+              <span className="search-glyph" aria-hidden="true" />
+              <input
+                autoFocus
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search coffee, breakfast, sandwiches..."
+                className="search-drawer-input"
+              />
+              {query && (
+                <button
+                  type="button"
+                  className="search-clear-btn"
+                  onClick={() => setQuery("")}
+                  aria-label="Clear search text"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+
+            <div className="search-drawer-results">
+              <span className="search-results-heading">
+                {query ? `Search results (${searchResults.length})` : "Popular right now"}
+              </span>
+
+              {searchResults.length > 0 ? (
+                <div className="search-results-list">
+                  {searchResults.map((product) => (
+                    <a
+                      key={product.id}
+                      href={`/menu?item=${product.id}`}
+                      className="search-result-item"
+                      onClick={() => setSearchOpen(false)}
+                    >
+                      <div className="search-result-info">
+                        <strong>{product.name}</strong>
+                        <small>{product.category} · {product.description}</small>
+                      </div>
+                      <b className="search-result-price">${product.price.toFixed(2)}</b>
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <div className="search-empty-state">
+                  <p>No menu items match “{query}”.</p>
+                  <small>Try searching for Latte, Empanada, Horchata, or Sandwich.</small>
+                </div>
+              )}
+            </div>
+          </aside>
+        </div>
+      )}
       {profileOpen && (
         <div className="account-backdrop" onMouseDown={() => setProfileOpen(false)}>
           <section className="account-modal" data-lenis-prevent role="dialog" aria-modal="true" aria-label="Customer account" onMouseDown={(event) => event.stopPropagation()}>
             <button className="account-close" onClick={() => setProfileOpen(false)} aria-label="Close account">×</button>
             <img src="/favicon.png" alt="" />
             {!profile && <><h2>Opening your account...</h2><p>Loading your Deaf Shark profile and loyalty points.</p></>}
-            {profile && !profile.authenticated && <><h2>Sign in or create your account</h2><p>Use one secure account to order faster, follow pickups, and earn Deaf Shark loyalty points.</p><a className="primary-button account-continue" href={profile.signInPath}>Continue with ChatGPT</a><small>Your account is created automatically the first time you continue.</small></>}
-            {profile?.authenticated && profile.profile && <><span className="account-welcome">Welcome back</span><h2>{profile.profile.displayName}</h2><p>{profile.profile.email}</p><div className="loyalty-card"><span>Deaf Shark Rewards</span><strong>{profile.profile.points} points</strong><div><i style={{ width: `${Math.min(100, profile.profile.points)}%` }} /></div><small>{Math.max(0, 100 - profile.profile.points)} points until your next $5 reward</small></div><p className="loyalty-note">Earn one point for every dollar spent on signed-in orders.</p><a className="account-signout" href={profile.signOutPath}>Sign out</a></>}
+            {profile && !profile.authenticated && (
+              <>
+                <h2>Sign in or create your account</h2>
+                <p>Use one secure account to order faster, follow pickups, and earn Deaf Shark loyalty points.</p>
+
+                <div className="social-auth-buttons">
+                  <button
+                    type="button"
+                    className="social-auth-btn social-google"
+                    onClick={() => handleSocialSignIn("Google")}
+                  >
+                    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                      <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z" />
+                      <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z" />
+                      <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 10.04 0 12s.45 3.82 1.25 5.42l4.03-3.15z" />
+                      <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z" />
+                    </svg>
+                    <span>Continue with Google</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="social-auth-btn social-apple"
+                    onClick={() => handleSocialSignIn("Apple")}
+                  >
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+                      <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.62-.75 1.04-1.8 1.01-2.87-.93.04-2.03.62-2.67 1.37-.56.65-1.06 1.71-.93 2.74 1.03.08 2.06-.54 2.59-1.24z" />
+                    </svg>
+                    <span>Continue with Apple</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="social-auth-btn social-facebook"
+                    onClick={() => handleSocialSignIn("Facebook")}
+                  >
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="#1877F2" aria-hidden="true">
+                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                    </svg>
+                    <span>Continue with Facebook</span>
+                  </button>
+                </div>
+
+                <div className="auth-divider">
+                  <span>or continue with email</span>
+                </div>
+
+                <form className="auth-email-form" onSubmit={handleEmailSignIn}>
+                  <input
+                    type="email"
+                    required
+                    value={authEmail}
+                    onChange={(e) => setAuthEmail(e.target.value)}
+                    placeholder="Enter your email address"
+                    className="auth-email-input"
+                  />
+                  <button type="submit" className="primary-button auth-email-btn">
+                    Continue with Email
+                  </button>
+                </form>
+
+                <small>Your account is created automatically the first time you continue.</small>
+              </>
+            )}
+            {profile?.authenticated && profile.profile && (
+              <>
+                <span className="account-welcome">Welcome back</span>
+                <h2>{profile.profile.displayName}</h2>
+                <p>{profile.profile.email}</p>
+                <div className="loyalty-card">
+                  <span>Deaf Shark Rewards</span>
+                  <strong>{profile.profile.points} points</strong>
+                  <div><i style={{ width: `${Math.min(100, profile.profile.points)}%` }} /></div>
+                  <small>{Math.max(0, 100 - profile.profile.points)} points until your next $5 reward</small>
+                </div>
+                <p className="loyalty-note">Earn one point for every dollar spent on signed-in orders.</p>
+                <button type="button" className="account-signout" onClick={handleSignOut}>
+                  Sign out
+                </button>
+              </>
+            )}
           </section>
         </div>
       )}
@@ -240,17 +447,15 @@ export function SiteFooter() {
               <li><a href="/menu">Cold Brew &amp; Iced</a></li>
               <li><a href="/menu">Hot Classics</a></li>
               <li><a href="/menu">Breakfast &amp; Sandwiches</a></li>
-              <li><a href="/menu">Bites &amp; Pastries</a></li>
             </ul>
           </div>
 
           <div className="footer-col">
             <h4>CLUB &amp; STORY</h4>
             <ul>
-              <li><a href="/about">About Deaf Shark</a></li>
-              <li><a href="/about#farm">Finca Montevideo</a></li>
-              <li><a href="/events">Community Events</a></li>
-              <li><a href="/employment">Jobs &amp; Careers</a></li>
+              <li><a href="/about">Our Story</a></li>
+              <li><a href="/events">Events</a></li>
+              <li><a href="/employment">Apply now</a></li>
               <li><a href="/orders">Order Status</a></li>
             </ul>
           </div>
@@ -260,7 +465,6 @@ export function SiteFooter() {
             <ul>
               <li><a href="/contact">Location &amp; Hours</a></li>
               <li><a href="/contact">Catering &amp; Inquiries</a></li>
-              <li><a href="/contact">Contact Us</a></li>
               <li><a href="https://maps.google.com/?q=900+Green+Lane+Union+NJ+07083" target="_blank" rel="noopener noreferrer">Get Directions ↗</a></li>
               <li><a href="tel:9084818884">(908) 481-8884</a></li>
             </ul>
@@ -269,7 +473,7 @@ export function SiteFooter() {
 
         {/* Bottom Bar */}
         <div className="footer-bottom">
-          <span>© {new Date().getFullYear()} Deaf Shark Coffee — Roasted in Union, New Jersey</span>
+          <span>© {new Date().getFullYear()} Deaf Shark Coffee · Roasted in Union, New Jersey</span>
           <div className="footer-legal">
             <a href="/contact">Contact</a>
             <a href="/dashboard">Staff Dashboard</a>

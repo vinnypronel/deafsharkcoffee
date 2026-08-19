@@ -3,6 +3,7 @@ import { Geist } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
 import { SmoothScrollProvider } from "./smooth-scroll-provider";
+import { PageTransition } from "./page-transition";
 
 const geist = Geist({
   variable: "--font-geist",
@@ -38,8 +39,19 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
-      <body className={geist.variable}><SmoothScrollProvider>{children}</SmoothScrollProvider></body>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="icon" type="image/png" href="/favicon.png" />
+        <link rel="icon" href="/favicon.ico" />
+        <link rel="shortcut icon" href="/favicon.png" />
+        <link rel="apple-touch-icon" href="/favicon.png" />
+        <link rel="preload" as="image" href="/hero-scrub-poster.jpg" />
+        <link rel="preload" as="video" href="/hero-scrub.mp4" type="video/mp4" />
+      </head>
+      <body className={geist.variable} suppressHydrationWarning>
+        <PageTransition />
+        <SmoothScrollProvider>{children}</SmoothScrollProvider>
+      </body>
     </html>
   );
 }

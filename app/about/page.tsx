@@ -33,20 +33,20 @@ export default function AboutPage() {
         </div>
       </section>
       <section className="story-grid">
-        <article><h2>From the farm</h2><p>The featured roast comes from Finca Montevideo in El Salvador. It is a washed Red Bourbon with a clear connection to where it was grown.</p></article>
+        <article><h2>From the source</h2><p>The featured roast comes from single-origin harvests in El Salvador. It is a washed Red Bourbon with a clear connection to where it was grown.</p></article>
         <article><h2>Made locally</h2><p>The beans are roasted in Union, New Jersey, then served alongside breakfast, sandwiches, and familiar Latin favorites.</p></article>
         <article><h2>A local business</h2><p>Deaf Shark is a veteran-owned neighborhood coffee shop with a distinctive character, an original identity, and a growing community around it.</p></article>
       </section>
       <section className="origin-facts">
         <div>
           <span className="eyebrow">Featured coffee</span>
-          <h2>A cup with a place behind it.</h2>
+          <h2>A cup with a<br />place behind it.</h2>
         </div>
         <dl>
           <div><dt>Country</dt><dd>El Salvador</dd></div>
-          <div><dt>Farm</dt><dd>Finca Montevideo</dd></div>
           <div><dt>Variety</dt><dd>Red Bourbon</dd></div>
           <div><dt>Process</dt><dd>Washed</dd></div>
+          <div><dt>Roast</dt><dd>Medium</dd></div>
         </dl>
       </section>
       <SiteFooter />

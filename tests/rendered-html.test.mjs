@@ -29,7 +29,7 @@ test("server-renders the counter dashboard", async () => {
   const response = await render("/dashboard");
   assert.equal(response.status, 200);
   const html = await response.text();
-  assert.match(html, /Counter dashboard/i);
+  assert.match(html, /Deaf Shark Coffee/i);
   assert.match(html, /Menu controls/i);
   assert.match(html, /Pause online orders/i);
 });
