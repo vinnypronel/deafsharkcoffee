@@ -227,23 +227,23 @@ h1, h2, h3, p { margin-top: 0; }
 .origin-facts > div > .eyebrow,
 .contact-note > .eyebrow { display: none; }
 .hero h1 {
-  max-width: 790px;
-  margin-bottom: 26px;
+  max-width: 580px;
+  margin-bottom: 24px;
   font-family: Georgia, serif;
-  font-weight: 700;
-  font-size: clamp(54px, 6vw, 100px);
-  line-height: 1.0;
-  letter-spacing: .005em;
+  font-weight: 400;
+  font-size: clamp(42px, 4.4vw, 76px);
+  line-height: .98;
+  letter-spacing: -.045em;
   text-shadow: 0 2px 24px rgba(10, 5, 3, 0.45);
 }
-.hero h1 > span { display: block; }
+.hero h1 > span { display: block; font-weight: 400; }
 .hero h1 em {
   display: block;
   color: #dca86b;
   font-family: Georgia, serif;
-  font-weight: 700;
+  font-weight: 400;
   font-style: italic;
-  letter-spacing: .005em;
+  letter-spacing: -.03em;
 }
 .hero-copy > p { max-width: 620px; color: rgba(255,250,243,.72); font-size: clamp(17px, 1.4vw, 22px); line-height: 1.55; }
 .hero-actions { display: flex; align-items: center; gap: 26px; margin-top: 22px; }
