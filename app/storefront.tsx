@@ -226,7 +226,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   }, [activeVideoModal]);
 
   useEffect(() => {
-    if (interactionStarted) return;
+    if (activeVideoModal) return;
     const timer = window.setInterval(() => {
       setHeroProduct((current) => {
         const index = featuredProducts.findIndex((item) => item.id === current.id);
@@ -234,7 +234,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
       });
     }, 5000);
     return () => window.clearInterval(timer);
-  }, [interactionStarted, heroProduct.id]);
+  }, [activeVideoModal, heroProduct.id]);
 
   useEffect(() => {
     const itemId = new URLSearchParams(window.location.search).get("item");
@@ -378,10 +378,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
                 <button
                   key={product.id}
                   className={isActive ? "active" : ""}
-                  onClick={() => {
-                    setInteractionStarted(true);
-                    setHeroProduct(product);
-                  }}
+                  onClick={() => setHeroProduct(product)}
                   aria-label={`Show ${product.name}`}
                 >
                   {isActive && <span key={`${product.id}-timer`} className="dot-fill" />}
