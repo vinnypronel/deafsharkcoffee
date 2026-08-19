@@ -175,16 +175,16 @@ export default function ScrollHero({
       if (dx > 0 && gapB > 0) mirror(0, sh - srcB, srcL, srcB, 0, dy + dh, dx, gapB, true, true);
       ctx.drawImage(source, dx, dy, dw, dh);
 
-      /* Cover the extra mirrored arm and bracelets on the bottom-right (halved horizontal width) */
+      /* Cover the extra mirrored arm and bracelets on the right half of the bottom gap */
       if (gapB > 0) {
-        const armStartX = Math.max(0, dx + dw * 0.70);
+        const armStartX = Math.max(0, dx + dw * 0.50);
         const armW = cw - armStartX;
         if (armW > 0) {
           const grad = ctx.createLinearGradient(armStartX, dy + dh, cw, dy + dh);
           grad.addColorStop(0, "rgba(35, 22, 14, 0)");
-          grad.addColorStop(0.2, "rgba(46, 30, 20, 0.98)");
-          grad.addColorStop(0.6, "rgba(54, 34, 22, 1)");
-          grad.addColorStop(0.85, "rgba(75, 50, 35, 1)");
+          grad.addColorStop(0.12, "rgba(46, 30, 20, 0.98)");
+          grad.addColorStop(0.5, "rgba(52, 34, 22, 1)");
+          grad.addColorStop(0.8, "rgba(75, 50, 35, 1)");
           grad.addColorStop(1, "rgba(110, 78, 56, 1)");
           ctx.fillStyle = grad;
           ctx.fillRect(armStartX, dy + dh, armW, ch - (dy + dh));
