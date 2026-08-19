@@ -649,23 +649,23 @@ h1, h2, h3, p { margin-top: 0; }
 }
 .menu-card-pill {
   position: absolute;
-  bottom: clamp(20px, 2.2vw, 28px);
-  left: 12px;
-  right: 12px;
+  bottom: clamp(18px, 2.2vw, 26px);
+  left: 8px;
+  right: 8px;
   border: 0;
   border-radius: 0;
-  padding: 0;
+  padding: 0 4px;
   background: transparent;
   color: var(--ink);
   font-family: Georgia, serif;
-  font-size: clamp(16px, 1.35vw, 20px);
+  font-size: clamp(13px, 1.15vw, 17px);
   font-weight: 750;
   letter-spacing: -.01em;
   text-align: center;
   cursor: pointer;
   box-shadow: none;
   transition: color .2s ease, transform .2s ease;
-  white-space: normal;
+  white-space: nowrap;
   line-height: 1.2;
   z-index: 5;
 }

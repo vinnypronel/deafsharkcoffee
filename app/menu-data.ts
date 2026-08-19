@@ -126,7 +126,7 @@ export const menuProducts: Product[] = [
   },
   {
     id: "salvadoran-horchata-latte",
-    name: "Iced Salvadoran Peanut Horchata Latte",
+    name: "Salvadoran Peanut Horchata Latte",
     category: "Coffee",
     price: 6.25,
     description: "Traditional Salvadoran peanut horchata with cinnamon and morro seeds, topped with a rich float of fresh espresso over ice.",
