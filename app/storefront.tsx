@@ -393,6 +393,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
       </ScrollHero>}
 
       <section className={`order-section ${isMenuPage ? "standalone-order" : ""}`} id="menu">
+        <img src="/deafshark-logo.png" alt="Deaf Shark Coffee" className="order-section-badge" />
         <div className="menu-showcase-grid">
           {/* Left Column: Title + Clean Product Card + Brand Tag (Sticky) */}
           <aside className="menu-product-card-wrap">
@@ -444,9 +445,8 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
             )}
 
             <div className="menu-panel-header">
-              <div className="menu-panel-title-row">
+              <div>
                 <h3>{isMenuPage ? activeCategory : "Iced Beverages"}</h3>
-                <img src="/deafshark-logo.png" alt="Deaf Shark Coffee" className="order-section-badge" />
               </div>
               <span className="menu-milk-note">Every drink is available with oat or almond milk · +$0.75</span>
             </div>
