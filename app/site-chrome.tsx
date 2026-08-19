@@ -106,7 +106,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
             </svg>
           </button>
           {reference && <button className={`order-status-trigger ${order?.status === "ready" ? "ready" : ""}`} onClick={() => setOpen((current) => !current)}><span>{order?.status === "ready" ? "Ready" : "Order status"}</span><i /></button>}
-          {action ?? <a className="header-order-link" href="/menu">Order</a>}
+          {action ?? <a className="header-order-link" href="/menu">Order now</a>}
           {searchOpen && (
             <section className="header-search-panel" aria-label="Search the menu">
               <div className="search-field"><span className="search-glyph" /><input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search coffee, breakfast, sandwiches..." /><button onClick={() => setSearchOpen(false)} aria-label="Close search">×</button></div>

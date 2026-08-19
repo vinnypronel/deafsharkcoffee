@@ -199,7 +199,7 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 660px);
   align-items: center;
   gap: clamp(36px, 5vw, 80px);
-  padding: clamp(70px, 8vw, 120px) var(--ev-gutter);
+  padding: clamp(50px, 5vw, 76px) var(--ev-gutter);
   background: var(--cream);
 }
 .ev-upcoming-media {
@@ -233,16 +233,17 @@
 
 /* 5. Gallery mosaic */
 .ev-gallery {
-  padding: clamp(70px, 8vw, 120px) var(--ev-gutter);
+  padding: clamp(40px, 4vw, 56px) var(--ev-gutter) 0;
   background: var(--paper);
 }
-.ev-gallery-head { margin-bottom: clamp(30px, 4vw, 54px); }
+.ev-gallery-head { margin-bottom: clamp(20px, 2.4vw, 32px); }
 .ev-gallery-head h2 { margin-bottom: 0; }
 .ev-gallery-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0;
   margin-inline: calc(-1 * var(--ev-gutter));
+  margin-bottom: 0;
 }
 .ev-shot {
   position: relative;
@@ -343,10 +344,10 @@
 
   :root { --ev-gutter: 22px; }
   .ev-featured,
-  .ev-upcoming,
   .ev-mayor,
-  .ev-gallery,
-  .ev-cta { padding: 70px var(--ev-gutter); }
+  .ev-cta { padding: 60px var(--ev-gutter); }
+  .ev-upcoming { padding: 44px var(--ev-gutter); }
+  .ev-gallery { padding: 44px var(--ev-gutter) 0; }
   .ev-featured h2,
   .ev-upcoming h2,
   .ev-gallery h2 { font-size: clamp(36px, 11vw, 50px); }

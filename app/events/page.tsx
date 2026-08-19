@@ -27,7 +27,6 @@ export default function EventsPage() {
 
       <section className="ev-hero">
         <div className="ev-hero-copy">
-          <span className="ev-eyebrow">More than a coffee shop</span>
           <h1>A gathering place in Union.</h1>
           <p>The counter serves coffee all day, and some nights the room turns into something else. Music, dancing, and neighbors meeting neighbors, right here at 900 Green Lane.</p>
         </div>
@@ -146,7 +145,6 @@ export default function EventsPage() {
 
       <section className="ev-gallery">
         <div className="ev-gallery-head">
-          <span className="ev-eyebrow">The room that night</span>
           <h2>Salsa and Networking, in photos.</h2>
         </div>
         <div className="ev-gallery-grid">

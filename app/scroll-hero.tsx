@@ -154,7 +154,7 @@ export default function ScrollHero({
         ctx.save();
         ctx.translate(flipX ? dxD + dwD : dxD, flipY ? dyD + dhD : dyD);
         ctx.scale(flipX ? -1 : 1, flipY ? -1 : 1);
-        ctx.drawImage(source, sxS, syS, swS, shS, 0, 0, dwD, dhD);
+        ctx.drawImage(source, sxS, syS, swS, shS, -0.5, -0.5, dwD + 1, dhD + 1);
         ctx.restore();
       };
 
@@ -175,19 +175,21 @@ export default function ScrollHero({
       if (dx > 0 && gapB > 0) mirror(0, sh - srcB, srcL, srcB, 0, dy + dh, dx, gapB, true, true);
       ctx.drawImage(source, dx, dy, dw, dh);
 
-      /* Cover the extra mirrored arm and bracelets on the rightmost quarter of the bottom gap */
+      /* Seamlessly cover the extra mirrored arm on the right side of the bottom gap */
       if (gapB > 0) {
-        const armStartX = Math.max(0, dx + dw * 0.75);
+        const armStartX = Math.max(0, dx + dw * 0.52);
         const armW = cw - armStartX;
         if (armW > 0) {
-          const grad = ctx.createLinearGradient(armStartX, dy + dh, cw, dy + dh);
-          grad.addColorStop(0, "rgba(35, 22, 14, 0)");
-          grad.addColorStop(0.12, "rgba(46, 30, 20, 0.98)");
-          grad.addColorStop(0.5, "rgba(52, 34, 22, 1)");
-          grad.addColorStop(0.8, "rgba(75, 50, 35, 1)");
-          grad.addColorStop(1, "rgba(110, 78, 56, 1)");
+          const topY = Math.floor(dy + dh) - 1;
+          const botH = ch - topY + 2;
+          const grad = ctx.createLinearGradient(armStartX, topY, cw, topY);
+          grad.addColorStop(0, "rgba(36, 21, 13, 0)");
+          grad.addColorStop(0.28, "rgba(38, 23, 14, 0.7)");
+          grad.addColorStop(0.55, "rgba(46, 28, 18, 0.98)");
+          grad.addColorStop(0.8, "rgba(65, 42, 28, 1)");
+          grad.addColorStop(1, "rgba(92, 62, 42, 1)");
           ctx.fillStyle = grad;
-          ctx.fillRect(armStartX, dy + dh, armW, ch - (dy + dh));
+          ctx.fillRect(armStartX, topY, armW, botH);
         }
       }
     };

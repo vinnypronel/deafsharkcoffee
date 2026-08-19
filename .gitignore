@@ -9,6 +9,8 @@ node_modules/
 !.yarn/versions
 
 # AI Assistants & Agents
+.openai/
+.codex/
 .claude/
 .gemini/
 .agents/

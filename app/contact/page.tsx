@@ -24,7 +24,7 @@ export default function ContactPage() {
         <article>
           <span className="contact-number">02</span>
           <h2>August Hours</h2>
-          <p><strong>9:00 AM – 5:00 PM</strong><br />Open daily for the month of August.</p>
+          <p><strong>5:00 AM – 5:00 PM</strong><br />7 days a week for the month of August.</p>
           <a className="primary-button" href="/menu">Order pickup</a>
         </article>
         <article>

@@ -39,7 +39,6 @@ export async function generateMetadata(): Promise<Metadata> {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <head><link rel="icon" type="image/png" href="/favicon.png" /><link rel="apple-touch-icon" href="/favicon.png" /></head>
       <body className={geist.variable}><SmoothScrollProvider>{children}</SmoothScrollProvider></body>
     </html>
   );

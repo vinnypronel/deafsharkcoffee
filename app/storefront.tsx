@@ -194,6 +194,34 @@ function OptionGroup({ label, values, selected, suffix, onSelect }: { label: str
   );
 }
 
+function PriceTicker({ targetPrice }: { targetPrice: number }) {
+  const [displayPrice, setDisplayPrice] = useState<string>(money(targetPrice));
+
+  useEffect(() => {
+    const finalFormatted = money(targetPrice);
+    const startTime = performance.now();
+    const duration = 380;
+
+    let animId: number;
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      if (elapsed < duration) {
+        const randomDollars = Math.floor(Math.random() * 6) + 3;
+        const randomCents = [0, 25, 50, 75, 95][Math.floor(Math.random() * 5)];
+        setDisplayPrice(`$${randomDollars}.${randomCents < 10 ? "0" : ""}${randomCents}`);
+        animId = requestAnimationFrame(animate);
+      } else {
+        setDisplayPrice(finalFormatted);
+      }
+    };
+
+    animId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animId);
+  }, [targetPrice]);
+
+  return <span className="price-ticker-num">{displayPrice}</span>;
+}
+
 export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   const [activeCategory, setActiveCategory] = useState<MenuCategory>("Coffee");
   const [heroProduct, setHeroProduct] = useState(featuredProducts[0]);
@@ -275,7 +303,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   function openProduct(product: Product) {
     if (availability[product.id] === false) return;
     setInteractionStarted(true);
-    setDisplayProduct(product);
+    setMenuShowcaseProduct(product);
     setSelectedProduct(product);
   }
 
@@ -303,97 +331,92 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
         active={isMenuPage ? "/menu" : "/"}
         action={
           <button className="header-cart" onClick={() => setCartOpen(true)} aria-label={`Open cart with ${cartCount} items`}>
-            <svg className="cart-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <circle cx="9" cy="21" r="1" />
-              <circle cx="20" cy="21" r="1" />
-              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-            </svg>
+            <img src="/cart-icon-white.png" className="cart-glyph" alt="" aria-hidden="true" />
             <span>{cartCount}</span>
           </button>
         }
       />
 
       {!isMenuPage && <ScrollHero scrollHeights={3}>
-      <section className="hero" id="top">
-        <div className="hero-copy">
-          <span className="eyebrow">Roasted in Union, New Jersey</span>
-          <h1><span>Coffee from</span><span>El Salvador.</span><em>Roasted in Union.</em></h1>
-          <div className="hero-actions">
-            <a className="primary-button hero-cta-btn" href="/menu">
-              <span>Order pickup</span>
-              <svg className="btn-arrow" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <path d="M2.5 8h11M9.5 3.5l4.5 4.5-4.5 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </a>
-            <a className="secondary-button hero-cta-btn" href="/about">
-              <span>Read our story</span>
-              <svg className="btn-arrow" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <path d="M2.5 8h11M9.5 3.5l4.5 4.5-4.5 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </a>
-          </div>
-        </div>
-        <div className="hero-product" aria-live="polite">
-          {heroProduct.video ? (
-            <div className="hero-featured-video-wrap">
-              <video
-                key={heroProduct.id}
-                src={heroProduct.video}
-                autoPlay
-                muted
-                loop
-                playsInline
-                className="hero-featured-video"
-              />
-              <button
-                className="hero-video-play-btn"
-                onClick={() => setActiveVideoModal(heroProduct)}
-                aria-label={`Play ${heroProduct.name} video with sound`}
-                title="Play video with sound"
-              >
-                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true">
-                  <path d="M8 5v14l11-7z" />
+        <section className="hero" id="top">
+          <div className="hero-copy">
+            <span className="eyebrow">Roasted in Union, New Jersey</span>
+            <h1><span>Coffee from</span><span>El Salvador.</span><em>Roasted in Union.</em></h1>
+            <div className="hero-actions">
+              <a className="primary-button hero-cta-btn" href="/menu">
+                <span>Order pickup</span>
+                <svg className="btn-arrow" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path d="M2.5 8h11M9.5 3.5l4.5 4.5-4.5 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
+              </a>
+              <a className="secondary-button hero-cta-btn" href="/about">
+                <span>Read our story</span>
+                <svg className="btn-arrow" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path d="M2.5 8h11M9.5 3.5l4.5 4.5-4.5 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </a>
+            </div>
+          </div>
+          <div className="hero-product" aria-live="polite">
+            <div key={heroProduct.id} className="hero-visual-container hero-visual-swipe">
+              {heroProduct.video ? (
+                <div className="hero-featured-video-wrap">
+                  <video
+                    src={heroProduct.video}
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    className="hero-featured-video"
+                  />
+                  <button
+                    className="hero-video-play-btn"
+                    onClick={() => setActiveVideoModal(heroProduct)}
+                    aria-label={`Play ${heroProduct.name} video with sound`}
+                    title="Play video with sound"
+                  >
+                    <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true">
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                  </button>
+                </div>
+              ) : (
+                <ProductVisual product={heroProduct} />
+              )}
+            </div>
+            <div className="hero-product-caption">
+              <div key={heroProduct.id} className="hero-product-text hero-text-swipe">
+                <span>{heroProduct.category}</span>
+                <strong>{heroProduct.name}</strong>
+              </div>
+              <button className="hero-add-btn" onClick={() => openProduct(heroProduct)}>
+                <span>Add to cart · <PriceTicker targetPrice={heroProduct.price} /></span>
+                <span className="btn-cart-glyph" />
               </button>
             </div>
-          ) : (
-            <ProductVisual product={heroProduct} />
-          )}
-          <div className="hero-product-caption">
-            <div className="hero-product-text">
-              <span>{heroProduct.category}</span>
-              <strong>{heroProduct.name}</strong>
+            <div className="product-dots" aria-label="Featured products">
+              {featuredProducts.map((product) => {
+                const isActive = product.id === heroProduct.id;
+                return (
+                  <button
+                    key={product.id}
+                    className={isActive ? "active" : ""}
+                    onClick={() => setHeroProduct(product)}
+                    aria-label={`Show ${product.name}`}
+                  >
+                    {isActive && <span key={`${product.id}-timer`} className="dot-fill" />}
+                  </button>
+                );
+              })}
             </div>
-            <button className="hero-add-btn" onClick={() => openProduct(heroProduct)}>
-              <span>Add to cart · {money(heroProduct.price)}</span>
-              <svg className="btn-cart-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <circle cx="9" cy="21" r="1" />
-                <circle cx="20" cy="21" r="1" />
-                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-              </svg>
-            </button>
           </div>
-          <div className="product-dots" aria-label="Featured products">
-            {featuredProducts.map((product) => {
-              const isActive = product.id === heroProduct.id;
-              return (
-                <button
-                  key={product.id}
-                  className={isActive ? "active" : ""}
-                  onClick={() => setHeroProduct(product)}
-                  aria-label={`Show ${product.name}`}
-                >
-                  {isActive && <span key={`${product.id}-timer`} className="dot-fill" />}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+        </section>
       </ScrollHero>}
 
       <section className={`order-section ${isMenuPage ? "standalone-order" : ""}`} id="menu">
-        <img src="/deafshark-logo.png" alt="Deaf Shark Coffee" className="order-section-badge" />
+        <div className="order-section-badge-wrap" aria-hidden="true">
+          <img src="/deafshark-logo.png" alt="Deaf Shark Coffee" className="order-section-badge" />
+        </div>
         <div className="menu-showcase-grid">
           {/* Left Column: Title + Clean Product Card + Brand Tag (Sticky) */}
           <aside className="menu-product-card-wrap">
@@ -446,13 +469,13 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
 
             <div className="menu-panel-header">
               <div>
-                <h3>{isMenuPage ? activeCategory : "Iced Beverages"}</h3>
+                <h3>{isMenuPage ? activeCategory : "Our Refreshments"}</h3>
               </div>
               <span className="menu-milk-note">Every drink is available with oat or almond milk · +$0.75</span>
             </div>
 
             <div className="menu-items-list">
-              {(isMenuPage ? visibleProducts : menuProducts.filter((p) => p.visual === "iced" && p.photo)).map((product) => {
+              {(isMenuPage ? visibleProducts : menuProducts.filter((p) => p.category === "Coffee" || p.category === "Non-Coffee")).map((product) => {
                 const soldOut = availability[product.id] === false;
                 const isSelected = menuShowcaseProduct.id === product.id;
                 return (
@@ -470,9 +493,14 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
                       <small>{product.description}</small>
                     </div>
                     <span className="item-leader" aria-hidden="true" />
-                    <span className="item-price">
-                      {soldOut ? "Sold out" : money(product.price)}
-                    </span>
+                    <div className="item-price-wrap">
+                      <span className="item-price">
+                        {soldOut ? "Sold out" : money(product.price)}
+                      </span>
+                      <span className="item-cart-btn" aria-hidden="true" title="Add to cart">
+                        <span className="universal-cart-glyph" />
+                      </span>
+                    </div>
                   </button>
                 );
               })}
@@ -497,21 +525,17 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
           <img src="/ocean-blend-bags.jpg" alt="Deaf Shark Ocean Blend coffee bags displayed in the Union shop" />
         </div>
         <div className="take-home-copy">
-          <span className="eyebrow">Ocean Blend</span>
           <h2>Take the roast home.</h2>
           <p>A 12 oz bag of medium roast whole bean coffee from El Salvador, roasted in Union and ready for your home setup.</p>
           <ul className="take-home-features">
-            <li>Medium roast</li>
-            <li>Whole bean</li>
-            <li>12 oz bag</li>
+            <li><span className="take-home-num">01.</span> Ocean Blend</li>
+            <li><span className="take-home-num">02.</span> Medium roast</li>
+            <li><span className="take-home-num">03.</span> Whole bean</li>
+            <li><span className="take-home-num">04.</span> 12 oz bag</li>
           </ul>
           <button className="primary-button take-home-btn" onClick={() => openProduct(oceanBlend)}>
             <span>Order a bag · {money(oceanBlend.price)}</span>
-            <svg className="btn-cart-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <circle cx="9" cy="21" r="1" />
-              <circle cx="20" cy="21" r="1" />
-              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-            </svg>
+            <span className="btn-cart-glyph" />
           </button>
         </div>
         <div className="take-home-film">
@@ -553,8 +577,8 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
               </div>
               <div className="visit-card">
                 <span className="visit-card-label">August Hours</span>
-                <strong>9:00 AM – 5:00 PM</strong>
-                <span>Open daily for August</span>
+                <strong>5:00 AM – 5:00 PM</strong>
+                <span>7 days a week for August</span>
                 <a href="/menu">Order ahead</a>
               </div>
               <div className="visit-card">
