@@ -968,12 +968,102 @@ h1, h2, h3, p { margin-top: 0; }
 .origin-copy dt { font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
 .origin-copy dd { margin: 0; font-size: 13.5px; font-weight: 750; }
 
-.visit-section { display: grid; grid-template-columns: 1.3fr .7fr .7fr; align-items: end; gap: 50px; padding: 120px max(5vw, calc((100vw - 1440px) / 2)); background: var(--cream); }
-.visit-card { min-height: 180px; display: flex; flex-direction: column; justify-content: flex-end; gap: 7px; border-top: 1px solid var(--line); padding-top: 30px; }
-.visit-card strong { font-family: Georgia, serif; font-size: 22px; }
-.visit-card span { color: var(--muted); }
-.visit-card a { align-self: flex-start; margin-top: 20px; padding-bottom: 5px; background-image: linear-gradient(var(--teal-dark), var(--teal-dark)); background-position: left bottom; background-repeat: no-repeat; background-size: 0 2px; color: var(--teal-dark); font-weight: 800; transition: background-size .28s ease; }
+.visit-section {
+  display: grid;
+  grid-template-columns: 1.25fr 0.75fr;
+  align-items: stretch;
+  gap: 44px;
+  padding: 80px max(5vw, calc((100vw - 1440px) / 2));
+  background: var(--cream);
+}
+.visit-header-block {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 32px;
+}
+.visit-header-block h2 {
+  font-family: Georgia, serif;
+  font-size: clamp(34px, 3.4vw, 48px);
+  line-height: 1.08;
+  margin: 6px 0 0;
+}
+.visit-cards-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+.visit-card {
+  min-height: 130px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 4px;
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+}
+.visit-card-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 2px;
+}
+.visit-card strong {
+  font-family: Georgia, serif;
+  font-size: 18px;
+  color: var(--espresso);
+}
+.visit-card span {
+  color: var(--muted);
+  font-size: 13px;
+}
+.visit-card a {
+  align-self: flex-start;
+  margin-top: auto;
+  padding-top: 10px;
+  padding-bottom: 3px;
+  background-image: linear-gradient(var(--teal-dark), var(--teal-dark));
+  background-position: left bottom;
+  background-repeat: no-repeat;
+  background-size: 0 2px;
+  color: var(--teal-dark);
+  font-weight: 800;
+  font-size: 12.5px;
+  transition: background-size .28s ease;
+}
 .visit-card a:hover, .visit-card a:focus-visible { background-size: 100% 2px; }
+
+.visit-map-container {
+  width: 100%;
+  min-height: 280px;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 16px 40px rgba(45, 26, 18, 0.1);
+  border: 1px solid rgba(45, 26, 18, 0.1);
+  background: #ecdccb;
+}
+.visit-map-frame {
+  width: 100%;
+  height: 100%;
+  min-height: 280px;
+  border: 0;
+  display: block;
+}
+
+.contact-map-section {
+  padding: 0 max(5vw, calc((100vw - 1440px) / 2)) 70px;
+  background: var(--paper);
+}
+.contact-map-container {
+  width: 100%;
+  height: 380px;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 16px 45px rgba(45, 26, 18, 0.1);
+  border: 1px solid rgba(45, 26, 18, 0.1);
+}
 .site-footer {
   background: var(--deep);
   color: var(--paper);
@@ -1721,9 +1811,12 @@ h1, h2, h3, p { margin-top: 0; }
   .origin-copy { padding: 24px 22px 54px; }
   .origin-copy p { font-size: 17px; }
   .origin-copy dl { display: block; }
-  .origin-copy dl div, .origin-copy dl div:nth-child(odd), .origin-copy dl div:nth-child(even) { padding: 16px 0; border-left: 0; }
-  .visit-section { display: flex; flex-direction: column; align-items: stretch; padding: 80px 22px; }
-  .visit-card { min-height: 140px; }
+  .visit-section { display: flex; flex-direction: column; align-items: stretch; gap: 36px; padding: 60px 20px; }
+  .visit-cards-row { grid-template-columns: 1fr; gap: 16px; }
+  .visit-card { min-height: auto; }
+  .visit-map-container { min-height: 260px; }
+  .contact-map-section { padding: 0 16px 50px; }
+  .contact-map-container { height: 280px; }
   .configurator { width: 100vw; max-height: 100dvh; height: 100dvh; display: block; border-radius: 0; }
   .config-product { min-height: 44vh; padding: 28px 24px; }
   .config-product .product-visual-compact { height: 220px; }

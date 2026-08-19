@@ -528,11 +528,45 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
         </div>
       </section>}
 
-      {!isMenuPage && <section className="visit-section" id="visit">
-        <div><span className="eyebrow">Come visit</span><h2>Deaf Shark Coffee<br />Union, New Jersey</h2></div>
-        <div className="visit-card"><strong>900 Green Lane</strong><span>Union, NJ 07083</span><a href="https://maps.google.com/?q=900+Green+Lane+Union+NJ+07083">Get directions</a></div>
-        <div className="visit-card"><strong>(908) 481-8884</strong><span>Call ahead or stop in</span><a href="tel:+19084818884">Call the shop</a></div>
-      </section>}
+      {!isMenuPage && (
+        <section className="visit-section" id="visit">
+          <div className="visit-header-block">
+            <div>
+              <span className="eyebrow">Come visit</span>
+              <h2>Deaf Shark Coffee<br />Union, New Jersey</h2>
+            </div>
+            <div className="visit-cards-row">
+              <div className="visit-card">
+                <span className="visit-card-label">Address</span>
+                <strong>900 Green Lane</strong>
+                <span>Union, NJ 07083</span>
+                <a href="https://maps.google.com/?q=900+Green+Lane+Union+NJ+07083" target="_blank" rel="noopener noreferrer">Get directions ↗</a>
+              </div>
+              <div className="visit-card">
+                <span className="visit-card-label">August Hours</span>
+                <strong>9:00 AM – 5:00 PM</strong>
+                <span>Open daily for August</span>
+                <a href="/menu">Order ahead ↗</a>
+              </div>
+              <div className="visit-card">
+                <span className="visit-card-label">Contact</span>
+                <strong>(908) 481-8884</strong>
+                <span>Call ahead or stop in</span>
+                <a href="tel:+19084818884">Call shop ↗</a>
+              </div>
+            </div>
+          </div>
+          <div className="visit-map-container">
+            <iframe
+              title="Deaf Shark Coffee Map Location"
+              src="https://maps.google.com/maps?q=900+Green+Lane,+Union,+NJ+07083&t=&z=15&ie=UTF8&iwloc=&output=embed"
+              className="visit-map-frame"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+          </div>
+        </section>
+      )}
 
       <SiteFooter />
 

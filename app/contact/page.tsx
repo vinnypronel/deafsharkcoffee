@@ -15,9 +15,35 @@ export default function ContactPage() {
         <div className="contact-stamp"><img src="/deafshark-logo.png" alt="Deaf Shark Coffee logo" /></div>
       </section>
       <section className="contact-grid">
-        <article><span className="contact-number">01</span><h2>Visit</h2><p>900 Green Lane<br />Union, NJ 07083</p><a className="primary-button" href="https://maps.google.com/?q=900+Green+Lane+Union+NJ+07083">Get directions</a></article>
-        <article><span className="contact-number">02</span><h2>Call</h2><p>(908) 481-8884<br />Call ahead or ask the shop a question.</p><a className="primary-button" href="tel:+19084818884">Call the shop</a></article>
-        <article><span className="contact-number">03</span><h2>Order</h2><p>Build an order online and pick it up at the counter when it is ready.</p><a className="primary-button" href="/menu">Start an order</a></article>
+        <article>
+          <span className="contact-number">01</span>
+          <h2>Visit</h2>
+          <p>900 Green Lane<br />Union, NJ 07083</p>
+          <a className="primary-button" href="https://maps.google.com/?q=900+Green+Lane+Union+NJ+07083" target="_blank" rel="noopener noreferrer">Get directions</a>
+        </article>
+        <article>
+          <span className="contact-number">02</span>
+          <h2>August Hours</h2>
+          <p><strong>9:00 AM – 5:00 PM</strong><br />Open daily for the month of August.</p>
+          <a className="primary-button" href="/menu">Order pickup</a>
+        </article>
+        <article>
+          <span className="contact-number">03</span>
+          <h2>Call</h2>
+          <p>(908) 481-8884<br />Call ahead or ask the shop a question.</p>
+          <a className="primary-button" href="tel:+19084818884">Call the shop</a>
+        </article>
+      </section>
+      <section className="contact-map-section">
+        <div className="contact-map-container">
+          <iframe
+            title="Deaf Shark Coffee Map Location"
+            src="https://maps.google.com/maps?q=900+Green+Lane,+Union,+NJ+07083&t=&z=15&ie=UTF8&iwloc=&output=embed"
+            className="visit-map-frame"
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+          />
+        </div>
       </section>
       <section className="contact-note"><span className="eyebrow">Good to know</span><h2>Pickup only for now.</h2><p>Delivery platform integrations can be added later. Online orders currently flow directly into the Deaf Shark order dashboard.</p></section>
       <SiteFooter />
