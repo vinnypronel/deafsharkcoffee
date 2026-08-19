@@ -933,8 +933,8 @@ h1, h2, h3, p { margin-top: 0; }
   isolation: isolate;
   display: grid;
   grid-template-columns: .85fr 1.15fr;
-  min-height: 760px;
-  background: var(--orange-tint);
+  min-height: 480px;
+  background: #f2e3d5;
   color: var(--deep);
   overflow: hidden;
 }
@@ -944,35 +944,29 @@ h1, h2, h3, p { margin-top: 0; }
   z-index: -1;
   inset: 0;
   pointer-events: none;
-}
-/* Grayscale plus soft-light, not an orange wash on top of a colour image.
-   Multiplying an orange layer over the flag drove its blue bands down to near black
-   (background luminance bottomed out at 0.004, heading contrast 1.0 to 1). Soft-light
-   on a desaturated copy only modulates lightness, so the brand orange is preserved and
-   the darkest point still measures 5.3 to 1 against the heading colour. */
-.origin-section::before {
   background: url("/el-salvador-flag.jpg") center / cover no-repeat;
-  opacity: .55;
-  filter: grayscale(1);
-  mix-blend-mode: soft-light;
+  opacity: .36;
+  filter: grayscale(0.2);
+  mix-blend-mode: multiply;
 }
 .origin-section > * { position: relative; z-index: 1; }
-.origin-art { display: grid; place-items: center; overflow: hidden; padding: 60px; }
-.origin-art img { width: min(100%, 580px); border-radius: 42% 42% 24px 24px; mix-blend-mode: multiply; box-shadow: 0 30px 80px rgba(66,28,11,.22); }
+.origin-art { display: grid; place-items: center; overflow: hidden; padding: 36px 30px; }
+.origin-art img { width: min(100%, 420px); border-radius: 38% 38% 22px 22px; mix-blend-mode: multiply; box-shadow: 0 18px 45px rgba(66,28,11,.15); }
 
 @media (max-width: 780px) {
   .scroll-hero-video { --hero-fit: 1; --hero-zoom: 1; --hero-focus-x: .5; }
-  .origin-section::before { opacity: .45; }
+  .origin-section::before { opacity: .32; }
 }
-.origin-copy { display: flex; flex-direction: column; justify-content: center; padding: 8vw; }
-.origin-copy .eyebrow { color: #5e2a16; }
-.origin-copy p { max-width: 680px; margin: 30px 0 48px; font-size: 19px; line-height: 1.65; }
-.origin-copy dl { display: grid; grid-template-columns: 1fr 1fr; margin: 0; border-top: 1px solid rgba(33,19,14,.25); }
-.origin-copy dl div { display: flex; justify-content: space-between; gap: 20px; padding: 18px 0; border-bottom: 1px solid rgba(33,19,14,.25); }
-.origin-copy dl div:nth-child(odd) { padding-right: 24px; }
-.origin-copy dl div:nth-child(even) { padding-left: 24px; border-left: 1px solid rgba(33,19,14,.25); }
-.origin-copy dt { font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
-.origin-copy dd { margin: 0; font-weight: 750; }
+.origin-copy { display: flex; flex-direction: column; justify-content: center; padding: 44px 5vw 44px 2vw; }
+.origin-copy .eyebrow { color: #5e2a16; font-size: 11px; margin-bottom: 6px; }
+.origin-copy h2 { font-family: Georgia, serif; font-size: clamp(28px, 3.2vw, 42px); line-height: 1.14; margin: 0; }
+.origin-copy p { max-width: 580px; margin: 16px 0 26px; font-size: 15.5px; line-height: 1.55; color: rgba(20, 11, 8, 0.84); }
+.origin-copy dl { display: grid; grid-template-columns: 1fr 1fr; margin: 0; border-top: 1px solid rgba(33,19,14,.2); }
+.origin-copy dl div { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid rgba(33,19,14,.2); }
+.origin-copy dl div:nth-child(odd) { padding-right: 20px; }
+.origin-copy dl div:nth-child(even) { padding-left: 20px; border-left: 1px solid rgba(33,19,14,.2); }
+.origin-copy dt { font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.origin-copy dd { margin: 0; font-size: 13.5px; font-weight: 750; }
 
 .visit-section { display: grid; grid-template-columns: 1.3fr .7fr .7fr; align-items: end; gap: 50px; padding: 120px max(5vw, calc((100vw - 1440px) / 2)); background: var(--cream); }
 .visit-card { min-height: 180px; display: flex; flex-direction: column; justify-content: flex-end; gap: 7px; border-top: 1px solid var(--line); padding-top: 30px; }
@@ -1703,8 +1697,8 @@ h1, h2, h3, p { margin-top: 0; }
   .take-home-image { height: 340px; }
   .take-home-copy { padding: 54px 22px; }
   .take-home-film { height: 340px; }
-  .origin-art { min-height: 460px; padding: 44px 28px; }
-  .origin-copy { padding: 70px 22px; }
+  .origin-art { min-height: 0; padding: 40px 24px 16px; }
+  .origin-copy { padding: 24px 22px 54px; }
   .origin-copy p { font-size: 17px; }
   .origin-copy dl { display: block; }
   .origin-copy dl div, .origin-copy dl div:nth-child(odd), .origin-copy dl div:nth-child(even) { padding: 16px 0; border-left: 0; }
