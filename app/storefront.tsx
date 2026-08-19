@@ -393,38 +393,12 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
       </ScrollHero>}
 
       <section className={`order-section ${isMenuPage ? "standalone-order" : ""}`} id="menu">
-        <div className="order-intro">
-          <div className="order-intro-text">
-            <h2>{isMenuPage ? "The full menu, ready your way." : "Salvadoran roasts, poured ice-cold."}</h2>
-          </div>
-          <img src="/deafshark-logo.png" alt="Deaf Shark Coffee" className="order-section-badge" />
-        </div>
-
-        {isMenuPage && (
-          <div className="category-nav-wrap">
-            <div className="category-nav" role="tablist" aria-label="Menu categories">
-              {categories.map((category) => (
-                <button
-                  key={category}
-                  role="tab"
-                  aria-selected={activeCategory === category}
-                  className={activeCategory === category ? "active" : ""}
-                  onClick={() => {
-                    setActiveCategory(category);
-                    const firstOfCategory = menuProducts.find((p) => p.category === category);
-                    if (firstOfCategory) setMenuShowcaseProduct(firstOfCategory);
-                  }}
-                >
-                  {category}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
         <div className="menu-showcase-grid">
-          {/* Left Column: Clean Product Card + Pill */}
+          {/* Left Column: Title + Clean Product Card + Brand Tag (Sticky) */}
           <aside className="menu-product-card-wrap">
+            <div className="menu-sidebar-heading">
+              <h2>{isMenuPage ? "The full menu, ready your way." : "Salvadoran roasts, poured ice-cold."}</h2>
+            </div>
             <div className="menu-product-card">
               <ProductVisual product={menuShowcaseProduct} />
               <button
@@ -447,9 +421,32 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
 
           {/* Right Column: Menu List with Dotted Leaders */}
           <div className="menu-list-panel">
+            {isMenuPage && (
+              <div className="category-nav-wrap">
+                <div className="category-nav" role="tablist" aria-label="Menu categories">
+                  {categories.map((category) => (
+                    <button
+                      key={category}
+                      role="tab"
+                      aria-selected={activeCategory === category}
+                      className={activeCategory === category ? "active" : ""}
+                      onClick={() => {
+                        setActiveCategory(category);
+                        const firstOfCategory = menuProducts.find((p) => p.category === category);
+                        if (firstOfCategory) setMenuShowcaseProduct(firstOfCategory);
+                      }}
+                    >
+                      {category}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="menu-panel-header">
-              <div>
+              <div className="menu-panel-title-row">
                 <h3>{isMenuPage ? activeCategory : "Iced Beverages"}</h3>
+                <img src="/deafshark-logo.png" alt="Deaf Shark Coffee" className="order-section-badge" />
               </div>
               <span className="menu-milk-note">Every drink is available with oat or almond milk · +$0.75</span>
             </div>
