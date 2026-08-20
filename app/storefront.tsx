@@ -88,10 +88,12 @@ function ProductVisual({ product, compact = false }: { product: Product; compact
 
 function ProductConfigurator({
   product,
+  initialItem,
   onClose,
   onAdd,
 }: {
   product: Product;
+  initialItem?: CartItem;
   onClose: () => void;
   onAdd: (item: CartItem) => void;
 }) {
@@ -102,14 +104,56 @@ function ProductConfigurator({
   const hasShotOptions = product.category === "Coffee" || ["matcha-latte", "strawberry-matcha"].includes(product.id);
 
   const defaultMilk: Configuration["milk"] = ["americano", "drip-coffee", "espresso", "cold-brew", "chicha", "malta", "san-pellegrino"].includes(product.id) ? "None" : "Whole";
-  const [config, setConfig] = useState<Configuration>({
-    temperature: "Iced",
-    size: "Regular",
-    milk: defaultMilk,
-    extraShot: 0,
-    syrups: [],
-    notes: "",
-    quantity: 1,
+
+  const [config, setConfig] = useState<Configuration>(() => {
+    if (!initialItem) {
+      return {
+        temperature: "Iced",
+        size: "Regular",
+        milk: defaultMilk,
+        extraShot: 0,
+        syrups: [],
+        notes: "",
+        quantity: 1,
+      };
+    }
+    const opts = initialItem.options || [];
+    const temp = opts.includes("Hot") ? "Hot" : "Iced";
+    const size = opts.includes("Large") ? "Large" : "Regular";
+    let milk: Configuration["milk"] = defaultMilk;
+    if (opts.includes("Oat")) milk = "Oat";
+    else if (opts.includes("Almond")) milk = "Almond";
+    else if (opts.includes("Whole")) milk = "Whole";
+    else if (opts.includes("No milk")) milk = "None";
+
+    let extraShot = 0;
+    const shotOpt = opts.find((o) => o.includes("extra shot") || o.includes("Extra shot"));
+    if (shotOpt) {
+      const match = shotOpt.match(/(\d+)/);
+      extraShot = match ? parseInt(match[1], 10) : 1;
+    }
+
+    const syrups: SyrupFlavor[] = [];
+    const syrupOpt = opts.find((o) => o.startsWith("Syrup:"));
+    if (syrupOpt) {
+      const syrupList = syrupOpt.replace("Syrup:", "").split(",").map((s) => s.trim());
+      for (const s of syrupList) {
+        if (SYRUP_OPTIONS.includes(s as SyrupFlavor)) syrups.push(s as SyrupFlavor);
+      }
+    }
+
+    const knownPrefixes = ["Hot", "Iced", "Large", "Regular", "Whole", "Oat", "Almond", "No milk", "Syrup:", "Extra shot", "extra shot"];
+    const noteOpt = opts.find((o) => !knownPrefixes.some((p) => o.startsWith(p)));
+
+    return {
+      temperature: temp,
+      size,
+      milk,
+      extraShot,
+      syrups,
+      notes: noteOpt || "",
+      quantity: initialItem.quantity || 1,
+    };
   });
 
   const hasTwoSizes = ["shark-cubano", "chicken-sandwich", "emilia"].includes(product.id);
@@ -142,7 +186,7 @@ function ProductConfigurator({
     }
     if (config.notes.trim()) options.push(config.notes.trim());
     onAdd({
-      key: `${product.id}-${Date.now()}`,
+      key: initialItem?.key ?? `${product.id}-${Date.now()}`,
       id: product.id,
       name: product.name,
       quantity: config.quantity,
@@ -246,7 +290,7 @@ function ProductConfigurator({
               <strong>{config.quantity}</strong>
               <button onClick={() => setConfig({ ...config, quantity: config.quantity + 1 })} aria-label="Increase quantity">+</button>
             </div>
-            <button className="primary-button add-button" onClick={add}>Add to order · {money(unitPrice * config.quantity)}</button>
+            <button className="primary-button add-button" onClick={add}>{initialItem ? "Update item" : "Add to order"} · {money(unitPrice * config.quantity)}</button>
           </div>
         </div>
       </section>
@@ -388,6 +432,8 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
 
+  const [editingCartItem, setEditingCartItem] = useState<CartItem | null>(null);
+
   function openProduct(product: Product) {
     if (availability[product.id] === false) return;
     setInteractionStarted(true);
@@ -409,8 +455,24 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
     justAddedTimer.current = window.setTimeout(() => setJustAdded(null), 1100);
   }
 
-  function addToCart(item: CartItem) {
-    setCart((current) => [...current, item]);
+  function handleEditCartItem(item: CartItem) {
+    const prod = menuProducts.find((p) => p.id === item.id);
+    if (prod) {
+      setEditingCartItem(item);
+      setSelectedProduct(prod);
+      setCartOpen(false);
+    }
+  }
+
+  function handleSaveConfiguredItem(item: CartItem) {
+    if (editingCartItem) {
+      setCart((current) =>
+        current.map((c) => (c.key === editingCartItem.key ? item : c))
+      );
+      setEditingCartItem(null);
+    } else {
+      setCart((current) => [...current, item]);
+    }
     setSelectedProduct(null);
     setCartOpen(true);
   }
@@ -795,9 +857,32 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
         <span>{cartCount} {cartCount === 1 ? "item" : "items"}</span><strong>View cart · {money(subtotal)}</strong>
       </button>
 
-      {selectedProduct && <ProductConfigurator product={selectedProduct} onClose={() => setSelectedProduct(null)} onAdd={addToCart} />}
+      {selectedProduct && (
+        <ProductConfigurator
+          product={selectedProduct}
+          initialItem={editingCartItem || undefined}
+          onClose={() => {
+            setSelectedProduct(null);
+            if (editingCartItem) {
+              setEditingCartItem(null);
+              setCartOpen(true);
+            }
+          }}
+          onAdd={handleSaveConfiguredItem}
+        />
+      )}
       {cartOpen && (
-        <CartDrawer cart={cart} subtotal={subtotal} onClose={() => setCartOpen(false)} onRemove={(key) => setCart((current) => current.filter((item) => item.key !== key))} onCheckout={() => { setCartOpen(false); setCheckoutOpen(true); }} />
+        <CartDrawer
+          cart={cart}
+          subtotal={subtotal}
+          onClose={() => setCartOpen(false)}
+          onEdit={handleEditCartItem}
+          onRemove={(key) => setCart((current) => current.filter((item) => item.key !== key))}
+          onCheckout={() => {
+            setCartOpen(false);
+            setCheckoutOpen(true);
+          }}
+        />
       )}
       {checkoutOpen && (
         <Checkout prepTime={prepTime} cart={cart} subtotal={subtotal} onClose={() => setCheckoutOpen(false)} onComplete={(number, eta, phone) => { rememberOrder({ orderNumber: number, phone }); setCheckoutOpen(false); setCart([]); setConfirmation({ number, eta }); }} />
@@ -1053,7 +1138,7 @@ function CustomVideoModal({
   );
 }
 
-function CartDrawer({ cart, subtotal, onClose, onRemove, onCheckout }: { cart: CartItem[]; subtotal: number; onClose: () => void; onRemove: (key: string) => void; onCheckout: () => void }) {
+function CartDrawer({ cart, subtotal, onClose, onEdit, onRemove, onCheckout }: { cart: CartItem[]; subtotal: number; onClose: () => void; onEdit: (item: CartItem) => void; onRemove: (key: string) => void; onCheckout: () => void }) {
   return (
     <div className="drawer-backdrop" onMouseDown={onClose}>
       <aside className="cart-drawer" data-lenis-prevent onMouseDown={(event) => event.stopPropagation()}>
@@ -1061,7 +1146,19 @@ function CartDrawer({ cart, subtotal, onClose, onRemove, onCheckout }: { cart: C
         <div className="cart-items">
           {cart.length === 0 && <div className="empty-cart"><img src="/favicon.png" alt="" /><h3>Your cart is ready when you are.</h3><p>Choose a drink, breakfast, sandwich, or bite from the menu.</p></div>}
           {cart.map((item) => (
-            <article key={item.key} className="cart-item"><span>{item.quantity}</span><div><strong>{item.name}</strong><small>{item.options.join(" · ")}</small><button onClick={() => onRemove(item.key)}>Remove</button></div><strong>{money(item.unitPrice * item.quantity)}</strong></article>
+            <article key={item.key} className="cart-item">
+              <span>{item.quantity}</span>
+              <div>
+                <strong>{item.name}</strong>
+                {item.options.length > 0 && <small>{item.options.join(" · ")}</small>}
+                <div className="cart-item-actions">
+                  <button type="button" className="cart-edit-btn" onClick={() => onEdit(item)}>Edit</button>
+                  <span className="cart-action-sep">·</span>
+                  <button type="button" className="cart-remove-btn" onClick={() => onRemove(item.key)}>Remove</button>
+                </div>
+              </div>
+              <strong>{money(item.unitPrice * item.quantity)}</strong>
+            </article>
           ))}
         </div>
         {cart.length > 0 && <div className="cart-summary"><div><span>Subtotal</span><strong>{money(subtotal)}</strong></div><small><em>Taxes are calculated at checkout.</em></small><button className="primary-button" onClick={onCheckout}>Continue to checkout</button></div>}
