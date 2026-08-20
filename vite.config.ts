@@ -2,8 +2,9 @@ import vinext from "vinext";
 import { defineConfig } from "vite";
 import { sites } from "./build/sites-vite-plugin";
 
-const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
-  "00000000-0000-4000-8000-000000000000";
+// Real D1 id for deploys, placeholder id for local dev (Miniflare ignores it).
+const D1_DATABASE_ID =
+  process.env.CF_D1_DATABASE_ID ?? "2946c7c3-7c7e-44af-a194-39c442fce372";
 
 // Hosting bindings. Inlined because `.openai/` is gitignored and is not
 // present on CI, where importing it broke the build.
@@ -14,14 +15,16 @@ const r2: string | null = null;
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 
 const localBindingConfig = {
+  name: "deaf-shark-coffee",
   main: "./worker/index.ts",
   compatibility_flags: ["nodejs_compat"],
+  images: { binding: "IMAGES" },
   d1_databases: d1
     ? [
         {
           binding: d1,
-          database_name: "site-creator-d1",
-          database_id: SITE_CREATOR_PLACEHOLDER_DATABASE_ID,
+          database_name: "deaf-shark-coffee",
+          database_id: D1_DATABASE_ID,
         },
       ]
     : [],

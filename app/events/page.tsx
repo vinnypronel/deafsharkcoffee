@@ -2,6 +2,7 @@ import "./events.css";
 import type { Metadata } from "next";
 import { CustomerHeader, SiteFooter } from "../site-chrome";
 import { EventVideos } from "./event-videos";
+import { PuppyRsvp } from "./puppy-rsvp";
 
 export const metadata: Metadata = {
   title: "Events | Deaf Shark Coffee",
@@ -113,7 +114,7 @@ export default function EventsPage() {
               <dd>BYOB, puppies, dog menu, raffles, prizes</dd>
             </div>
           </dl>
-          <a className="primary-button" href="tel:+19084818884">Call for details</a>
+          <PuppyRsvp />
         </div>
         <div className="ev-upcoming-media">
           <figure className="ev-host-shot">

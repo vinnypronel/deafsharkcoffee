@@ -231,6 +231,167 @@
   text-align: left;
 }
 
+/* Puppy Party RSVP Component */
+.puppy-rsvp-container {
+  margin-top: 24px;
+}
+.puppy-rsvp-cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 24px;
+}
+.puppy-rsvp-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.puppy-rsvp-form {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 26px 24px;
+  box-shadow: 0 16px 45px rgba(45, 26, 18, 0.08);
+  animation: evModalPop 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes evModalPop {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.puppy-rsvp-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+.puppy-rsvp-header .ev-eyebrow {
+  margin-bottom: 4px;
+}
+.puppy-rsvp-header h3 {
+  margin: 0 0 4px;
+  font-family: Georgia, serif;
+  font-size: 24px;
+  color: var(--deep);
+}
+.puppy-rsvp-header p {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+.puppy-rsvp-close {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--paper);
+  font-size: 18px;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.puppy-rsvp-close:hover {
+  background: var(--deep);
+  color: white;
+}
+.puppy-rsvp-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.puppy-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.puppy-field span {
+  font-size: 12px;
+  font-weight: 750;
+  color: var(--ink);
+}
+.puppy-field input,
+.puppy-field select {
+  width: 100%;
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+  font-size: 14px;
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.puppy-field input:focus,
+.puppy-field select:focus {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(22, 139, 135, 0.12);
+  background: white;
+}
+.puppy-field-row {
+  grid-column: span 2;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.puppy-rsvp-footer {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.puppy-submit-btn {
+  width: 100%;
+  justify-content: center;
+}
+.puppy-rsvp-note {
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+.puppy-rsvp-confirmed {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 32px 24px;
+  text-align: center;
+  box-shadow: 0 16px 45px rgba(45, 26, 18, 0.08);
+  animation: evModalPop 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.puppy-confirmed-icon {
+  font-size: 38px;
+  margin-bottom: 8px;
+}
+.puppy-rsvp-confirmed h3 {
+  margin: 0 0 10px;
+  font-family: Georgia, serif;
+  font-size: 26px;
+  color: var(--deep);
+}
+.puppy-rsvp-confirmed p {
+  margin: 0 0 20px;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+.puppy-confirmed-actions {
+  display: flex;
+  justify-content: center;
+}
+@media (max-width: 600px) {
+  .puppy-rsvp-grid {
+    grid-template-columns: 1fr;
+  }
+  .puppy-field-row {
+    grid-column: span 1;
+  }
+}
+
 /* 5. Gallery mosaic */
 .ev-gallery {
   padding: clamp(40px, 4vw, 56px) var(--ev-gutter) 0;
