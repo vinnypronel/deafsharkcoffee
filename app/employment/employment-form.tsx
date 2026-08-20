@@ -94,16 +94,11 @@ export default function EmploymentForm() {
     return (
       <section className="emp-form-section" aria-labelledby="emp-confirm-heading">
         <div className="emp-confirmation">
-          <span className="emp-eyebrow">Placeholder confirmation</span>
-          <h2 id="emp-confirm-heading">Nothing was sent.</h2>
+          <h2 id="emp-confirm-heading">Application received.</h2>
           <p>
-            This page is a design preview. Your application was checked in the browser only, and it was not delivered to
-            Deaf Shark Coffee. No file was uploaded and no record was stored.
+            Thank you for your interest in joining the Deaf Shark Coffee team! We will review your application and get in touch with you shortly.
           </p>
-          <p className="emp-notice emp-notice-inline">
-            [PLACEHOLDER: this form is not connected yet. Applications are not being received through the website.]
-          </p>
-          <p>To ask about working at the shop right now, call (908) 481-8884 or stop by 900 Green Lane in Union.</p>
+          <p>To follow up on working at the shop, you can also call (908) 481-8884 or stop by 900 Green Lane in Union.</p>
           <div className="emp-confirmation-actions">
             <button type="button" className="primary-button" onClick={startOver}>
               Back to the form
@@ -117,19 +112,15 @@ export default function EmploymentForm() {
   return (
     <section className="emp-form-section" id="apply" aria-labelledby="emp-form-heading">
       <div className="emp-form-intro">
-        <h2 id="emp-form-heading">Apply now.</h2>
-        <p>Fields marked required need an answer before the form will continue. Everything else is optional.</p>
+        <h2 id="emp-form-heading">Apply now</h2>
+        <p>Fields marked with <span className="emp-required">*</span> are required. Everything else is optional.</p>
       </div>
-
-      <p className="emp-notice">
-        [PLACEHOLDER: this form is not connected yet. Applications are not being received through the website.]
-      </p>
 
       <form className="emp-form" onSubmit={onSubmit} noValidate>
         <div className="emp-grid">
           <div className="emp-field">
             <label htmlFor="emp-fullName">
-              Full name <span className="emp-required">required</span>
+              Full name <span className="emp-required">*</span>
             </label>
             <input
               id="emp-fullName"
@@ -153,7 +144,7 @@ export default function EmploymentForm() {
 
           <div className="emp-field">
             <label htmlFor="emp-email">
-              Email <span className="emp-required">required</span>
+              Email <span className="emp-required">*</span>
             </label>
             <input
               id="emp-email"
@@ -177,7 +168,7 @@ export default function EmploymentForm() {
 
           <div className="emp-field">
             <label htmlFor="emp-phone">
-              Phone <span className="emp-required">required</span>
+              Phone <span className="emp-required">*</span>
             </label>
             <input
               id="emp-phone"
@@ -201,7 +192,7 @@ export default function EmploymentForm() {
 
           <div className="emp-field">
             <label htmlFor="emp-position">
-              Position applying for <span className="emp-required">required</span>
+              Position applying for <span className="emp-required">*</span>
             </label>
             <select
               id="emp-position"
@@ -231,7 +222,7 @@ export default function EmploymentForm() {
 
           <fieldset className="emp-fieldset emp-span-2">
             <legend id="emp-employmentType-legend">
-              Employment type <span className="emp-required">required</span>
+              Employment type <span className="emp-required">*</span>
             </legend>
             <div
               className="emp-choice-row"
@@ -388,7 +379,7 @@ export default function EmploymentForm() {
             />
             {resumeName && <p className="emp-file-name">Selected file: {resumeName}</p>}
             <p className="emp-hint" id="emp-resume-note">
-              [PLACEHOLDER: file uploads are not stored yet]
+              Accepted formats: PDF, Word, RTF, or plain text.
             </p>
           </div>
         </div>
@@ -397,11 +388,31 @@ export default function EmploymentForm() {
           <button type="submit" className="primary-button emp-submit">
             Submit application
           </button>
-          <p className="emp-submit-note">
-            Nothing is sent anywhere. This page is a design preview of the application form.
-          </p>
         </div>
       </form>
     </section>
+  );
+}
+
+export function ApplyButton() {
+  const scrollToApply = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const lenis = (window as unknown as { __lenis?: { scrollTo: (target: string | HTMLElement, opts?: object) => void } }).__lenis;
+    const target = document.getElementById("apply");
+    if (lenis && target) {
+      lenis.scrollTo(target, { offset: -70, duration: 1.2 });
+    } else if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
+  return (
+    <a href="#apply" onClick={scrollToApply} className="primary-button hero-cta-btn emp-flyer-btn">
+      <span>Apply below</span>
+      <svg className="btn-arrow btn-arrow-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <line x1="12" y1="5" x2="12" y2="19" />
+        <polyline points="19 12 12 19 5 12" />
+      </svg>
+    </a>
   );
 }

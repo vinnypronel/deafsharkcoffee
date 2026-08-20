@@ -183,9 +183,18 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
     }
   }
 
-  const searchResults = query.trim()
-    ? menuProducts.filter((product) => `${product.name} ${product.category} ${product.description}`.toLowerCase().includes(query.trim().toLowerCase())).slice(0, 6)
+  const searchMatches = query.trim()
+    ? menuProducts.filter((product) => `${product.name} ${product.category} ${product.description}`.toLowerCase().includes(query.trim().toLowerCase()))
     : menuProducts.filter((product) => product.popular).slice(0, 5);
+
+  const groupedSearchResults = query.trim()
+    ? searchMatches.reduce((acc, product) => {
+        const cat = product.category || "Menu Items";
+        if (!acc[cat]) acc[cat] = [];
+        acc[cat].push(product);
+        return acc;
+      }, {} as Record<string, typeof menuProducts>)
+    : { "Popular right now": searchMatches };
 
   return (
     <>
@@ -237,9 +246,9 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
             onMouseDown={(e) => e.stopPropagation()}
           >
             <div className="search-drawer-header">
-              <div>
-                <span className="eyebrow">Search the menu</span>
-                <h2>Search menu</h2>
+              <h2>Search menu</h2>
+              <div className="search-drawer-badge">
+                <img src="/deafshark-logo.png" alt="Deaf Shark emblem" />
               </div>
               <button
                 type="button"
@@ -247,7 +256,10 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                 onClick={() => setSearchOpen(false)}
                 aria-label="Close search"
               >
-                ×
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
               </button>
             </div>
 
@@ -273,25 +285,28 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
             </div>
 
             <div className="search-drawer-results">
-              <span className="search-results-heading">
-                {query ? `Search results (${searchResults.length})` : "Popular right now"}
-              </span>
-
-              {searchResults.length > 0 ? (
-                <div className="search-results-list">
-                  {searchResults.map((product) => (
-                    <a
-                      key={product.id}
-                      href={`/menu?item=${product.id}`}
-                      className="search-result-item"
-                      onClick={() => setSearchOpen(false)}
-                    >
-                      <div className="search-result-info">
-                        <strong>{product.name}</strong>
-                        <small>{product.category} · {product.description}</small>
+              {searchMatches.length > 0 ? (
+                <div className="search-grouped-container">
+                  {Object.entries(groupedSearchResults).map(([category, items]) => (
+                    <div key={category} className="search-category-group">
+                      <span className="search-results-heading">{category}</span>
+                      <div className="search-results-list">
+                        {items.map((product) => (
+                          <a
+                            key={product.id}
+                            href={`/menu?item=${product.id}`}
+                            className="search-result-item"
+                            onClick={() => setSearchOpen(false)}
+                          >
+                            <div className="search-result-info">
+                              <strong>{product.name}</strong>
+                              <small>{product.description}</small>
+                            </div>
+                            <b className="search-result-price">${product.price.toFixed(2)}</b>
+                          </a>
+                        ))}
                       </div>
-                      <b className="search-result-price">${product.price.toFixed(2)}</b>
-                    </a>
+                    </div>
                   ))}
                 </div>
               ) : (

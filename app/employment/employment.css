@@ -26,7 +26,7 @@
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  opacity: 0.13;
+  opacity: 0.045;
   mix-blend-mode: luminosity;
   pointer-events: none;
 }
@@ -49,62 +49,64 @@
 
 /* Featured We're Hiring Announcement Card */
 .emp-flyer-section {
-  padding: clamp(48px, 6vw, 84px) max(5vw, calc((100vw - 1280px) / 2));
+  padding: clamp(24px, 3.2vw, 44px) max(5vw, calc((100vw - 1200px) / 2));
   background: var(--cream);
 }
 .emp-flyer-card {
   display: grid;
-  grid-template-columns: minmax(300px, 420px) 1fr;
-  gap: clamp(32px, 4vw, 64px);
+  grid-template-columns: minmax(240px, 320px) 1fr;
+  gap: clamp(24px, 3vw, 44px);
   align-items: center;
   border: 1px solid var(--line);
-  border-radius: 30px;
-  padding: clamp(28px, 3.5vw, 52px);
+  border-radius: 26px;
+  padding: clamp(20px, 2.4vw, 34px);
   background: var(--paper);
   box-shadow: var(--shadow);
 }
 .emp-flyer-media {
   position: relative;
-  border-radius: 20px;
+  max-width: 320px;
+  border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 12px 36px rgba(45, 26, 18, 0.12);
+  box-shadow: 0 10px 28px rgba(45, 26, 18, 0.1);
   border: 1px solid rgba(45, 26, 18, 0.1);
   background: #fdfbf7;
 }
 .emp-flyer-img {
   width: 100%;
   height: auto;
+  max-height: 440px;
   display: block;
   object-fit: contain;
 }
 .emp-flyer-copy {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
 }
 .emp-flyer-copy h2 {
   margin: 0;
   font-family: Georgia, serif;
-  font-size: clamp(30px, 3.2vw, 48px);
-  line-height: 1.08;
+  font-size: clamp(26px, 2.4vw, 36px);
+  line-height: 1.1;
   letter-spacing: -.03em;
   color: var(--ink);
 }
 .emp-flyer-lead {
   margin: 0;
   color: var(--muted);
-  font-size: 16.5px;
-  line-height: 1.65;
+  font-size: 15px;
+  line-height: 1.5;
 }
 .emp-flyer-looking-for {
-  margin-top: 8px;
-  padding-top: 16px;
+  margin-top: 2px;
+  padding-top: 10px;
   border-top: 1px solid var(--line);
 }
 .emp-flyer-looking-for h3 {
-  margin: 0 0 12px;
+  margin: 0 0 8px;
   font-family: Georgia, serif;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--espresso);
 }
@@ -113,16 +115,16 @@
   padding-left: 20px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 5px;
 }
 .emp-flyer-list li {
   color: var(--ink);
-  font-size: 14.5px;
+  font-size: 13.5px;
   font-weight: 600;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 .emp-flyer-actions {
-  margin-top: 10px;
+  margin-top: 6px;
 }
 .emp-flyer-btn {
   display: inline-flex;
@@ -183,49 +185,41 @@
 }
 
 /* Form section */
+#apply,
 .emp-form-section {
-  padding: clamp(64px, 7vw, 104px) max(5vw, calc((100vw - 1180px) / 2)) clamp(80px, 9vw, 130px);
+  scroll-margin-top: 84px;
+  padding: clamp(48px, 5.5vw, 76px) max(5vw, calc((100vw - 1060px) / 2)) clamp(60px, 7vw, 100px);
   background: var(--cream);
 }
 .emp-form-intro {
-  max-width: 760px;
-  margin-bottom: 26px;
+  max-width: 720px;
+  margin-bottom: 22px;
 }
 .emp-form-intro h2 {
-  margin: 0 0 16px;
+  margin: 0 0 14px;
   font-family: Georgia, serif;
-  font-size: clamp(38px, 4.3vw, 66px);
-  line-height: 1;
+  font-size: clamp(34px, 3.8vw, 56px);
+  line-height: 1.05;
   letter-spacing: -.04em;
 }
 .emp-form-intro p {
   margin: 0;
   color: var(--muted);
-  font-size: 17px;
-  line-height: 1.65;
-}
-
-.emp-notice {
-  max-width: 760px;
-  margin: 0 0 30px;
-  border-left: 3px solid var(--orange);
-  padding: 14px 0 14px 18px;
-  color: var(--muted);
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.6;
 }
 
 .emp-form {
   border: 1px solid var(--line);
-  border-radius: 30px;
-  padding: clamp(26px, 3.4vw, 52px);
+  border-radius: 24px;
+  padding: clamp(22px, 3vw, 44px);
   background: var(--paper);
   box-shadow: var(--shadow);
 }
 .emp-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 26px 30px;
+  gap: 20px 24px;
 }
 .emp-span-2 { grid-column: 1 / -1; }
 
@@ -233,7 +227,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 7px;
 }
 .emp-field > label,
 .emp-fieldset > legend {
@@ -244,12 +238,12 @@
   font-weight: 800;
 }
 .emp-required {
-  margin-left: 8px;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: .1em;
-  text-transform: uppercase;
+  margin-left: 3px;
+  color: #8c5835;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1;
+  vertical-align: -1px;
 }
 
 .emp-field input[type="text"],
@@ -259,10 +253,10 @@
 .emp-field select,
 .emp-field textarea {
   width: 100%;
-  min-height: 54px;
+  min-height: 48px;
   border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 15px 16px;
+  border-radius: 12px;
+  padding: 12px 14px;
   background: white;
   color: var(--ink);
   outline: none;

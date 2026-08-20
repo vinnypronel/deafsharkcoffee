@@ -13,7 +13,7 @@ export default function AboutPage() {
       <section className="page-hero about-hero">
         <div>
           <span className="eyebrow">Our coffee and our place</span>
-          <h1>Rooted in El Salvador. Roasted in Union.</h1>
+          <h1>Rooted in<br />El Salvador,<br />Roasted in<br />Union</h1>
           <p>Deaf Shark Coffee brings carefully sourced Salvadoran coffee into a neighborhood shop built for everyday connection.</p>
         </div>
         <img src="/deafshark-dog-art.png" alt="Deaf Shark illustrated character with Salvadoran coffee artwork" />

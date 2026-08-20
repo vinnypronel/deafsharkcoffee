@@ -1,7 +1,7 @@
 import "./employment.css";
 import type { Metadata } from "next";
 import { CustomerHeader, SiteFooter } from "../site-chrome";
-import EmploymentForm from "./employment-form";
+import EmploymentForm, { ApplyButton } from "./employment-form";
 
 export const metadata: Metadata = {
   title: "Employment | Deaf Shark Coffee",
@@ -33,10 +33,9 @@ export default function EmploymentPage() {
             />
           </div>
           <div className="emp-flyer-copy">
-            <span className="emp-eyebrow">Now Hiring</span>
-            <h2>Experienced Barista Wanted</h2>
+            <h2>Now Hiring: Experienced Barista Wanted</h2>
             <p className="emp-flyer-lead">
-              Deaf Shark Coffee is seeking an experienced barista who wants to be part of creating a unique coffee experience — from helping curate the menu to shaping the customer experience and growing the brand with us.
+              Deaf Shark Coffee is seeking an experienced barista who wants to be part of creating a unique coffee experience from helping curate the menu to shaping the customer experience and growing the brand with us.
             </p>
             <div className="emp-flyer-looking-for">
               <h3>Come join the family. We are looking for someone who:</h3>
@@ -49,7 +48,7 @@ export default function EmploymentPage() {
               </ul>
             </div>
             <div className="emp-flyer-actions">
-              <a href="#apply" className="primary-button emp-flyer-btn">Apply below</a>
+              <ApplyButton />
             </div>
           </div>
         </div>
@@ -59,17 +58,14 @@ export default function EmploymentPage() {
         <h2 id="emp-values-heading" className="emp-values-heading">What we look for</h2>
         <div className="emp-values-grid">
           <article>
-            <span>01</span>
             <h3>Reliability</h3>
             <p>Shifts start early and the counter depends on the people scheduled for it. Showing up on time, ready to work, matters more here than any resume line.</p>
           </article>
           <article>
-            <span>02</span>
             <h3>Care for the customer</h3>
             <p>Most of the people who walk in are neighbors and regulars. We want the kind of staff who notice a face, remember an order, and make the visit worth repeating.</p>
           </article>
           <article>
-            <span>03</span>
             <h3>Willingness to learn</h3>
             <p>Experience is welcome but it is not required. If you are curious about coffee, the espresso bar, and the kitchen, we can teach the rest on the floor.</p>
           </article>
