@@ -11,7 +11,24 @@
 }
 
 .emp-hero {
-  min-height: 560px;
+  min-height: calc(100vh - 84px);
+  min-height: calc(100dvh - 84px);
+  position: relative;
+  isolation: isolate;
+  background: var(--espresso);
+}
+.emp-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: url("/coffee-beans-texture.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0.13;
+  mix-blend-mode: luminosity;
+  pointer-events: none;
 }
 .emp-hero-mark {
   width: min(30vw, 400px);

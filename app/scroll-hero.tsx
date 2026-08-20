@@ -10,6 +10,8 @@ type ScrollHeroProps = {
   children?: React.ReactNode;
 };
 
+const SOURCE_FPS = 24;
+
 // Module-level cached media elements so navigating back to the home page is instantaneous
 let cachedVideo: HTMLVideoElement | null = null;
 let cachedPoster: HTMLImageElement | null = null;
@@ -22,7 +24,6 @@ function getSharedVideo(src: string): HTMLVideoElement | null {
     cachedVideo.muted = true;
     cachedVideo.playsInline = true;
     cachedVideo.preload = "auto";
-    cachedVideo.crossOrigin = "anonymous";
     cachedVideo.load();
   } else if (!cachedVideo.src.endsWith(src) && cachedVideo.src !== src) {
     cachedVideo.src = src;
@@ -87,10 +88,25 @@ export default function ScrollHero({
       }
     };
 
-    const readVar = (name: string, fallback: number) => {
-      const v = parseFloat(getComputedStyle(canvas).getPropertyValue(name));
-      return Number.isFinite(v) ? v : fallback;
+    let zoom = 1;
+    let focusX = 0.5;
+    let focusY = 0.5;
+    let fit = 0;
+    let pinTop = 0;
+
+    const refreshVars = () => {
+      const style = getComputedStyle(canvas);
+      const readVar = (name: string, fallback: number) => {
+        const v = parseFloat(style.getPropertyValue(name));
+        return Number.isFinite(v) ? v : fallback;
+      };
+      zoom = Math.min(Math.max(readVar("--hero-zoom", 1), 0.2), 2);
+      focusX = Math.min(Math.max(readVar("--hero-focus-x", 0.5), 0), 1);
+      focusY = Math.min(Math.max(readVar("--hero-focus-y", 0.5), 0), 1);
+      fit = Math.min(Math.max(readVar("--hero-fit", 0), 0), 1);
+      pinTop = parseFloat(getComputedStyle(pin).top) || 0;
     };
+    refreshVars();
 
     const drawSource = (source: CanvasImageSource, sw: number, sh: number) => {
       if (!sw || !sh) return;
@@ -98,10 +114,6 @@ export default function ScrollHero({
       const cw = canvas.width;
       const ch = canvas.height;
       if (!cw || !ch) return;
-      const zoom = Math.min(Math.max(readVar("--hero-zoom", 1), 0.2), 2);
-      const focusX = Math.min(Math.max(readVar("--hero-focus-x", 0.5), 0), 1);
-      const focusY = Math.min(Math.max(readVar("--hero-focus-y", 0.5), 0), 1);
-      const fit = Math.min(Math.max(readVar("--hero-fit", 0), 0), 1);
       const contain = Math.min(cw / sw, ch / sh);
       const cover = Math.max(cw / sw, ch / sh);
       const scale = (contain + (cover - contain) * fit) * zoom;
@@ -196,10 +208,45 @@ export default function ScrollHero({
     video.addEventListener("loadeddata", onLoadedData);
     if (video.readyState >= 2) drawFrame();
 
-    if (reduced) return;
+    type FrameCallbackVideo = HTMLVideoElement & {
+      requestVideoFrameCallback?: (cb: () => void) => number;
+      cancelVideoFrameCallback?: (handle: number) => void;
+      fastSeek?: (time: number) => void;
+    };
+    const frameVideo = video as FrameCallbackVideo;
+    let videoFrameHandle = 0;
+    const onVideoFrame = () => {
+      drawFrame();
+      if (frameVideo.requestVideoFrameCallback) {
+        videoFrameHandle = frameVideo.requestVideoFrameCallback(onVideoFrame);
+      }
+    };
+    if (frameVideo.requestVideoFrameCallback) {
+      videoFrameHandle = frameVideo.requestVideoFrameCallback(onVideoFrame);
+    }
+
+    if (reduced) {
+      return () => {
+        video.removeEventListener("loadedmetadata", readDuration);
+        video.removeEventListener("loadeddata", onLoadedData);
+        if (videoFrameHandle && frameVideo.cancelVideoFrameCallback) {
+          frameVideo.cancelVideoFrameCallback(videoFrameHandle);
+        }
+      };
+    }
+
+    let inView = true;
+    const visibility = new IntersectionObserver(
+      ([entry]) => { inView = entry.isIntersecting; },
+      { rootMargin: "200px" },
+    );
+    visibility.observe(wrap);
+
+    let lastFrameIndex = -1;
 
     const tick = () => {
       frame = requestAnimationFrame(tick);
+      if (!inView) return;
       if (!duration) {
         readDuration();
         return;
@@ -215,8 +262,6 @@ export default function ScrollHero({
         resizeCanvas();
         drawFrame();
       }
-      const pinTop = parseFloat(getComputedStyle(pin).top) || 0;
-
       const total = rect.height - pinRect.height;
       const progress = total <= 0 ? 0 : Math.min(Math.max((pinTop - rect.top) / total, 0), 1);
 
@@ -224,12 +269,15 @@ export default function ScrollHero({
 
       current += (target - current) * 0.22;
 
-      if (!seeking && Math.abs(current - video.currentTime) > 0.008) {
+      const frameIndex = Math.round(current * SOURCE_FPS);
+      if (!seeking && frameIndex !== lastFrameIndex) {
+        lastFrameIndex = frameIndex;
         seeking = true;
-        if ("fastSeek" in video && typeof (video as any).fastSeek === "function") {
-          (video as any).fastSeek(current);
+        const seekTo = Math.min(frameIndex / SOURCE_FPS, duration - 0.001);
+        if (typeof frameVideo.fastSeek === "function") {
+          frameVideo.fastSeek(seekTo);
         } else {
-          video.currentTime = current;
+          video.currentTime = seekTo;
         }
       }
     };
@@ -238,12 +286,14 @@ export default function ScrollHero({
       seeking = false;
       drawFrame();
     };
+    const onError = () => { seeking = false; };
     video.addEventListener("seeked", onSeeked);
-    video.addEventListener("error", () => { seeking = false; });
+    video.addEventListener("error", onError);
 
     frame = requestAnimationFrame(tick);
 
     const handleResize = () => {
+      refreshVars();
       resizeCanvas();
       drawFrame();
     };
@@ -257,9 +307,13 @@ export default function ScrollHero({
       video.removeEventListener("loadedmetadata", readDuration);
       video.removeEventListener("loadeddata", onLoadedData);
       video.removeEventListener("seeked", onSeeked);
-      video.removeEventListener("error", () => {});
+      video.removeEventListener("error", onError);
       window.removeEventListener("resize", handleResize);
       observer.disconnect();
+      visibility.disconnect();
+      if (videoFrameHandle && frameVideo.cancelVideoFrameCallback) {
+        frameVideo.cancelVideoFrameCallback(videoFrameHandle);
+      }
     };
   }, [src, poster]);
 

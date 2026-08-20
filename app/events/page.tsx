@@ -39,7 +39,6 @@ export default function EventsPage() {
 
       <section className="ev-featured">
         <div className="ev-featured-copy">
-          <span className="ev-eyebrow">Featured event</span>
           <h2>Salsa and Networking</h2>
           <p>An evening hosted with the Township of Union. Live open format DJ set by DJ Eazy E, salsa dancing that spilled from the counter out to the pavilion, and local business owners meeting each other over coffee.</p>
           <dl className="ev-details">
@@ -79,8 +78,7 @@ export default function EventsPage() {
         <div className="ev-mayor-inner">
           <div className="ev-mayor-copy">
             <h2>The Mayor of Union joined the community at the shop.</h2>
-            <p>The Mayor of Union stopped in during the evening and spoke with the neighbors, business owners, and families who filled the room. Press play to watch the moment.</p>
-            <p className="ev-note">Mayor Patricia Guerra-Frazier, Township of Union.</p>
+            <p>Mayor Patricia Guerra-Frazier stopped in during the evening and spoke with the neighbors, business owners, and families who filled the room. Press play to watch the moment.</p>
           </div>
           <EventVideos />
         </div>
@@ -92,7 +90,6 @@ export default function EventsPage() {
         </div>
         <div className="ev-upcoming-inner">
           <div className="ev-upcoming-copy">
-            <span className="ev-eyebrow">Upcoming</span>
             <h3>Puppy Party</h3>
             <p>An evening for the neighborhood and their dogs, hosted by Mango the Doxy. Free entry, a menu made for dogs, raffles and prizes through the night. BYOB.</p>
             <dl className="ev-details">
@@ -148,12 +145,25 @@ export default function EventsPage() {
 
       <section className="ev-cta">
         <div>
-          <h2>Want to host an evening with us? Or just hear about the next one?</h2>
+          <h2 className="ev-cta-headline">
+            <span>Want to host an evening with us?</span>
+            <span>Or just hear about the next one?</span>
+          </h2>
           <p>Community groups, local businesses, and neighbors are welcome. Call the shop or stop by the counter and tell us what you have in mind.</p>
         </div>
         <div className="ev-cta-actions">
-          <a className="primary-button" href="/contact">Visit Us</a>
-          <a className="ev-cta-call" href="tel:+19084818884">(908) 481-8884</a>
+          <a className="primary-button hero-cta-btn" href="/contact">
+            <span>Visit Us</span>
+            <svg className="btn-arrow" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M2.5 8h11M9.5 3.5l4.5 4.5-4.5 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </a>
+          <a className="secondary-button phone-ring-btn" href="tel:+19084818884">
+            <svg className="phone-ring-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+            </svg>
+            <span>(908) 481-8884</span>
+          </a>
         </div>
       </section>
 

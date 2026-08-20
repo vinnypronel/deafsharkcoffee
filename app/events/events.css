@@ -197,18 +197,19 @@
 
 /* 4. Upcoming event */
 .ev-upcoming {
-  padding: clamp(60px, 6vw, 96px) var(--ev-gutter);
+  padding: clamp(36px, 4vw, 56px) var(--ev-gutter) clamp(60px, 6vw, 96px);
   background: var(--cream);
 }
 .ev-upcoming-head {
-  margin-bottom: clamp(30px, 3.8vw, 54px);
+  margin-bottom: clamp(36px, 4.2vw, 60px);
+  transform: translateX(-18px);
 }
 .ev-upcoming-head h2 {
   margin: 0;
   font-family: Georgia, serif;
-  font-size: clamp(40px, 4.8vw, 76px);
-  line-height: 0.98;
-  letter-spacing: -.045em;
+  font-size: clamp(26px, 2.6vw, 40px);
+  line-height: 1.05;
+  letter-spacing: -.03em;
   color: var(--deep);
 }
 .ev-upcoming-inner {
@@ -262,39 +263,16 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 16px 24px;
+  gap: 16px 20px;
 }
-.puppy-rsvp-trigger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
+.puppy-rsvp-cta-row .primary-button,
+.puppy-rsvp-cta-row .secondary-button {
   min-height: 48px;
   padding: 0 24px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: 14.5px;
-  font-weight: 750;
+  font-weight: 700;
   white-space: nowrap;
-  background: var(--espresso);
-  color: #fffaf3;
-  box-shadow: 0 4px 14px rgba(45, 26, 18, 0.16);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-.puppy-rsvp-trigger:hover {
-  background: var(--deep);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(45, 26, 18, 0.22);
-}
-.puppy-rsvp-trigger .btn-arrow {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-  stroke: currentColor;
-  transition: transform 0.2s ease;
-}
-.puppy-rsvp-trigger:hover .btn-arrow {
-  transform: translateX(3px);
 }
 .puppy-rsvp-form {
   background: white;
@@ -479,8 +457,8 @@
 /* 6. Closing band */
 .ev-cta {
   display: grid;
-  grid-template-columns: 1.25fr .75fr;
-  align-items: end;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
   gap: clamp(34px, 5vw, 70px);
   padding: clamp(70px, 8vw, 120px) var(--ev-gutter);
   background: var(--orange);
@@ -488,12 +466,16 @@
 }
 
 .ev-eyebrow { color: #5e2a16; }
-.ev-cta h2 {
+.ev-cta-headline {
   margin: 0 0 20px;
   font-family: Georgia, serif;
-  font-size: clamp(38px, 4.2vw, 68px);
-  line-height: 1;
-  letter-spacing: -.045em;
+  font-size: clamp(26px, 3.1vw, 48px);
+  line-height: 1.15;
+  letter-spacing: -.035em;
+}
+.ev-cta-headline span {
+  display: block;
+  white-space: nowrap;
 }
 .ev-cta p {
   max-width: 620px;
@@ -506,22 +488,20 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 18px 28px;
+  gap: 16px 20px;
 }
-.ev-cta .primary-button { background: var(--espresso); color: var(--paper); }
-.ev-cta .primary-button:hover { background: var(--deep); }
-.ev-cta-call {
-  padding-bottom: 5px;
-  background-image: linear-gradient(var(--deep), var(--deep));
-  background-position: left bottom;
-  background-repeat: no-repeat;
-  background-size: 0 2px;
-  font-size: 18px;
-  font-weight: 800;
-  transition: background-size .28s ease;
+.ev-cta .primary-button,
+.ev-cta .secondary-button {
+  min-height: 48px;
+  padding: 0 26px;
+  border-radius: 6px;
+  font-size: 14.5px;
+  font-weight: 700;
+  white-space: nowrap;
 }
-.ev-cta-call:hover,
-.ev-cta-call:focus-visible { background-size: 100% 2px; }
+.ev-cta .primary-button { background: var(--espresso); color: #fffaf3; }
+.ev-cta .secondary-button { background: rgba(33, 19, 14, 0.85); color: #fffaf3; }
+.ev-cta .secondary-button:hover { background: var(--deep); }
 
 @media (max-width: 1050px) {
   .ev-hero { min-height: 0; gap: 40px; }

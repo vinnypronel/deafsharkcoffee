@@ -60,10 +60,22 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
     async function refresh() {
       try {
         const response = await fetch("/api/customer-orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(reference), cache: "no-store" });
+        if (response.status === 404 || response.status === 400) {
+          try {
+            const currentList = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "[]") as SavedOrder[];
+            const remaining = currentList.filter((item) => item.orderNumber !== reference.orderNumber);
+            window.localStorage.setItem(STORAGE_KEY, JSON.stringify(remaining));
+            window.dispatchEvent(new Event("deaf-shark-orders-updated"));
+          } catch {}
+          setReference(null);
+          setOrder(null);
+          setOpen(false);
+          return;
+        }
         const data = await response.json();
         if (response.ok && activeRequest) {
           const ord = data.order;
-          if (!ord || ord.status === "complete" || ord.status === "cancelled" || ord.status === "picked_up") {
+          if (!ord || ord.status === "complete" || ord.status === "completed" || ord.status === "cancelled" || ord.status === "picked_up") {
             try {
               const currentList = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "[]") as SavedOrder[];
               const remaining = currentList.filter((item) => item.orderNumber !== reference.orderNumber);
@@ -193,14 +205,21 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
               <circle cx="12" cy="7" r="4" />
             </svg>
           </button>
-          {reference && <button className={`order-status-trigger ${order?.status === "ready" ? "ready" : ""}`} onClick={() => setOpen((current) => !current)}><span>{order?.status === "ready" ? "Ready" : "Order status"}</span><i /></button>}
+          {order && (order.status === "new" || order.status === "preparing" || order.status === "ready") && (
+            <button className={`order-status-trigger ${order.status === "ready" ? "ready" : ""}`} onClick={() => setOpen((current) => !current)}>
+              <span>{order.status === "ready" ? "Ready" : "Order status"}</span>
+              <i />
+            </button>
+          )}
           {action ?? <a className="header-order-link" href="/menu">Order now</a>}
-          {open && reference && (
+          {open && order && (order.status === "new" || order.status === "preparing" || order.status === "ready") && (
             <section className="header-order-popover" aria-label="Current order status">
               <button className="popover-close" onClick={() => setOpen(false)} aria-label="Close order status">×</button>
               <span className="eyebrow">Current pickup</span>
-              <div className="popover-order-title"><h2>{order?.orderNumber ?? reference.orderNumber}</h2><span className={`customer-status status-${order?.status ?? "new"}`}>{statusLabels[order?.status ?? "new"]}</span></div>
-              {order ? <><p>{order.status === "ready" ? "Your order is ready at the counter." : `Estimated pickup: ${order.pickupEta}`}</p><div className="popover-items">{order.items.slice(0, 3).map((item, index) => <span key={`${item.name}-${index}`}>{item.quantity}× {item.name}</span>)}</div><div className="popover-total"><span>Total</span><strong>${(order.totalCents / 100).toFixed(2)}</strong></div></> : <p>Loading your latest order...</p>}
+              <div className="popover-order-title"><h2>{order.orderNumber}</h2><span className={`customer-status status-${order.status}`}>{statusLabels[order.status]}</span></div>
+              <p>{order.status === "ready" ? "Your order is ready at the counter." : `Estimated pickup: ${order.pickupEta}`}</p>
+              <div className="popover-items">{order.items.slice(0, 3).map((item, index) => <span key={`${item.name}-${index}`}>{item.quantity}× {item.name}</span>)}</div>
+              <div className="popover-total"><span>Total</span><strong>${(order.totalCents / 100).toFixed(2)}</strong></div>
             </section>
           )}
         </div>
@@ -399,6 +418,9 @@ export function SiteFooter() {
             <h2>Join the club.</h2>
             <p>A free upgrade on your birthday, early access to new roasts, and invites to coffee tastings in Union.</p>
           </div>
+          <div className="footer-newsletter-badge" aria-hidden="true">
+            <img src="/deafshark-logo.png" alt="Deaf Shark Coffee circular emblem" />
+          </div>
           <div className="newsletter-form-wrap">
             {subscribed ? (
               <p className="newsletter-success">✓ You&#39;re in! We&#39;ll send your welcome perks soon.</p>
@@ -428,10 +450,7 @@ export function SiteFooter() {
           <div className="footer-col footer-col-brand">
             <div className="footer-logo">
               <img src="/favicon.png" alt="" />
-              <div>
-                <strong>DEAF SHARK</strong>
-                <small>COFFEE</small>
-              </div>
+              <span>DEAF SHARK COFFEE</span>
             </div>
             <p className="footer-tagline">One Farm. One Variety.<br />Roasted in Union, NJ.</p>
             <div className="footer-socials">

@@ -525,6 +525,73 @@ h1, h2, h3, p { margin-top: 0; }
   margin-left: 10px;
   transform: translateX(0) scale(1);
 }
+
+/* Phone Ring Animated Button Effect */
+.phone-ring-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  position: relative;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background 0.25s ease, border-color 0.25s ease, box-shadow 0.28s ease, gap 0.3s ease !important;
+  will-change: transform;
+}
+.phone-ring-btn .phone-ring-icon {
+  width: 0;
+  height: 16px;
+  opacity: 0;
+  margin-right: 0;
+  transform: scale(0.4) rotate(0deg);
+  flex-shrink: 0;
+  pointer-events: none;
+  transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease, margin-right 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+.phone-ring-btn:hover,
+.phone-ring-btn:focus-visible {
+  transform: translate(3px, -3px) !important;
+  box-shadow: -4px 6px 20px rgba(45, 26, 18, 0.35);
+  gap: 8px;
+}
+.phone-ring-btn:hover .phone-ring-icon,
+.phone-ring-btn:focus-visible .phone-ring-icon {
+  width: 16px;
+  opacity: 1;
+  transform: scale(1);
+  animation: phoneRing 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes phoneRing {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  20% {
+    transform: rotate(-16deg) scale(1.12);
+  }
+  40% {
+    transform: rotate(16deg) scale(1.12);
+  }
+  60% {
+    transform: rotate(-12deg) scale(1.08);
+  }
+  80% {
+    transform: rotate(12deg) scale(1.08);
+  }
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phone-ring-btn,
+  .phone-ring-btn .phone-ring-icon {
+    transition-duration: 0.01ms !important;
+  }
+  .phone-ring-btn:hover .phone-ring-icon,
+  .phone-ring-btn:focus-visible .phone-ring-icon {
+    animation: none !important;
+  }
+}
 .hero-details { display: flex; gap: 46px; margin-top: 56px; color: rgba(255,250,243,.58); font-size: 13px; }
 .hero-details span { display: flex; flex-direction: column; gap: 5px; }
 .hero-details strong { color: var(--paper); font-size: 14px; }
@@ -1770,9 +1837,28 @@ h1, h2, h3, p { margin-top: 0; }
 }
 .footer-newsletter {
   display: grid;
-  grid-template-columns: 1.2fr 1fr;
+  grid-template-columns: 1fr auto 1.15fr;
   align-items: center;
-  gap: 60px;
+  gap: clamp(24px, 4vw, 56px);
+}
+.footer-newsletter-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateX(-18px);
+}
+.footer-newsletter-badge img {
+  width: clamp(96px, 8.8vw, 138px);
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: contain;
+  filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.48));
+  opacity: 0.92;
+  transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.footer-newsletter-badge:hover img {
+  opacity: 1;
+  transform: scale(1.06) rotate(4deg);
 }
 .footer-eyebrow {
   display: block;
@@ -1875,28 +1961,23 @@ h1, h2, h3, p { margin-top: 0; }
   gap: 16px;
 }
 .footer-logo {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
+  text-decoration: none;
 }
 .footer-logo img {
-  width: 38px;
-  height: 38px;
+  width: 32px;
+  height: 32px;
   object-fit: contain;
 }
-.footer-logo strong {
-  display: block;
+.footer-logo span {
   font-family: Georgia, serif;
-  font-size: 18px;
+  font-size: 16.5px;
+  font-weight: 700;
   letter-spacing: .06em;
   color: var(--paper);
-}
-.footer-logo small {
-  display: block;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: .25em;
-  color: var(--gold);
+  white-space: nowrap;
 }
 .footer-tagline {
   color: rgba(255, 250, 243, 0.6);
@@ -2002,7 +2083,7 @@ h1, h2, h3, p { margin-top: 0; }
 
 /* Customer pages */
 .content-page, .orders-page { min-height: 100vh; background: var(--cream); }
-.page-hero { min-height: 650px; display: grid; grid-template-columns: 1.1fr .9fr; align-items: center; gap: 7vw; padding: 90px max(5vw, calc((100vw - 1440px) / 2)); background: var(--espresso); color: var(--paper); overflow: hidden; }
+.page-hero { min-height: calc(100vh - 84px); min-height: calc(100dvh - 84px); display: grid; grid-template-columns: 1.1fr .9fr; align-items: center; gap: 7vw; padding: clamp(60px, 7vw, 100px) max(5vw, calc((100vw - 1440px) / 2)); background: var(--espresso); color: var(--paper); overflow: hidden; box-sizing: border-box; }
 .page-hero h1, .orders-hero h1 { max-width: 850px; margin-bottom: 28px; font-family: Georgia, serif; font-size: clamp(58px, 6.6vw, 104px); line-height: .94; letter-spacing: -.055em; }
 .page-hero p { max-width: 680px; margin-bottom: 0; color: rgba(255,250,243,.7); font-size: 19px; line-height: 1.65; }
 .about-hero img { width: min(100%, 540px); justify-self: center; border-radius: 38% 38% 26px 26px; mix-blend-mode: screen; }
