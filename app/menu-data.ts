@@ -14,7 +14,6 @@ export type DrinkKey =
   | "espresso"
   | "drip-coffee"
   | "chicha"
-  | "san-pellegrino"
   | "malta"
   | "horchata-latte"
   | "matcha"
@@ -22,10 +21,17 @@ export type DrinkKey =
   | "mocha"
   | "caramel-macchiato";
 
+export type SizeOption = { label: string; price: number };
+
+/* Sizes exactly as the shop board reads them. A drink with no `sizing` is a
+   single price. Iced pours are 16 oz only, which is why the lists differ. */
+export type DrinkSizing = { hot?: SizeOption[]; iced?: SizeOption[] };
+
 export type Product = {
   id: string;
   name: string;
   category: Exclude<MenuCategory, "Popular">;
+  /* Lowest price across sizes. The configurator charges by the chosen size. */
   price: number;
   description: string;
   popular?: boolean;
@@ -34,7 +40,32 @@ export type Product = {
   photo?: string;
   video?: string;
   drink?: DrinkKey;
+  sizing?: DrinkSizing;
+  /* Temperatures offered. Omitted means hot and iced. */
+  temps?: ("Hot" | "Iced")[];
+  /* A required pick-one list, used by tea flavors and the lunch special. */
+  flavors?: string[];
+  flavorLabel?: string;
+  /* Smoothies are blended with water or milk. */
+  bases?: string[];
 };
+
+export const SYRUP_PRICE = 0.5;
+export const SYRUP_OPTIONS = [
+  "Caramel",
+  "Vanilla",
+  "Lavender",
+  "Salted Caramel",
+  "Hazelnut",
+  "French Vanilla",
+  "Coconut",
+] as const;
+
+export const MILK_OPTIONS = ["Whole", "Skim", "Oat", "Almond", "Half and Half"] as const;
+
+export const EXTRA_SHOT_PRICE = 1.25;
+
+export const LUNCH_SPECIAL_HOURS = "12:00 PM to 3:00 PM, Monday to Friday";
 
 export const categories: MenuCategory[] = [
   "Coffee",
@@ -60,7 +91,11 @@ export const menuProducts: Product[] = [
     id: "latte",
     name: "Latte",
     category: "Coffee",
-    price: 5.75,
+    price: 5,
+    sizing: {
+      hot: [{ label: "12 oz", price: 5 }, { label: "16 oz", price: 6 }],
+      iced: [{ label: "16 oz", price: 6 }],
+    },
     description: "Espresso with silky steamed milk, made hot or iced.",
     popular: true,
     configurable: true,
@@ -73,6 +108,7 @@ export const menuProducts: Product[] = [
     name: "Cortado",
     category: "Coffee",
     price: 3.75,
+    temps: ["Hot"],
     description: "A balanced pour of espresso and warm milk.",
     popular: true,
     configurable: true,
@@ -84,7 +120,11 @@ export const menuProducts: Product[] = [
     id: "americano",
     name: "Americano",
     category: "Coffee",
-    price: 4.5,
+    price: 3.95,
+    sizing: {
+      hot: [{ label: "12 oz", price: 3.95 }, { label: "16 oz", price: 4.5 }],
+      iced: [{ label: "16 oz", price: 4.5 }],
+    },
     description: "Espresso opened with hot water for a clean finish.",
     configurable: true,
     visual: "iced",
@@ -95,7 +135,8 @@ export const menuProducts: Product[] = [
     id: "cappuccino",
     name: "Cappuccino",
     category: "Coffee",
-    price: 5.25,
+    price: 4.95,
+    temps: ["Hot"],
     description: "Espresso, steamed milk, and a generous cap of foam.",
     configurable: true,
     visual: "iced",
@@ -106,7 +147,9 @@ export const menuProducts: Product[] = [
     id: "espresso",
     name: "Espresso",
     category: "Coffee",
-    price: 3.5,
+    price: 2.75,
+    temps: ["Hot"],
+    sizing: { hot: [{ label: "Single", price: 2.75 }, { label: "Double", price: 3.5 }] },
     description: "A concentrated shot of Deaf Shark coffee.",
     configurable: true,
     visual: "iced",
@@ -118,10 +161,42 @@ export const menuProducts: Product[] = [
     name: "Regular Coffee",
     category: "Coffee",
     price: 3,
+    sizing: {
+      hot: [{ label: "12 oz", price: 3 }, { label: "16 oz", price: 3.95 }],
+      iced: [{ label: "16 oz", price: 3.95 }],
+    },
     description: "Freshly brewed and ready for the day ahead.",
     configurable: true,
     visual: "iced",
     photo: "/drink-iced-coffee.webp",
+    drink: "drip-coffee",
+  },
+  {
+    id: "decaf-coffee",
+    name: "Decaf Coffee",
+    category: "Coffee",
+    price: 3,
+    description: "The same fresh brew, without the caffeine.",
+    configurable: true,
+    temps: ["Hot"],
+    sizing: { hot: [{ label: "12 oz", price: 3 }] },
+    visual: "hot",
+    photo: "/cup-hot.png",
+    drink: "drip-coffee",
+  },
+  {
+    id: "red-eye",
+    name: "Red Eye",
+    category: "Coffee",
+    price: 5.95,
+    description: "Brewed coffee with a shot of espresso pulled straight into it.",
+    configurable: true,
+    sizing: {
+      hot: [{ label: "16 oz", price: 5.95 }],
+      iced: [{ label: "16 oz", price: 5.95 }],
+    },
+    visual: "iced",
+    photo: "/drink-iced-red-eye.webp",
     drink: "drip-coffee",
   },
   {
@@ -163,7 +238,7 @@ export const menuProducts: Product[] = [
     id: "strawberry-matcha",
     name: "Strawberry Matcha",
     category: "Non-Coffee",
-    price: 6.25,
+    price: 7.75,
     description: "Layered strawberry purée, creamy milk, and ceremonial Japanese emerald matcha over ice.",
     popular: true,
     configurable: true,
@@ -176,13 +251,101 @@ export const menuProducts: Product[] = [
     id: "matcha-latte",
     name: "Matcha Latte",
     category: "Non-Coffee",
-    price: 5.75,
+    price: 6.75,
     description: "Ceremonial Japanese emerald matcha whisked with silky milk, served hot or iced.",
     popular: true,
     configurable: true,
     visual: "iced",
     photo: "/drink-matcha-latte.webp",
     drink: "matcha",
+  },
+  {
+    id: "mango-matcha",
+    name: "Mango Matcha",
+    category: "Non-Coffee",
+    price: 7.75,
+    description: "Ceremonial matcha layered with mango over ice.",
+    configurable: true,
+    temps: ["Iced"],
+    visual: "iced",
+    photo: "/drink-mango-matcha.webp",
+    drink: "matcha",
+  },
+  {
+    id: "chai-tea-latte",
+    name: "Chai Tea Latte",
+    category: "Non-Coffee",
+    price: 4.5,
+    description: "Spiced chai with steamed milk, hot or over ice.",
+    configurable: true,
+    sizing: {
+      hot: [{ label: "12 oz", price: 4.5 }],
+      iced: [{ label: "16 oz", price: 5.5 }],
+    },
+    visual: "iced",
+    photo: "/drink-chai-latte.webp",
+  },
+  {
+    id: "hot-tea",
+    name: "Hot Tea",
+    category: "Non-Coffee",
+    price: 2.75,
+    description: "Loose leaf tea brewed to order.",
+    configurable: true,
+    temps: ["Hot"],
+    sizing: { hot: [{ label: "12 oz", price: 2.75 }] },
+    flavorLabel: "Tea",
+    flavors: ["Green Tea", "Honey Lemon", "Ginseng", "Chamomile", "Mandarin Orange Spice"],
+    visual: "hot",
+    photo: "/cup-hot.png",
+  },
+  {
+    id: "smoothie-strawberry",
+    name: "Strawberry Smoothie",
+    category: "Non-Coffee",
+    price: 6.95,
+    description: "Blended strawberry, 16 oz.",
+    configurable: true,
+    temps: ["Iced"],
+    bases: ["Water", "Milk"],
+    visual: "iced",
+    photo: "/drink-smoothie-strawberry.webp",
+  },
+  {
+    id: "smoothie-strawberry-banana",
+    name: "Strawberry Banana Smoothie",
+    category: "Non-Coffee",
+    price: 6.95,
+    description: "Blended strawberry and banana, 16 oz.",
+    configurable: true,
+    temps: ["Iced"],
+    bases: ["Water", "Milk"],
+    visual: "iced",
+    photo: "/drink-smoothie-strawberry-banana.webp",
+  },
+  {
+    id: "smoothie-berry-blend",
+    name: "Berry Blend Smoothie",
+    category: "Non-Coffee",
+    price: 6.95,
+    description: "Mixed berries blended smooth, 16 oz.",
+    configurable: true,
+    temps: ["Iced"],
+    bases: ["Water", "Milk"],
+    visual: "iced",
+    photo: "/drink-smoothie-berry-blend.webp",
+  },
+  {
+    id: "smoothie-tropical-sunrise",
+    name: "Tropical Sunrise Smoothie",
+    category: "Non-Coffee",
+    price: 6.95,
+    description: "Peach, pineapple, mango, and strawberry, 16 oz.",
+    configurable: true,
+    temps: ["Iced"],
+    bases: ["Water", "Milk"],
+    visual: "iced",
+    photo: "/drink-smoothie-tropical-sunrise.webp",
   },
   {
     id: "chicha",
@@ -194,16 +357,6 @@ export const menuProducts: Product[] = [
     visual: "iced",
     photo: "/drink-chicha.webp",
     drink: "chicha",
-  },
-  {
-    id: "san-pellegrino",
-    name: "San Pellegrino",
-    category: "Non-Coffee",
-    price: 3.5,
-    description: "Sparkling refreshment served chilled.",
-    visual: "iced",
-    photo: "/drink-san-pellegrino.webp",
-    drink: "san-pellegrino",
   },
   {
     id: "malta",
@@ -242,6 +395,22 @@ export const menuProducts: Product[] = [
     description: "Warm waffle with a sweet maple finish.",
     visual: "bite",
     photo: "/food-maple-waffle.jpg",
+  },
+  {
+    /* PLACEHOLDER image: falls back to the generic cup art until a photo is added. */
+    id: "lunch-special",
+    name: "Lunch Special",
+    category: "Sandwiches",
+    price: 7,
+    description: "Sandwich, soda, and chips. Served 12:00 PM to 3:00 PM, Monday to Friday.",
+    popular: true,
+    configurable: true,
+    flavorLabel: "Choose one",
+    flavors: [
+      "Emilia Sandwich - mortadella, provolone, honey sauce",
+      "Small Chicken Sandwich - chicken, lettuce, ham, swiss, pickles, mustard",
+    ],
+    visual: "sandwich",
   },
   {
     id: "shark-cubano",

@@ -510,9 +510,9 @@ export function SiteFooter() {
           <div className="footer-col">
             <h4>MENU</h4>
             <ul>
+              <li><a href="/menu">Hot Classics</a></li>
               <li><a href="/menu">Coffee Beans</a></li>
               <li><a href="/menu">Cold Brew &amp; Iced</a></li>
-              <li><a href="/menu">Hot Classics</a></li>
               <li><a href="/menu">Breakfast &amp; Sandwiches</a></li>
             </ul>
           </div>
@@ -520,18 +520,18 @@ export function SiteFooter() {
           <div className="footer-col">
             <h4>CLUB &amp; STORY</h4>
             <ul>
+              <li><a href="/employment">Apply now</a></li>
               <li><a href="/about">Our Story</a></li>
               <li><a href="/events">Events</a></li>
-              <li><a href="/employment">Apply now</a></li>
-              <li><a href="/orders">Order Status</a></li>
+              <li><a href="/">Home</a></li>
             </ul>
           </div>
 
           <div className="footer-col">
             <h4>SERVICE &amp; VISIT</h4>
             <ul>
-              <li><a href="/contact">Location &amp; Hours</a></li>
               <li><a href="/contact">Catering &amp; Inquiries</a></li>
+              <li><a href="/contact">Location &amp; Hours</a></li>
               <li><a href="https://maps.google.com/?q=900+Green+Lane+Union+NJ+07083" target="_blank" rel="noopener noreferrer">Get Directions ↗</a></li>
               <li><a href="tel:9084818884">(908) 481-8884</a></li>
             </ul>

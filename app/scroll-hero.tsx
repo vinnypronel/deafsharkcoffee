@@ -4,6 +4,8 @@ import { useEffect, useRef } from "react";
 
 type ScrollHeroProps = {
   src?: string;
+  /* Phones get a lighter cut of the same footage. */
+  mobileSrc?: string;
   poster?: string;
   /* How many viewport heights of scroll the video is stretched across. */
   scrollHeights?: number;
@@ -43,6 +45,7 @@ function getSharedPoster(poster: string): HTMLImageElement | null {
 
 export default function ScrollHero({
   src = "/hero-scrub.mp4",
+  mobileSrc = "/hero-scrub-mobile.mp4",
   poster = "/hero-scrub-poster.jpg",
   scrollHeights = 3,
   children,
@@ -60,8 +63,12 @@ export default function ScrollHero({
 
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+    // Matches the preload links in the document head, so the picked file is the
+    // one already in the HTTP cache. Resolved once so a resize never refetches.
+    const chosenSrc = window.matchMedia("(max-width: 767px)").matches ? mobileSrc : src;
+
     // Use cached video off-DOM so browser keeps decode cache and extensions cannot detect it
-    const video = getSharedVideo(src);
+    const video = getSharedVideo(chosenSrc);
     if (!video) return;
     videoRef.current = video;
 
@@ -204,7 +211,10 @@ export default function ScrollHero({
     readDuration();
     video.addEventListener("loadedmetadata", readDuration);
 
-    const onLoadedData = () => drawFrame();
+    const onLoadedData = () => {
+      seeking = false;
+      drawFrame();
+    };
     video.addEventListener("loadeddata", onLoadedData);
     if (video.readyState >= 2) drawFrame();
 
@@ -235,18 +245,14 @@ export default function ScrollHero({
       };
     }
 
-    let inView = true;
-    const visibility = new IntersectionObserver(
-      ([entry]) => { inView = entry.isIntersecting; },
-      { rootMargin: "200px" },
-    );
-    visibility.observe(wrap);
-
-    let lastFrameIndex = -1;
+    let seekIssuedAt = 0;
 
     const tick = () => {
       frame = requestAnimationFrame(tick);
-      if (!inView) return;
+
+      // A seek that never reports back must not wedge the scrub permanently.
+      if (seeking && performance.now() - seekIssuedAt > 250) seeking = false;
+
       if (!duration) {
         readDuration();
         return;
@@ -270,10 +276,11 @@ export default function ScrollHero({
       current += (target - current) * 0.22;
 
       const frameIndex = Math.round(current * SOURCE_FPS);
-      if (!seeking && frameIndex !== lastFrameIndex) {
-        lastFrameIndex = frameIndex;
+      const seekTo = Math.min(Math.max(frameIndex / SOURCE_FPS, 0), duration - 0.001);
+      const halfFrame = 0.5 / SOURCE_FPS;
+      if (!seeking && video.seekable.length > 0 && Math.abs(seekTo - video.currentTime) > halfFrame) {
         seeking = true;
-        const seekTo = Math.min(frameIndex / SOURCE_FPS, duration - 0.001);
+        seekIssuedAt = performance.now();
         if (typeof frameVideo.fastSeek === "function") {
           frameVideo.fastSeek(seekTo);
         } else {
@@ -310,12 +317,11 @@ export default function ScrollHero({
       video.removeEventListener("error", onError);
       window.removeEventListener("resize", handleResize);
       observer.disconnect();
-      visibility.disconnect();
       if (videoFrameHandle && frameVideo.cancelVideoFrameCallback) {
         frameVideo.cancelVideoFrameCallback(videoFrameHandle);
       }
     };
-  }, [src, poster]);
+  }, [src, mobileSrc, poster]);
 
   return (
     <div

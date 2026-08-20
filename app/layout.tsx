@@ -46,7 +46,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <link rel="shortcut icon" href="/favicon.png" />
         <link rel="apple-touch-icon" href="/favicon.png" />
         <link rel="preload" as="image" href="/hero-scrub-poster.jpg" />
-        <link rel="preload" as="video" href="/hero-scrub.mp4" type="video/mp4" />
+        <link rel="preload" as="video" href="/hero-scrub.mp4" type="video/mp4" media="(min-width: 768px)" />
+        <link rel="preload" as="video" href="/hero-scrub-mobile.mp4" type="video/mp4" media="(max-width: 767px)" />
       </head>
       <body className={geist.variable} suppressHydrationWarning>
         <PageTransition />

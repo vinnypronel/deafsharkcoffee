@@ -194,18 +194,6 @@
   );
 }
 
-.product-visual .drink-fill[data-drink="san-pellegrino"] {
-  --t: 0.15;
-  --surface: rgba(255, 255, 255, 0.45);
-  background-image: linear-gradient(
-    180deg,
-    rgba(240, 250, 250, 0.5) 0%,
-    rgba(226, 243, 244, 0.44) 40%,
-    rgba(208, 232, 234, 0.5) 78%,
-    rgba(194, 223, 226, 0.58) 100%
-  );
-}
-
 .product-visual .drink-fill[data-drink="malta"] {
   --t: 0.13;
   --surface: rgba(163, 106, 58, 0.42);
@@ -268,19 +256,6 @@
     #8f5326 36%,
     #edd6b6 58%,
     #faede0 100%
-  );
-}
-
-/* a lighter, thinner liquid needs less internal shading or it turns grey */
-.product-visual .drink-fill[data-drink="san-pellegrino"]::after {
-  background: linear-gradient(
-    90deg,
-    rgba(120, 150, 155, 0.2) 0%,
-    rgba(120, 150, 155, 0.04) 15%,
-    rgba(255, 255, 255, 0.2) 36%,
-    rgba(255, 255, 255, 0.06) 56%,
-    rgba(120, 150, 155, 0.05) 80%,
-    rgba(120, 150, 155, 0.22) 100%
   );
 }
 

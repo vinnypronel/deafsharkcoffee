@@ -2,7 +2,17 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import ScrollHero from "./scroll-hero";
-import { categories, featuredProducts, menuProducts, type MenuCategory, type Product } from "./menu-data";
+import {
+  categories,
+  featuredProducts,
+  menuProducts,
+  EXTRA_SHOT_PRICE,
+  MILK_OPTIONS,
+  SYRUP_OPTIONS,
+  SYRUP_PRICE,
+  type MenuCategory,
+  type Product,
+} from "./menu-data";
 import { CustomerHeader, SiteFooter } from "./site-chrome";
 import "./drink-visuals.css";
 
@@ -17,23 +27,51 @@ type CartItem = {
 
 type Configuration = {
   temperature: "Hot" | "Iced";
-  size: "Regular" | "Large";
-  milk: "None" | "Whole" | "Oat" | "Almond";
+  /* A size label from the product, or the sandwich Regular/Large. */
+  size: string;
+  milk: MilkChoice;
+  /* Pick-one list: tea flavor, or which sandwich on the lunch special. */
+  flavor: string;
+  /* Smoothie base. */
+  base: string;
   extraShot: number;
   syrups: SyrupFlavor[];
   notes: string;
   quantity: number;
 };
 
-const SYRUP_OPTIONS = ["Coconut", "Hazelnut", "Caramel", "Salted Caramel", "French Vanilla"] as const;
 type SyrupFlavor = (typeof SYRUP_OPTIONS)[number];
+type MilkChoice = "None" | (typeof MILK_OPTIONS)[number];
 
 const MAX_SHOTS = 5;
+
+const temperaturesFor = (product: Product): ("Hot" | "Iced")[] => {
+  if (product.sizing) {
+    const list: ("Hot" | "Iced")[] = [];
+    if (product.sizing.hot?.length) list.push("Hot");
+    if (product.sizing.iced?.length) list.push("Iced");
+    if (list.length) return list;
+  }
+  return product.temps ?? ["Hot", "Iced"];
+};
+
+const sizesFor = (product: Product, temperature: "Hot" | "Iced") =>
+  (temperature === "Hot" ? product.sizing?.hot : product.sizing?.iced) ?? [];
 
 const DRINK_CATEGORIES: MenuCategory[] = ["Coffee", "Non-Coffee"];
 const categoryId = (category: string) => "menu-cat-" + category.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
 const money = (value: number) => `$${value.toFixed(2)}`;
+
+const priceLabel = (product: Product) => {
+  const prices = [
+    ...(product.sizing?.hot ?? []),
+    ...(product.sizing?.iced ?? []),
+  ].map((entry) => entry.price);
+  const lowest = prices.length ? Math.min(...prices) : product.price;
+  const varies = prices.length > 1 && Math.max(...prices) !== lowest;
+  return varies ? `from ${money(lowest)}` : money(lowest);
+};
 
 const CUP_PHOTOS = { hot: "/cup-hot.png", iced: "/cup-cold.png" } as const;
 
@@ -98,19 +136,28 @@ function ProductConfigurator({
   onAdd: (item: CartItem) => void;
 }) {
   const isDrink = product.category === "Coffee" || product.category === "Non-Coffee";
-  const hasMilkOptions = isDrink && !["chicha", "malta", "san-pellegrino"].includes(product.id);
-  const hasTempOptions = isDrink;
-  const hasSyrupOptions = isDrink;
-  const hasShotOptions = product.category === "Coffee" || ["matcha-latte", "strawberry-matcha"].includes(product.id);
+  const isSmoothie = !!product.bases?.length;
+  const hasMilkOptions =
+    isDrink && !isSmoothie && !["chicha", "malta", "hot-tea"].includes(product.id);
+  const availableTemps = temperaturesFor(product);
+  const hasTempOptions = isDrink && availableTemps.length > 1;
+  const hasSyrupOptions = isDrink && !isSmoothie && product.id !== "hot-tea";
+  const hasShotOptions =
+    (product.category === "Coffee" || ["matcha-latte", "strawberry-matcha", "mango-matcha", "chai-tea-latte"].includes(product.id)) &&
+    product.id !== "hot-tea";
+  const hasFlavorOptions = !!product.flavors?.length;
 
-  const defaultMilk: Configuration["milk"] = ["americano", "drip-coffee", "espresso", "cold-brew", "chicha", "malta", "san-pellegrino"].includes(product.id) ? "None" : "Whole";
+  const defaultMilk: MilkChoice = ["americano", "drip-coffee", "espresso", "cold-brew", "chicha", "malta", "red-eye", "decaf-coffee", "regular-coffee"].includes(product.id) ? "None" : "Whole";
+  const defaultTemp = availableTemps.includes("Iced") ? "Iced" : "Hot";
 
   const [config, setConfig] = useState<Configuration>(() => {
     if (!initialItem) {
       return {
-        temperature: "Iced",
-        size: "Regular",
+        temperature: defaultTemp,
+        size: sizesFor(product, defaultTemp)[0]?.label ?? "Regular",
         milk: defaultMilk,
+        flavor: product.flavors?.[0] ?? "",
+        base: product.bases?.[0] ?? "",
         extraShot: 0,
         syrups: [],
         notes: "",
@@ -118,13 +165,18 @@ function ProductConfigurator({
       };
     }
     const opts = initialItem.options || [];
-    const temp = opts.includes("Hot") ? "Hot" : "Iced";
-    const size = opts.includes("Large") ? "Large" : "Regular";
-    let milk: Configuration["milk"] = defaultMilk;
-    if (opts.includes("Oat")) milk = "Oat";
-    else if (opts.includes("Almond")) milk = "Almond";
-    else if (opts.includes("Whole")) milk = "Whole";
+    const temp: "Hot" | "Iced" = opts.includes("Hot") ? "Hot" : "Iced";
+    const sizeLabels = sizesFor(product, temp).map((entry) => entry.label);
+    const size =
+      opts.find((o) => sizeLabels.includes(o)) ??
+      (opts.includes("Large") ? "Large" : sizeLabels[0] ?? "Regular");
+    let milk: MilkChoice = defaultMilk;
+    const milkOpt = opts.find((o) => (MILK_OPTIONS as readonly string[]).includes(o));
+    if (milkOpt) milk = milkOpt as MilkChoice;
     else if (opts.includes("No milk")) milk = "None";
+
+    const flavor = product.flavors?.find((f) => opts.includes(f)) ?? product.flavors?.[0] ?? "";
+    const base = product.bases?.find((b) => opts.includes(`${b} base`)) ?? product.bases?.[0] ?? "";
 
     let extraShot = 0;
     const shotOpt = opts.find((o) => o.includes("extra shot") || o.includes("Extra shot"));
@@ -142,13 +194,19 @@ function ProductConfigurator({
       }
     }
 
-    const knownPrefixes = ["Hot", "Iced", "Large", "Regular", "Whole", "Oat", "Almond", "No milk", "Syrup:", "Extra shot", "extra shot"];
-    const noteOpt = opts.find((o) => !knownPrefixes.some((p) => o.startsWith(p)));
+    const knownPrefixes = [
+      "Hot", "Iced", "Large", "Regular", "No milk", "Syrup:", "Extra shot", "extra shot",
+      ...MILK_OPTIONS, ...sizeLabels, ...(product.flavors ?? []),
+      ...(product.bases ?? []).map((b) => `${b} base`),
+    ];
+    const noteOpt = opts.find((o) => !knownPrefixes.some((prefix) => o.startsWith(prefix)));
 
     return {
       temperature: temp,
       size,
       milk,
+      flavor,
+      base,
       extraShot,
       syrups,
       notes: noteOpt || "",
@@ -157,25 +215,37 @@ function ProductConfigurator({
   });
 
   const hasTwoSizes = ["shark-cubano", "chicken-sandwich", "emilia"].includes(product.id);
+  const drinkSizes = sizesFor(product, config.temperature);
+  const chosenSize = drinkSizes.find((entry) => entry.label === config.size) ?? drinkSizes[0];
+  const basePrice = chosenSize ? chosenSize.price : product.price;
   const unitPrice =
-    product.price +
+    basePrice +
     (hasTwoSizes && config.size === "Large" ? 6 : 0) +
-    (hasMilkOptions && (config.milk === "Oat" || config.milk === "Almond") ? 0.75 : 0) +
-    (hasShotOptions ? config.extraShot * 1.25 : 0) +
-    (hasSyrupOptions ? config.syrups.length * 0.75 : 0);
+    (hasShotOptions ? config.extraShot * EXTRA_SHOT_PRICE : 0) +
+    (hasSyrupOptions ? config.syrups.length * SYRUP_PRICE : 0);
+
+  /* Iced pours are 16 oz only, so switching temperature re-picks the size. */
+  const setTemperature = (value: "Hot" | "Iced") => {
+    const nextSizes = sizesFor(product, value);
+    setConfig({
+      ...config,
+      temperature: value,
+      size: nextSizes.some((entry) => entry.label === config.size)
+        ? config.size
+        : nextSizes[0]?.label ?? config.size,
+    });
+  };
 
   function add() {
     const options: string[] = [];
+    if (hasFlavorOptions && config.flavor) options.push(config.flavor);
     if (isDrink) {
-      if (hasTempOptions) options.push(config.temperature);
+      if (availableTemps.length > 1) options.push(config.temperature);
       if (hasMilkOptions) {
-        if (config.milk === "None") {
-          options.push("No milk");
-        } else {
-          options.push(config.milk);
-        }
+        options.push(config.milk === "None" ? "No milk" : config.milk);
       }
-      options.push(config.size);
+      if (isSmoothie && config.base) options.push(`${config.base} base`);
+      if (config.size) options.push(config.size);
       if (hasSyrupOptions && config.syrups.length) {
         options.push(`Syrup: ${config.syrups.join(", ")}`);
       }
@@ -216,22 +286,46 @@ function ProductConfigurator({
           </div>
         </div>
         <div className="config-options">
+          {hasFlavorOptions && (
+            <OptionGroup
+              label={product.flavorLabel || "Flavor"}
+              values={product.flavors as string[]}
+              selected={config.flavor}
+              onSelect={(value) => setConfig({ ...config, flavor: value })}
+            />
+          )}
           {hasTempOptions && (
             <OptionGroup
               label="Temperature"
-              values={["Iced", "Hot"]}
+              values={availableTemps}
               selected={config.temperature}
-              onSelect={(value) => setConfig({ ...config, temperature: value as Configuration["temperature"] })}
+              onSelect={(value) => setTemperature(value as "Hot" | "Iced")}
+            />
+          )}
+          {drinkSizes.length > 1 && (
+            <OptionGroup
+              label="Size"
+              values={drinkSizes.map((entry) => entry.label)}
+              selected={config.size}
+              suffix={Object.fromEntries(drinkSizes.map((entry) => [entry.label, money(entry.price)]))}
+              onSelect={(value) => setConfig({ ...config, size: value })}
+            />
+          )}
+          {isSmoothie && (
+            <OptionGroup
+              label="Blended with"
+              values={product.bases as string[]}
+              selected={config.base}
+              onSelect={(value) => setConfig({ ...config, base: value })}
             />
           )}
           {hasMilkOptions && (
             <OptionGroup
               label="Milk"
-              values={["Whole", "Oat", "Almond"]}
+              values={MILK_OPTIONS as unknown as string[]}
               selected={config.milk}
               allowDeselect
-              suffix={{ Oat: "+$0.75", Almond: "+$0.75" }}
-              onSelect={(value) => setConfig({ ...config, milk: value as Configuration["milk"] })}
+              onSelect={(value) => setConfig({ ...config, milk: value as MilkChoice })}
             />
           )}
           {hasSyrupOptions && (
@@ -256,7 +350,7 @@ function ProductConfigurator({
                       aria-pressed={isSelected}
                     >
                       <span className="syrup-name">{flavor}</span>
-                      <small>+$0.75</small>
+                      <small>+{money(SYRUP_PRICE)}</small>
                     </button>
                   );
                 })}
@@ -271,11 +365,11 @@ function ProductConfigurator({
                 <strong aria-live="polite">{config.extraShot}</strong>
                 <button onClick={() => setConfig({ ...config, extraShot: Math.min(MAX_SHOTS, config.extraShot + 1) })} disabled={config.extraShot === MAX_SHOTS} aria-label="Add an espresso shot">+</button>
               </div>
-              <i>+$1.25 each</i>
+              <i>+{money(EXTRA_SHOT_PRICE)} each</i>
             </div>
           )}
           {hasTwoSizes && (
-            <OptionGroup label="Size" values={["Regular", "Large"]} selected={config.size} suffix={{ Large: "+$6.00" }} onSelect={(value) => setConfig({ ...config, size: value as Configuration["size"] })} />
+            <OptionGroup label="Size" values={["Regular", "Large"]} selected={config.size} suffix={{ Large: "+$6.00" }} onSelect={(value) => setConfig({ ...config, size: value })} />
           )}
           <label className="notes-label">
             <span>Special instructions</span>
@@ -521,7 +615,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
           </div>
           <span className="item-leader" aria-hidden="true" />
           <div className="item-price-wrap">
-            <span className="item-price">{soldOut ? "Sold out" : money(product.price)}</span>
+            <span className="item-price">{soldOut ? "Sold out" : priceLabel(product)}</span>
           </div>
         </button>
         {!soldOut && (
@@ -729,7 +823,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
                         <h3>{category}</h3>
                       </div>
                       {DRINK_CATEGORIES.includes(category) && (
-                        <span className="menu-milk-note">Every drink is available with oat or almond milk · +$0.75</span>
+                        <span className="menu-milk-note">Whole, skim, oat, almond, or half and half · no extra charge</span>
                       )}
                     </div>
                     <div className="menu-items-list">{items.map(renderRow)}</div>
@@ -742,7 +836,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
                   <div>
                     <h3>Our Refreshments</h3>
                   </div>
-                  <span className="menu-milk-note">Every drink is available with oat or almond milk · +$0.75</span>
+                  <span className="menu-milk-note">Whole, skim, oat, almond, or half and half · no extra charge</span>
                 </div>
                 <div className="menu-items-list">
                   {menuProducts.filter((p) => p.category === "Coffee" || p.category === "Non-Coffee").map(renderRow)}
@@ -770,10 +864,10 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
             <h2>Take Our Roast Home</h2>
             <p>A 12 oz bag of medium roast whole bean coffee from El Salvador, roasted in Union and ready for your home setup.</p>
             <ul className="take-home-features">
-              <li><span className="take-home-num">01.</span> Ocean Blend</li>
-              <li><span className="take-home-num">02.</span> Medium roast</li>
-              <li><span className="take-home-num">03.</span> Whole bean</li>
-              <li><span className="take-home-num">04.</span> 12 oz bag</li>
+              <li><span className="take-home-num">-</span> Ocean Blend</li>
+              <li><span className="take-home-num">-</span> Medium roast</li>
+              <li><span className="take-home-num">-</span> Whole bean</li>
+              <li><span className="take-home-num">-</span> 12 oz bag</li>
             </ul>
           </div>
           <button className="primary-button take-home-btn" onClick={() => openProduct(oceanBlend)}>
