@@ -78,7 +78,6 @@ export default function EventsPage() {
       <section className="ev-mayor">
         <div className="ev-mayor-inner">
           <div className="ev-mayor-copy">
-            <span className="ev-eyebrow">From the township</span>
             <h2>The Mayor of Union joined the community at the shop.</h2>
             <p>The Mayor of Union stopped in during the evening and spoke with the neighbors, business owners, and families who filled the room. Press play to watch the moment.</p>
             <p className="ev-note">Mayor Patricia Guerra-Frazier, Township of Union.</p>
@@ -88,44 +87,49 @@ export default function EventsPage() {
       </section>
 
       <section className="ev-upcoming">
-        <div className="ev-upcoming-copy">
-          <span className="ev-eyebrow">Coming up</span>
-          <h2>Puppy Party</h2>
-          <p>An evening for the neighborhood and their dogs, hosted by Mango the Doxy. Free entry, a menu made for dogs, raffles and prizes through the night. BYOB.</p>
-          <dl className="ev-details">
-            <div>
-              <dt>Date</dt>
-              <dd>Friday, August 21, 2026, 6:00 to 9:00 PM</dd>
-            </div>
-            <div>
-              <dt>Location</dt>
-              <dd>900 Green Lane, Union NJ 07083</dd>
-            </div>
-            <div>
-              <dt>Entry</dt>
-              <dd>Free entry</dd>
-            </div>
-            <div>
-              <dt>Host</dt>
-              <dd>Mango the Doxy</dd>
-            </div>
-            <div>
-              <dt>Details</dt>
-              <dd>BYOB, puppies, dog menu, raffles, prizes</dd>
-            </div>
-          </dl>
-          <PuppyRsvp />
+        <div className="ev-upcoming-head">
+          <h2>Events coming soon...</h2>
         </div>
-        <div className="ev-upcoming-media">
-          <figure className="ev-host-shot">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/events/puppy-mango.jpg" alt="Mango the Doxy, a long haired dapple dachshund, held in someone&apos;s arms at the shop." loading="lazy" width={3024} height={3780} />
-            <figcaption>Mango the Doxy, your host.</figcaption>
-          </figure>
-          <figure className="ev-flyer">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/events/puppy-party-flyer.jpg" alt="Puppy Party flyer. Live at Deaf Shark Coffee, hosted by Mango the Doxy. August 21 2026, 900 Green Lane Union NJ 07083, free entry, 6 PM to 9 PM." loading="lazy" width={1080} height={1350} />
-          </figure>
+        <div className="ev-upcoming-inner">
+          <div className="ev-upcoming-copy">
+            <span className="ev-eyebrow">Upcoming</span>
+            <h3>Puppy Party</h3>
+            <p>An evening for the neighborhood and their dogs, hosted by Mango the Doxy. Free entry, a menu made for dogs, raffles and prizes through the night. BYOB.</p>
+            <dl className="ev-details">
+              <div>
+                <dt>Date</dt>
+                <dd>Friday, August 21, 2026</dd>
+              </div>
+              <div>
+                <dt>Time</dt>
+                <dd>6:00 to 9:00 PM</dd>
+              </div>
+              <div>
+                <dt>Location</dt>
+                <dd>900 Green Lane, Union NJ 07083</dd>
+              </div>
+              <div>
+                <dt>Entry</dt>
+                <dd>Free entry</dd>
+              </div>
+              <div>
+                <dt>Details</dt>
+                <dd>BYOB, puppies, dog menu, raffles, prizes</dd>
+              </div>
+            </dl>
+            <PuppyRsvp />
+          </div>
+          <div className="ev-upcoming-media">
+            <figure className="ev-host-shot">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/events/puppy-mango.jpg" alt="Mango the Doxy, a long haired dapple dachshund, held in someone&apos;s arms at the shop." loading="lazy" width={3024} height={3780} />
+              <figcaption>Mango the Doxy, your host.</figcaption>
+            </figure>
+            <figure className="ev-flyer">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/events/puppy-party-flyer.jpg" alt="Puppy Party flyer. Live at Deaf Shark Coffee, hosted by Mango the Doxy. August 21 2026, 900 Green Lane Union NJ 07083, free entry, 6 PM to 9 PM." loading="lazy" width={1080} height={1350} />
+            </figure>
+          </div>
         </div>
       </section>
 
@@ -144,8 +148,7 @@ export default function EventsPage() {
 
       <section className="ev-cta">
         <div>
-          <span className="ev-eyebrow">Next one</span>
-          <h2>Host an evening with us, or hear about the next one.</h2>
+          <h2>Want to host an evening with us? Or just hear about the next one?</h2>
           <p>Community groups, local businesses, and neighbors are welcome. Call the shop or stop by the counter and tell us what you have in mind.</p>
         </div>
         <div className="ev-cta-actions">

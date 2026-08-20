@@ -61,17 +61,50 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
       try {
         const response = await fetch("/api/customer-orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(reference), cache: "no-store" });
         const data = await response.json();
-        if (response.ok && activeRequest) setOrder(data.order);
+        if (response.ok && activeRequest) {
+          const ord = data.order;
+          if (!ord || ord.status === "complete" || ord.status === "cancelled" || ord.status === "picked_up") {
+            try {
+              const currentList = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "[]") as SavedOrder[];
+              const remaining = currentList.filter((item) => item.orderNumber !== reference.orderNumber);
+              window.localStorage.setItem(STORAGE_KEY, JSON.stringify(remaining));
+              window.dispatchEvent(new Event("deaf-shark-orders-updated"));
+            } catch {}
+            setReference(null);
+            setOrder(null);
+            setOpen(false);
+          } else {
+            setOrder(ord);
+          }
+        }
       } catch {
         // Keep the last known state if the network briefly drops.
       }
     }
     refresh();
-    const timer = window.setInterval(refresh, 5000);
+    const timer = window.setInterval(refresh, 2500);
     return () => { activeRequest = false; window.clearInterval(timer); };
   }, [reference]);
 
   const [authEmail, setAuthEmail] = useState("");
+
+  useEffect(() => {
+    if (searchOpen || profileOpen) {
+      document.body.classList.add("modal-open");
+      (window as any).__lenis?.stop();
+    } else {
+      if (!document.querySelector(".modal-backdrop, .drawer-backdrop")) {
+        document.body.classList.remove("modal-open");
+        (window as any).__lenis?.start();
+      }
+    }
+    return () => {
+      if (!document.querySelector(".modal-backdrop, .drawer-backdrop")) {
+        document.body.classList.remove("modal-open");
+        (window as any).__lenis?.start();
+      }
+    };
+  }, [searchOpen, profileOpen]);
 
   async function openProfile() {
     setSearchOpen(false);

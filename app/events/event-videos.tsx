@@ -24,7 +24,7 @@ export function EventVideos() {
         ) : (
           <div className="ev-video-loading" aria-hidden="true" />
         )}
-        <figcaption>The Mayor of Union at Deaf Shark Coffee, 900 Green Lane. Video has sound.</figcaption>
+        <figcaption>Mayor Patricia Guerra-Frazier addressing neighbors and local business owners at Deaf Shark Coffee.</figcaption>
       </figure>
       <figure className="ev-mayor-film">
         {mounted ? (
@@ -39,7 +39,7 @@ export function EventVideos() {
         ) : (
           <div className="ev-video-loading" aria-hidden="true" />
         )}
-        <figcaption>Salsa and Networking night on the pavilion. Video has sound.</figcaption>
+        <figcaption>Salsa and Networking night with dancing and music on the pavilion.</figcaption>
       </figure>
     </div>
   );

@@ -236,10 +236,7 @@ function ProductConfigurator({
           )}
           {hasSyrupOptions && (
             <fieldset className="option-group">
-              <legend className="syrup-legend">
-                <span>Flavor syrups</span>
-                <small>+$0.75 each</small>
-              </legend>
+              <legend>Flavor syrups</legend>
               <div className="syrup-grid">
                 {SYRUP_OPTIONS.map((flavor) => {
                   const isSelected = config.syrups.includes(flavor);
@@ -268,7 +265,7 @@ function ProductConfigurator({
           )}
           {hasShotOptions && (
             <div className="toggle-row">
-              <span><strong>Extra espresso shots</strong><small>More coffee, more momentum</small></span>
+              <span><strong>Extra espresso shots</strong></span>
               <div className="quantity-control shot-control" aria-label="Extra espresso shots">
                 <button onClick={() => setConfig({ ...config, extraShot: Math.max(0, config.extraShot - 1) })} disabled={config.extraShot === 0} aria-label="Remove an espresso shot">−</button>
                 <strong aria-live="polite">{config.extraShot}</strong>
@@ -433,6 +430,22 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   const subtotal = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
 
   const [editingCartItem, setEditingCartItem] = useState<CartItem | null>(null);
+
+  const isModalOpen = Boolean(selectedProduct || cartOpen || checkoutOpen || confirmation || activeVideoModal);
+
+  useEffect(() => {
+    if (isModalOpen) {
+      document.body.classList.add("modal-open");
+      (window as any).__lenis?.stop();
+    } else {
+      document.body.classList.remove("modal-open");
+      (window as any).__lenis?.start();
+    }
+    return () => {
+      document.body.classList.remove("modal-open");
+      (window as any).__lenis?.start();
+    };
+  }, [isModalOpen]);
 
   function openProduct(product: Product) {
     if (availability[product.id] === false) return;

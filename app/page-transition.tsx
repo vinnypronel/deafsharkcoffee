@@ -9,6 +9,24 @@ export function PageTransition() {
   const isNavigatingRef = useRef(false);
   const targetUrlRef = useRef<string | null>(null);
 
+  useEffect(() => {
+    function handleRejection(event: PromiseRejectionEvent) {
+      const reason = event.reason;
+      const stack = reason?.stack || String(reason?.message || reason || "");
+      if (
+        stack.includes("chrome-extension://") ||
+        stack.includes("moz-extension://") ||
+        stack.includes("injectScript") ||
+        stack.includes("Failed to fetch")
+      ) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    }
+    window.addEventListener("unhandledrejection", handleRejection);
+    return () => window.removeEventListener("unhandledrejection", handleRejection);
+  }, []);
+
   // When pathname changes (or on initial load), exit the curtain smoothly upwards
   useEffect(() => {
     // Reveal the newly loaded page immediately

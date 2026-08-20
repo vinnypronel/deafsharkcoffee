@@ -18,6 +18,8 @@ export function SmoothScrollProvider({ children }: { children: React.ReactNode }
       wheelMultiplier: 1,
     });
 
+    (window as any).__lenis = lenis;
+
     let frame = 0;
     const animate = (time: number) => {
       lenis.raf(time);
@@ -28,6 +30,7 @@ export function SmoothScrollProvider({ children }: { children: React.ReactNode }
 
     return () => {
       window.cancelAnimationFrame(frame);
+      delete (window as any).__lenis;
       lenis.destroy();
     };
   }, []);
