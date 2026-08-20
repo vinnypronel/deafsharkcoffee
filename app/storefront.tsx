@@ -69,8 +69,7 @@ const priceLabel = (product: Product) => {
     ...(product.sizing?.iced ?? []),
   ].map((entry) => entry.price);
   const lowest = prices.length ? Math.min(...prices) : product.price;
-  const varies = prices.length > 1 && Math.max(...prices) !== lowest;
-  return varies ? `from ${money(lowest)}` : money(lowest);
+  return money(lowest);
 };
 
 const CUP_PHOTOS = { hot: "/cup-hot.png", iced: "/cup-cold.png" } as const;
