@@ -1,23 +1,61 @@
 import { eq } from "drizzle-orm";
-import { ensureSchema, getDb } from "../../../db";
+import { getDb } from "../../../db";
 import { customerProfiles } from "../../../db/schema";
-import { chatGPTSignInPath, chatGPTSignOutPath, getChatGPTUser } from "../../chatgpt-auth";
+import { getCustomerSession } from "../../../lib/auth";
 
-export async function GET() {
-  const user = await getChatGPTUser();
-  if (!user) return Response.json({ authenticated: false, signInPath: chatGPTSignInPath("/") });
+export async function GET(request: Request) {
+  const session = await getCustomerSession(request);
+  if (!session) return Response.json({ authenticated: false });
 
-  await ensureSchema();
-  const [existing] = await getDb().select().from(customerProfiles).where(eq(customerProfiles.userId, user.userId)).limit(1);
+  const user = session.user;
+  const [existing] = await getDb().select().from(customerProfiles).where(eq(customerProfiles.userId, user.id)).limit(1);
   const profile = existing ?? (await getDb().insert(customerProfiles).values({
-    userId: user.userId,
+    userId: user.id,
     email: user.email,
-    displayName: user.fullName ?? user.email.split("@")[0],
+    displayName: user.name || user.email.split("@")[0],
   }).returning())[0];
 
   return Response.json({
     authenticated: true,
-    profile: { displayName: profile.displayName, email: profile.email, points: profile.points },
-    signOutPath: chatGPTSignOutPath("/"),
+    profile: {
+      displayName: profile.displayName,
+      email: profile.email,
+      phone: profile.phone,
+      points: profile.points,
+      lifetimePoints: profile.lifetimePoints,
+    },
+  });
+}
+
+export async function PATCH(request: Request) {
+  const session = await getCustomerSession(request);
+  if (!session) return Response.json({ error: "Sign in to update your profile." }, { status: 401 });
+
+  const payload = (await request.json()) as { displayName?: string; phone?: string };
+  const displayName = payload.displayName?.trim();
+  const phone = payload.phone?.replace(/[^0-9+()\- .]/g, "").trim();
+
+  if (!displayName || displayName.length > 80 || !phone || phone.length < 7 || phone.length > 24) {
+    return Response.json({ error: "Enter a name and a valid phone number." }, { status: 400 });
+  }
+
+  const [profile] = await getDb().insert(customerProfiles).values({
+    userId: session.user.id,
+    email: session.user.email,
+    displayName,
+    phone,
+  }).onConflictDoUpdate({
+    target: customerProfiles.userId,
+    set: { displayName, phone, email: session.user.email, updatedAt: new Date() },
+  }).returning();
+
+  return Response.json({
+    profile: {
+      displayName: profile.displayName,
+      email: profile.email,
+      phone: profile.phone,
+      points: profile.points,
+      lifetimePoints: profile.lifetimePoints,
+    },
   });
 }

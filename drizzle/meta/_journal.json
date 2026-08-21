@@ -15,6 +15,27 @@
       "when": 1787002198462,
       "tag": "0001_magenta_richard_fisk",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1787272017153,
+      "tag": "0002_ambitious_bastion",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1787272095923,
+      "tag": "0003_mute_kree",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1787272552374,
+      "tag": "0004_dear_the_anarchist",
+      "breakpoints": true
     }
   ]
 }

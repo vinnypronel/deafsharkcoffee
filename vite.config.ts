@@ -13,11 +13,17 @@ const r2: string | null = null;
 
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
+const localAuthVars = Object.fromEntries(
+  ["BETTER_AUTH_SECRET", "BETTER_AUTH_URL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"]
+    .flatMap((key) => process.env[key] ? [[key, process.env[key]]] : []),
+);
 
 const localBindingConfig = {
   name: "deaf-shark-coffee",
   main: "./worker/index.ts",
+  compatibility_date: "2026-08-20",
   compatibility_flags: ["nodejs_compat"],
+  vars: localAuthVars,
   images: { binding: "IMAGES" },
   d1_databases: d1
     ? [
@@ -25,6 +31,7 @@ const localBindingConfig = {
           binding: d1,
           database_name: "deaf-shark-coffee",
           database_id: D1_DATABASE_ID,
+          migrations_dir: "./drizzle",
         },
       ]
     : [],

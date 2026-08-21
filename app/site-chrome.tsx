@@ -14,7 +14,8 @@ type HeaderOrder = {
 
 const STORAGE_KEY = "deaf-shark-customer-orders";
 const statusLabels: Record<string, string> = { new: "Received", preparing: "Preparing", ready: "Ready for pickup", complete: "Completed", cancelled: "Cancelled" };
-type ProfileResponse = { authenticated: boolean; profile?: { displayName: string; email: string; points: number }; signInPath?: string; signOutPath?: string };
+type ProfileResponse = { authenticated: boolean; profile?: { displayName: string; email: string; phone?: string | null; points: number; lifetimePoints: number } };
+type AuthConfig = { googleEnabled: boolean; emailEnabled: boolean; emailVerificationEnabled: boolean };
 
 function latestSavedOrder(): SavedOrder | null {
   try {
@@ -37,6 +38,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
   const [profileOpen, setProfileOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
+  const [authConfig, setAuthConfig] = useState<AuthConfig>({ googleEnabled: false, emailEnabled: true, emailVerificationEnabled: false });
   const links = [["/", "Home"], ["/menu", "Menu"], ["/about", "Our Story"], ["/events", "Events"], ["/contact", "Visit Us"], ["/employment", "Apply now"]];
   const loadReference = useCallback(() => setReference(latestSavedOrder()), []);
 
@@ -99,6 +101,14 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
   }, [reference]);
 
   const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authName, setAuthName] = useState("");
+  const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [profilePhone, setProfilePhone] = useState("");
+  const [profileName, setProfileName] = useState("");
+  const [profileMessage, setProfileMessage] = useState("");
 
   useEffect(() => {
     if (searchOpen || profileOpen) {
@@ -121,66 +131,97 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
   async function openProfile() {
     setSearchOpen(false);
     setProfileOpen(true);
-    try {
-      const saved = window.localStorage.getItem("deaf-shark-local-profile");
-      if (saved) {
-        setProfile(JSON.parse(saved));
-        return;
-      }
-    } catch {}
+    setAuthError("");
     setProfile(null);
     try {
-      const response = await fetch("/api/profile", { cache: "no-store" });
-      setProfile(await response.json());
+      const [profileResponse, configResponse] = await Promise.all([
+        fetch("/api/profile", { cache: "no-store", credentials: "include" }),
+        fetch("/api/auth-config", { cache: "no-store" }),
+      ]);
+      const nextProfile = await profileResponse.json() as ProfileResponse;
+      setProfile(nextProfile);
+      if (nextProfile.profile) {
+        setProfileName(nextProfile.profile.displayName);
+        setProfilePhone(nextProfile.profile.phone ?? "");
+      }
+      if (configResponse.ok) setAuthConfig(await configResponse.json());
     } catch {
       setProfile({ authenticated: false });
     }
   }
 
-  function handleSocialSignIn(provider: string) {
-    const newProfile = {
-      authenticated: true,
-      profile: {
-        displayName: `${provider} Customer`,
-        email: `${provider.toLowerCase()}.user@example.com`,
-        points: 40,
-      },
-    };
+  async function handleGoogleSignIn() {
+    if (!authConfig.googleEnabled) return;
+    setAuthBusy(true);
+    setAuthError("");
     try {
-      window.localStorage.setItem("deaf-shark-local-profile", JSON.stringify(newProfile));
-    } catch {}
-    setProfile(newProfile);
-  }
-
-  function handleEmailSignIn(e: React.FormEvent) {
-    e.preventDefault();
-    if (!authEmail.trim()) return;
-    const namePart = authEmail.split("@")[0];
-    const capitalized = namePart.charAt(0).toUpperCase() + namePart.slice(1);
-    const newProfile = {
-      authenticated: true,
-      profile: {
-        displayName: capitalized,
-        email: authEmail.trim(),
-        points: 25,
-      },
-    };
-    try {
-      window.localStorage.setItem("deaf-shark-local-profile", JSON.stringify(newProfile));
-    } catch {}
-    setProfile(newProfile);
-  }
-
-  function handleSignOut(e: React.MouseEvent) {
-    e.preventDefault();
-    try {
-      window.localStorage.removeItem("deaf-shark-local-profile");
-    } catch {}
-    if (profile?.signOutPath) {
-      window.location.href = profile.signOutPath;
-    } else {
-      setProfile({ authenticated: false });
+      const response = await fetch("/api/auth/sign-in/social", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: "google", callbackURL: window.location.href }),
+      });
+      const data = await response.json() as { url?: string; message?: string };
+      if (!response.ok || !data.url) throw new Error(data.message || "Google sign-in could not start.");
+      window.location.href = data.url;
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "Google sign-in could not start.");
+      setAuthBusy(false);
     }
+  }
+
+  async function handleEmailSignIn(e: React.FormEvent) {
+    e.preventDefault();
+    if (!authEmail.trim() || authPassword.length < 8 || (authMode === "signup" && !authName.trim())) return;
+    setAuthBusy(true);
+    setAuthError("");
+    try {
+      const response = await fetch(`/api/auth/${authMode === "signup" ? "sign-up" : "sign-in"}/email`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(authMode === "signup"
+          ? { name: authName.trim(), email: authEmail.trim(), password: authPassword, callbackURL: window.location.href }
+          : { email: authEmail.trim(), password: authPassword, callbackURL: window.location.href }),
+      });
+      const data = await response.json() as { message?: string };
+      if (!response.ok) throw new Error(data.message || "We could not complete that request.");
+      setAuthPassword("");
+      await openProfile();
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "We could not complete that request.");
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function handleSignOut(e: React.MouseEvent) {
+    e.preventDefault();
+    setAuthBusy(true);
+    try {
+      await fetch("/api/auth/sign-out", { method: "POST", credentials: "include" });
+      setProfile({ authenticated: false });
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function saveProfile(e: React.FormEvent) {
+    e.preventDefault();
+    setProfileMessage("");
+    const response = await fetch("/api/profile", {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ displayName: profileName, phone: profilePhone }),
+    });
+    const data = await response.json() as { error?: string; profile?: ProfileResponse["profile"] };
+    if (!response.ok || !data.profile) {
+      setProfileMessage(data.error || "Your profile could not be saved.");
+      return;
+    }
+    setProfile({ authenticated: true, profile: data.profile });
+    setProfileMessage("Saved.");
   }
 
   const searchMatches = query.trim()
@@ -334,7 +375,9 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                   <button
                     type="button"
                     className="social-auth-btn social-google"
-                    onClick={() => handleSocialSignIn("Google")}
+                    onClick={handleGoogleSignIn}
+                    disabled={!authConfig.googleEnabled || authBusy}
+                    title={authConfig.googleEnabled ? undefined : "Google sign-in will be enabled when the business account is connected."}
                   >
                     <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
                       <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z" />
@@ -342,29 +385,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                       <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 10.04 0 12s.45 3.82 1.25 5.42l4.03-3.15z" />
                       <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z" />
                     </svg>
-                    <span>Continue with Google</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="social-auth-btn social-apple"
-                    onClick={() => handleSocialSignIn("Apple")}
-                  >
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
-                      <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.62-.75 1.04-1.8 1.01-2.87-.93.04-2.03.62-2.67 1.37-.56.65-1.06 1.71-.93 2.74 1.03.08 2.06-.54 2.59-1.24z" />
-                    </svg>
-                    <span>Continue with Apple</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="social-auth-btn social-facebook"
-                    onClick={() => handleSocialSignIn("Facebook")}
-                  >
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="#1877F2" aria-hidden="true">
-                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                    </svg>
-                    <span>Continue with Facebook</span>
+                    <span>{authConfig.googleEnabled ? "Continue with Google" : "Google sign-in — setup pending"}</span>
                   </button>
                 </div>
 
@@ -373,20 +394,47 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                 </div>
 
                 <form className="auth-email-form" onSubmit={handleEmailSignIn}>
+                  {authMode === "signup" && (
+                    <input
+                      type="text"
+                      required
+                      maxLength={80}
+                      value={authName}
+                      onChange={(e) => setAuthName(e.target.value)}
+                      placeholder="Your name"
+                      autoComplete="name"
+                      className="auth-email-input"
+                    />
+                  )}
                   <input
                     type="email"
                     required
                     value={authEmail}
                     onChange={(e) => setAuthEmail(e.target.value)}
                     placeholder="Enter your email address"
+                    autoComplete="email"
+                    className="auth-email-input"
+                  />
+                  <input
+                    type="password"
+                    required
+                    minLength={8}
+                    maxLength={128}
+                    value={authPassword}
+                    onChange={(e) => setAuthPassword(e.target.value)}
+                    placeholder="Password (8 characters minimum)"
+                    autoComplete={authMode === "signup" ? "new-password" : "current-password"}
                     className="auth-email-input"
                   />
                   <button type="submit" className="primary-button auth-email-btn">
-                    Continue with Email
+                    {authBusy ? "Please wait..." : authMode === "signup" ? "Create account" : "Sign in with email"}
                   </button>
                 </form>
-
-                <small>Your account is created automatically the first time you continue.</small>
+                {authError && <p className="account-form-message error" role="alert">{authError}</p>}
+                <button type="button" className="account-mode-toggle" onClick={() => { setAuthMode(authMode === "signin" ? "signup" : "signin"); setAuthError(""); }}>
+                  {authMode === "signin" ? "New here? Create an account" : "Already have an account? Sign in"}
+                </button>
+                <small>Email verification and password recovery will be enabled before public launch.</small>
               </>
             )}
             {profile?.authenticated && profile.profile && (
@@ -401,7 +449,13 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                   <small>{Math.max(0, 100 - profile.profile.points)} points until your next $5 reward</small>
                 </div>
                 <p className="loyalty-note">Earn one point for every dollar spent on signed-in orders.</p>
-                <button type="button" className="account-signout" onClick={handleSignOut}>
+                <form className="account-profile-form" onSubmit={saveProfile}>
+                  <label>Name<input value={profileName} onChange={(e) => setProfileName(e.target.value)} maxLength={80} autoComplete="name" required /></label>
+                  <label>Mobile number<input value={profilePhone} onChange={(e) => setProfilePhone(e.target.value)} type="tel" autoComplete="tel" placeholder="Used to find your rewards in store" required /></label>
+                  <button type="submit" className="primary-button">Save profile</button>
+                  {profileMessage && <small className="account-form-message">{profileMessage}</small>}
+                </form>
+                <button type="button" className="account-signout" onClick={handleSignOut} disabled={authBusy}>
                   Sign out
                 </button>
               </>

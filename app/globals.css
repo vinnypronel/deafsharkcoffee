@@ -450,6 +450,15 @@ h1, h2, h3, p { margin-top: 0; }
 .loyalty-card > div i { height: 100%; display: block; border-radius: inherit; background: var(--gold); }
 .loyalty-card small { color: rgba(255,250,243,.64); }
 .loyalty-note { font-size: 13px; }
+.social-auth-btn:disabled { cursor: not-allowed; opacity: .58; transform: none; box-shadow: none; }
+.auth-email-form { gap: 10px; }
+.account-mode-toggle { border: 0; background: transparent; color: var(--espresso); font: inherit; font-size: 13px; font-weight: 750; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.account-form-message { margin: 0; color: #486247; font-size: 12px; font-weight: 700; }
+.account-form-message.error { color: #9a342c; }
+.account-profile-form { display: grid; gap: 12px; margin: 16px 0; text-align: left; }
+.account-profile-form label { display: grid; gap: 6px; color: var(--ink); font-size: 12px; font-weight: 800; }
+.account-profile-form input { width: 100%; min-height: 44px; box-sizing: border-box; border: 1px solid rgba(45,26,18,.16); border-radius: 12px; background: #fff; color: var(--ink); padding: 0 13px; font: inherit; }
+.account-profile-form input:focus { outline: 2px solid rgba(156,101,51,.22); border-color: var(--gold); }
 .account-signout { display: inline-block; margin-top: 14px; background: transparent; border: 0; padding: 0; color: #a33c2b; font-size: 13px; font-weight: 800; cursor: pointer; }
 .mobile-site-nav { display: none; }
 
@@ -1160,7 +1169,7 @@ h1, h2, h3, p { margin-top: 0; }
   position: sticky;
   top: 84px;
   z-index: 10;
-  background: var(--paper);
+  background: #faf2e4;
   padding: 10px 0 10px;
   margin-bottom: 4px;
   border-bottom: none;
@@ -1176,7 +1185,7 @@ h1, h2, h3, p { margin-top: 0; }
   left: -40px;
   right: -40px;
   height: 100px;
-  background: var(--paper);
+  background: #faf2e4;
   pointer-events: none;
 }
 .standalone-order .category-nav {
@@ -1247,7 +1256,7 @@ h1, h2, h3, p { margin-top: 0; }
   top: 140px;
   padding-right: 86px;
   z-index: 4;
-  background: var(--paper);
+  background: #faf2e4;
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
@@ -1263,7 +1272,7 @@ h1, h2, h3, p { margin-top: 0; }
   left: -20px;
   right: -20px;
   height: 85px;
-  background: var(--paper);
+  background: #faf2e4;
   pointer-events: none;
 }
 .standalone-order .menu-panel-header {
@@ -2318,6 +2327,7 @@ body.modal-open { overflow: hidden !important; touch-action: none; }
 .checkout-card, .confirmation-card { position: relative; width: min(560px, 96vw); max-height: 94vh; overflow-y: auto; border-radius: 28px; padding: 46px; background: var(--paper); box-shadow: var(--shadow); }
 .checkout-card h2, .confirmation-card h2 { font-family: Georgia, serif; font-size: 42px; }
 .checkout-card > label { display: flex; flex-direction: column; gap: 8px; margin: 18px 0; font-weight: 750; }
+.checkout-card > label .field-note { margin-top: -2px; color: var(--muted); font-size: 12px; font-weight: 500; line-height: 1.35; }
 .checkout-card input[type="text"], .checkout-card input[type="tel"], .checkout-card > label input { min-height: 52px; border: 1px solid var(--line); border-radius: 14px; padding: 0 14px; background: white; outline: none; }
 .payment-options { display: grid; gap: 8px; margin: 24px 0; border: 0; padding: 0; }
 .payment-options label { min-height: 74px; display: grid; grid-template-columns: 24px 1fr; align-items: center; gap: 12px; border: 1px solid var(--line); border-radius: 14px; padding: 12px 15px; background: white; cursor: pointer; }

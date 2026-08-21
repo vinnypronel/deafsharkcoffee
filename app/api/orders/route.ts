@@ -1,8 +1,8 @@
 import { env } from "cloudflare:workers";
-import { desc, sql } from "drizzle-orm";
+import { desc } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../db";
 import { customerProfiles, orders } from "../../../db/schema";
-import { getChatGPTUser } from "../../chatgpt-auth";
+import { getCustomerSession } from "../../../lib/auth";
 
 type CartPayload = {
   id: string;
@@ -65,13 +65,25 @@ export async function POST(request: Request) {
     );
     const taxCents = Math.round(subtotalCents * 0.06625);
     const totalCents = subtotalCents + taxCents;
-    const user = await getChatGPTUser();
+    const session = await getCustomerSession(request);
 
     const orderNum = orderNumber();
     const createdTimestamp = Math.floor(Date.now() / 1000);
     const paymentMethod = payload.paymentMethod === "card" ? "card-demo" : "pickup";
     const pickupEta = payload.pickupEta ?? "15 min";
-    const customerUserId = user?.userId ?? null;
+    const customerUserId = session?.user.id ?? null;
+
+    if (session) {
+      await getDb().insert(customerProfiles).values({
+        userId: session.user.id,
+        email: session.user.email,
+        displayName: session.user.name || customerName,
+        phone,
+      }).onConflictDoUpdate({
+        target: customerProfiles.userId,
+        set: { email: session.user.email, phone, updatedAt: new Date() },
+      });
+    }
 
     const d1 = env.DB;
     let insertResult: any;
@@ -195,23 +207,6 @@ export async function POST(request: Request) {
     }
 
     const orderId = insertResult?.meta?.last_row_id ?? Date.now();
-
-    if (user) {
-      const earnedPoints = Math.max(1, Math.floor(totalCents / 100));
-      await getDb().insert(customerProfiles).values({
-        userId: user.userId,
-        email: user.email,
-        displayName: user.fullName ?? user.email.split("@")[0],
-        points: earnedPoints,
-      }).onConflictDoUpdate({
-        target: customerProfiles.userId,
-        set: {
-          email: user.email,
-          points: sql`${customerProfiles.points} + ${earnedPoints}`,
-          updatedAt: new Date(),
-        },
-      });
-    }
 
     return Response.json(
       {

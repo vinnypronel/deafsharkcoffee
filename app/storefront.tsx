@@ -999,7 +999,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
             <img src="/deafshark-dog-art.png" alt="Deaf Shark character" />
             <span className="eyebrow">Order received</span>
             <h2>We have it, {confirmation.number}.</h2>
-            <p>Your pickup estimate is <strong>{confirmation.eta}</strong>. We will update your order status as it moves through the counter.</p>
+            <p>Your pickup estimate is <strong>{confirmation.eta}</strong>. We will text you once when it is ready for pickup.</p>
             <div className="confirmation-actions"><button className="primary-button" onClick={() => { setConfirmation(null); window.dispatchEvent(new Event("deaf-shark-open-order")); }}>View order status</button><button className="soft-button" onClick={() => setConfirmation(null)}>Back to the menu</button></div>
           </section>
         </div>
@@ -1321,7 +1321,7 @@ function Checkout({ cart, subtotal, prepTime = 15, onClose, onComplete }: { cart
         <button type="button" className="modal-close" onClick={onClose} aria-label="Close checkout">×</button>
         <h2>Finish your order</h2>
         <label><span>Name for the order</span><input required value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name" /></label>
-        <label><span>Mobile number</span><input required type="tel" value={phone} onChange={(event) => setPhone(formatPhoneInput(event.target.value))} placeholder="(908)-555-0123" maxLength={14} /></label>
+        <label><span>Mobile number</span><input required type="tel" value={phone} onChange={(event) => setPhone(formatPhoneInput(event.target.value))} placeholder="(908)-555-0123" maxLength={14} /><small className="field-note">We send one text when your order is ready. That is the only message you will get.</small></label>
         <fieldset className="payment-options">
           <legend>Payment</legend>
           <label><input type="radio" name="payment" checked={payment === "pickup"} onChange={() => setPayment("pickup")} /><span><strong>Pay at pickup</strong><small>Pay at the counter when you arrive</small></span></label>
