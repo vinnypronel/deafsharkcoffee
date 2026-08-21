@@ -4,7 +4,15 @@
 
 This document describes the current product direction, completed implementation, technical architecture, known assumptions, and recommended next steps. It is intended to let another developer or AI continue the project without needing the original conversation.
 
-Last updated: August 17, 2026
+Last updated: August 21, 2026
+
+## August 21 launch-scope decision
+
+- Deaf Shark will continue using its existing Quantic POS at launch; this project is not replacing the register software.
+- The photographed register is a SUNMI D3 Pro.
+- Online orders must eventually enter Quantic and route prepared drinks to the front coffee KDS and food to the kitchen KDS.
+- Until Quantic confirms an approved API or embedded-eCommerce path, the custom dashboard remains a fallback/testing monitor rather than the intended production POS.
+- Cart and stored order items now carry an authoritative preparation station: `COFFEE`, `KITCHEN`, or `RETAIL`.
 
 ## Quick links
 
@@ -58,12 +66,11 @@ The intended customer experience is:
 
 The intended staff experience is:
 
-1. Keep a touch-friendly dashboard open on a store computer or tablet.
-2. See incoming website orders automatically.
-3. Move orders through New, Preparing, Ready, and Complete.
+1. Receive incoming website orders through the existing Quantic POS/KDS setup.
+2. Route drink items to the front coffee station and food items to the kitchen station.
+3. Move orders through New, Preparing, Ready, and Complete in Quantic.
 4. Mark items available or sold out.
-5. Adjust the displayed customer wait time.
-6. Eventually distinguish website, DoorDash, and other platform orders in one interface.
+5. Use the custom dashboard only as a fallback/testing monitor until the Quantic integration is approved.
 
 ## Brand and design direction
 
@@ -274,13 +281,13 @@ Menu data is centralized in `app/menu-data.ts`.
 
 Categories:
 
-- Popular
 - Coffee
 - Non-Coffee
 - Breakfast
 - Sandwiches
 - Bites
-- Coffee Bags
+- Cold Drinks
+- Coffee Beans
 
 Current demo items include:
 
@@ -292,11 +299,7 @@ Current demo items include:
 - Espresso
 - Regular Coffee
 - Chicha
-- San Pellegrino
-- Malta
-- Artisan Breakfast
-- Breakfast Croissant
-- Maple Waffle
+- Full photographed breakfast menu, including bread choices and priced add-ons
 - The Shark Cubano
 - Chicken Sandwich
 - Emilia
@@ -307,16 +310,19 @@ Current demo items include:
 - Four Tequeños
 - Cachitos
 - French Fries
+- Mozzarella sticks
+- Chicken wings with fries
+- Refrigerator water, soda, juice, tea, coconut water, sports drinks, and energy drinks
 
 All menu names, descriptions, prices, modifiers, and availability defaults remain provisional until confirmed by the business.
 
 Known provisional product details:
 
 - Ocean Blend is displayed as a 12 oz medium roast whole-bean bag from El Salvador.
-- Ocean Blend demo price is $18.00.
-- The site explicitly says the final price must be confirmed.
+- Ocean Blend is currently priced at $19.00 from the in-store notes.
+- Refrigerator availability and exact flavors should remain staff-controlled because stock changes frequently.
 
-Do not silently remove the demo disclaimer until the real menu is supplied.
+The photographed menu is now the primary source for displayed products and prices; remaining ambiguous items still require owner confirmation.
 
 ## Dashboard behavior and limitations
 
@@ -637,4 +643,3 @@ Do not launch as a real public ordering system until these are addressed:
 - Do not claim that card payment, pause behavior, wait-time synchronization, dashboard security, or delivery integration is complete.
 - Prefer real Deaf Shark media and facts over generic additions.
 - Maintain consistent responsive behavior and accessible keyboard interaction.
-

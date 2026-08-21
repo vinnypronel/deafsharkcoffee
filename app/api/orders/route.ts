@@ -3,6 +3,7 @@ import { desc } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../db";
 import { customerProfiles, orders } from "../../../db/schema";
 import { getCustomerSession } from "../../../lib/auth";
+import { menuProducts, prepStationFor, type PrepStation } from "../../menu-data";
 
 type CartPayload = {
   id: string;
@@ -10,6 +11,7 @@ type CartPayload = {
   quantity: number;
   unitPrice: number;
   options?: string[];
+  prepStation?: PrepStation;
 };
 
 function orderNumber() {
@@ -60,8 +62,18 @@ export async function POST(request: Request) {
       );
     }
 
+    const orderItems = items.map((item) => {
+      const product = menuProducts.find((candidate) => candidate.id === item.id);
+      if (!product) throw new Error(`Unknown menu item: ${item.id}`);
+      return {
+        ...item,
+        name: product.name,
+        prepStation: prepStationFor(product),
+      };
+    });
+
     const subtotalCents = Math.round(
-      items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0) * 100,
+      orderItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0) * 100,
     );
     const taxCents = Math.round(subtotalCents * 0.06625);
     const totalCents = subtotalCents + taxCents;
@@ -111,7 +123,7 @@ export async function POST(request: Request) {
           orderNum,
           customerName,
           phone,
-          JSON.stringify(items),
+          JSON.stringify(orderItems),
           subtotalCents,
           taxCents,
           totalCents,
@@ -154,7 +166,7 @@ export async function POST(request: Request) {
               orderNum,
               customerName,
               phone,
-              JSON.stringify(items),
+              JSON.stringify(orderItems),
               subtotalCents,
               taxCents,
               totalCents,
@@ -189,7 +201,7 @@ export async function POST(request: Request) {
               orderNum,
               customerName,
               phone,
-              JSON.stringify(items),
+              JSON.stringify(orderItems),
               subtotalCents,
               taxCents,
               totalCents,
@@ -215,7 +227,7 @@ export async function POST(request: Request) {
           orderNumber: orderNum,
           customerName,
           phone,
-          itemsJson: JSON.stringify(items),
+          itemsJson: JSON.stringify(orderItems),
           subtotalCents,
           taxCents,
           totalCents,
@@ -225,7 +237,7 @@ export async function POST(request: Request) {
           pickupEta,
           customerUserId,
           createdAt: new Date(createdTimestamp * 1000),
-          items,
+          items: orderItems,
         },
       },
       { status: 201 },

@@ -4,7 +4,10 @@ export type MenuCategory =
   | "Breakfast"
   | "Sandwiches"
   | "Bites"
+  | "Cold Drinks"
   | "Coffee Beans";
+
+export type PrepStation = "COFFEE" | "KITCHEN" | "RETAIL";
 
 export type DrinkKey =
   | "latte"
@@ -22,6 +25,13 @@ export type DrinkKey =
   | "caramel-macchiato";
 
 export type SizeOption = { label: string; price: number };
+export type ModifierOption = { label: string; price?: number };
+export type ModifierGroup = {
+  label: string;
+  type: "single" | "multiple";
+  required?: boolean;
+  options: ModifierOption[];
+};
 
 /* Sizes exactly as the shop board reads them. A drink with no `sizing` is a
    single price. Iced pours are 16 oz only, which is why the lists differ. */
@@ -31,6 +41,8 @@ export type Product = {
   id: string;
   name: string;
   category: Exclude<MenuCategory, "Popular">;
+  /* Explicit for exceptions; otherwise derived from the category. */
+  prepStation?: PrepStation;
   /* Lowest price across sizes. The configurator charges by the chosen size. */
   price: number;
   description: string;
@@ -48,6 +60,7 @@ export type Product = {
   flavorLabel?: string;
   /* Smoothies are blended with water or milk. */
   bases?: string[];
+  modifierGroups?: ModifierGroup[];
 };
 
 export const SYRUP_PRICE = 0.5;
@@ -67,23 +80,65 @@ export const EXTRA_SHOT_PRICE = 1.25;
 
 export const LUNCH_SPECIAL_HOURS = "12:00 PM to 3:00 PM, Monday to Friday";
 
+export const ICE_MODIFIER: ModifierGroup = {
+  label: "Ice",
+  type: "single",
+  required: true,
+  options: ["Regular ice", "Light ice", "No ice"].map((label) => ({ label })),
+};
+
+export const SWEETENER_MODIFIER: ModifierGroup = {
+  label: "Sweetener",
+  type: "single",
+  required: true,
+  options: ["No sweetener", "Sugar", "Brown sugar", "Liquid sugar"].map((label) => ({ label })),
+};
+
+export const BREAKFAST_BREAD_MODIFIER: ModifierGroup = {
+  label: "Bread",
+  type: "single",
+  required: true,
+  options: ["Portuguese roll", "Croissant", "Plain bagel", "Everything bagel"].map((label) => ({ label })),
+};
+
+export const FOOD_ADD_ONS: ModifierGroup = {
+  label: "Add-ons",
+  type: "multiple",
+  options: [
+    { label: "Extra bacon", price: 1 },
+    { label: "Extra meat", price: 2.5 },
+  ],
+};
+
 export const categories: MenuCategory[] = [
   "Coffee",
   "Non-Coffee",
   "Breakfast",
   "Sandwiches",
   "Bites",
+  "Cold Drinks",
   "Coffee Beans",
 ];
+
+export const prepStationFor = (product: Pick<Product, "category" | "prepStation">): PrepStation => {
+  if (product.prepStation) return product.prepStation;
+  if (product.category === "Coffee" || product.category === "Non-Coffee") return "COFFEE";
+  if (product.category === "Cold Drinks" || product.category === "Coffee Beans") return "RETAIL";
+  return "KITCHEN";
+};
 
 export const menuProducts: Product[] = [
   {
     id: "ocean-blend-bag",
     name: "Ocean Blend",
     category: "Coffee Beans",
-    price: 18,
-    description: "12 oz medium roast whole bean coffee from El Salvador. Demo price, final price to be confirmed.",
+    prepStation: "RETAIL",
+    price: 19,
+    description: "12 oz medium roast coffee from El Salvador.",
     popular: true,
+    configurable: true,
+    flavorLabel: "Grind",
+    flavors: ["Whole bean", "Ground"],
     visual: "bag",
     video: "/featured-ocean-blend.mp4",
   },
@@ -359,42 +414,120 @@ export const menuProducts: Product[] = [
     drink: "chicha",
   },
   {
-    id: "malta",
-    name: "Malta",
-    category: "Non-Coffee",
-    price: 2.5,
-    description: "A classic chilled malt beverage.",
-    visual: "iced",
-    photo: "/drink-malta.webp",
-    drink: "malta",
+    id: "plain-croissant-or-bagel",
+    name: "Plain Croissant or Bagel",
+    category: "Breakfast",
+    price: 3.2,
+    description: "Choose a plain croissant, plain bagel, or everything bagel.",
+    configurable: true,
+    modifierGroups: [{
+      label: "Choose one",
+      type: "single",
+      required: true,
+      options: ["Croissant", "Plain bagel", "Everything bagel"].map((label) => ({ label })),
+    }],
+    visual: "sandwich",
   },
   {
-    id: "artisan-breakfast",
-    name: "Artisan Breakfast",
+    id: "bagel-with-spread",
+    name: "Bagel with Cream Cheese or Jelly",
     category: "Breakfast",
-    price: 7,
-    description: "A warm, satisfying breakfast made for busy mornings.",
+    price: 3.95,
+    description: "Plain or everything bagel with your choice of spread.",
+    configurable: true,
+    modifierGroups: [
+      { label: "Bagel", type: "single", required: true, options: ["Plain bagel", "Everything bagel"].map((label) => ({ label })) },
+      { label: "Spread", type: "single", required: true, options: ["Cream cheese", "Jelly"].map((label) => ({ label })) },
+    ],
+    visual: "sandwich",
+  },
+  {
+    id: "maple-waffle-sandwich",
+    name: "Maple Waffle Sandwich",
+    category: "Breakfast",
+    price: 6.25,
+    description: "Maple waffle sandwich with sausage and egg.",
+    configurable: true,
+    modifierGroups: [FOOD_ADD_ONS],
+    visual: "bite",
+    photo: "/food-maple-waffle.jpg",
+  },
+  {
+    id: "jalapeno-biscuit",
+    name: "Jalapeño Biscuit",
+    category: "Breakfast",
+    price: 6.25,
+    description: "Jalapeño biscuit with sausage, egg, and cheddar.",
+    configurable: true,
+    modifierGroups: [FOOD_ADD_ONS],
     visual: "sandwich",
     photo: "/food-artisan-breakfast.jpg",
   },
   {
-    id: "breakfast-croissant",
-    name: "Breakfast Croissant",
+    id: "ham-and-cheese-breakfast",
+    name: "Ham and Cheese",
+    category: "Breakfast",
+    price: 6.25,
+    description: "Ham and cheese on your choice of breakfast bread.",
+    configurable: true,
+    modifierGroups: [BREAKFAST_BREAD_MODIFIER, FOOD_ADD_ONS],
+    visual: "sandwich",
+  },
+  {
+    id: "egg-and-cheese-breakfast",
+    name: "Egg and Cheese",
+    category: "Breakfast",
+    price: 6.25,
+    description: "Egg and cheese on your choice of breakfast bread.",
+    configurable: true,
+    modifierGroups: [BREAKFAST_BREAD_MODIFIER, FOOD_ADD_ONS],
+    visual: "sandwich",
+  },
+  {
+    id: "sausage-egg-cheese-croissant",
+    name: "Sausage, Egg and Cheese Croissant",
     category: "Breakfast",
     price: 6.75,
-    description: "A flaky croissant layered with a savory breakfast filling.",
+    description: "Sausage, egg, and cheese on a flaky croissant.",
     popular: true,
+    configurable: true,
+    modifierGroups: [FOOD_ADD_ONS],
     visual: "sandwich",
     photo: "/food-breakfast-croissant.jpg",
   },
   {
-    id: "maple-waffle",
-    name: "Maple Waffle",
+    id: "classic-breakfast",
+    name: "Classic Breakfast Sandwich",
     category: "Breakfast",
     price: 6.75,
-    description: "Warm waffle with a sweet maple finish.",
-    visual: "bite",
-    photo: "/food-maple-waffle.jpg",
+    description: "Bacon, egg, and cheese, with turkey bacon available.",
+    configurable: true,
+    modifierGroups: [
+      BREAKFAST_BREAD_MODIFIER,
+      { label: "Meat", type: "single", required: true, options: ["Bacon", "Turkey bacon"].map((label) => ({ label })) },
+      FOOD_ADD_ONS,
+    ],
+    visual: "sandwich",
+  },
+  {
+    id: "breakfast-wrap",
+    name: "Breakfast Wrap",
+    category: "Breakfast",
+    price: 6.75,
+    description: "Bacon, egg, and cheese wrapped for an easy breakfast.",
+    configurable: true,
+    modifierGroups: [FOOD_ADD_ONS],
+    visual: "sandwich",
+  },
+  {
+    id: "taylor-ham-egg-cheese",
+    name: "Taylor Ham, Egg and Cheese",
+    category: "Breakfast",
+    price: 7.25,
+    description: "Taylor ham, egg, and cheese on your choice of breakfast bread.",
+    configurable: true,
+    modifierGroups: [BREAKFAST_BREAD_MODIFIER, FOOD_ADD_ONS],
+    visual: "sandwich",
   },
   {
     /* PLACEHOLDER image: falls back to the generic cup art until a photo is added. */
@@ -420,6 +553,7 @@ export const menuProducts: Product[] = [
     description: "Pressed panini with pork, Swiss, ham, lettuce, pickles, and mustard.",
     popular: true,
     configurable: true,
+    modifierGroups: [FOOD_ADD_ONS],
     visual: "sandwich",
     photo: "/food-shark-cubano.jpg",
   },
@@ -430,6 +564,7 @@ export const menuProducts: Product[] = [
     price: 6,
     description: "Pressed panini with chicken, Swiss, ham, lettuce, pickles, and mustard.",
     configurable: true,
+    modifierGroups: [FOOD_ADD_ONS],
     visual: "sandwich",
     photo: "/food-chicken-sandwich.jpg",
   },
@@ -440,6 +575,7 @@ export const menuProducts: Product[] = [
     price: 6,
     description: "Mortadella, provolone, and honey in a pressed sandwich.",
     configurable: true,
+    modifierGroups: [FOOD_ADD_ONS],
     visual: "sandwich",
     photo: "/food-emilia.jpg",
   },
@@ -450,6 +586,7 @@ export const menuProducts: Product[] = [
     price: 7.25,
     description: "Ciabatta, turkey pesto, Swiss, lettuce, and tomato.",
     configurable: true,
+    modifierGroups: [FOOD_ADD_ONS],
     visual: "sandwich",
     photo: "/food-turkey-pesto.jpg",
   },
@@ -460,6 +597,8 @@ export const menuProducts: Product[] = [
     price: 7.75,
     description: "Grilled chicken, melted cheese, tomato, and basil pesto on toasted artisan bread.",
     popular: true,
+    configurable: true,
+    modifierGroups: [FOOD_ADD_ONS],
     visual: "sandwich",
     photo: "/chicken-pesto-centered.jpg",
     video: "/featured-chicken-pesto.mp4",
@@ -472,6 +611,7 @@ export const menuProducts: Product[] = [
     description: "Mortadella, burrata, pesto, arugula, roasted peppers, and olive oil.",
     popular: true,
     configurable: true,
+    modifierGroups: [FOOD_ADD_ONS],
     visual: "sandwich",
     photo: "/food-la-toscana.jpg",
   },
@@ -513,6 +653,173 @@ export const menuProducts: Product[] = [
     description: "Crisp, golden, and ready to share.",
     visual: "bite",
     photo: "/food-fries.jpg",
+  },
+  {
+    id: "mozzarella-sticks",
+    name: "Six Mozzarella Sticks",
+    category: "Bites",
+    price: 5.99,
+    description: "Six golden mozzarella sticks.",
+    visual: "bite",
+  },
+  {
+    id: "chicken-wings-fries",
+    name: "Chicken Wings with French Fries",
+    category: "Bites",
+    price: 7.99,
+    description: "Chicken wings served with French fries.",
+    configurable: true,
+    visual: "bite",
+  },
+  {
+    id: "poland-spring",
+    name: "Poland Spring Water",
+    category: "Cold Drinks",
+    prepStation: "RETAIL",
+    price: 2,
+    description: "Chilled bottled spring water.",
+    visual: "iced",
+  },
+  {
+    id: "smartwater",
+    name: "Smartwater",
+    category: "Cold Drinks",
+    prepStation: "RETAIL",
+    price: 3,
+    description: "Chilled vapor-distilled water.",
+    visual: "iced",
+  },
+  {
+    id: "san-pellegrino",
+    name: "S. Pellegrino",
+    category: "Cold Drinks",
+    prepStation: "RETAIL",
+    price: 3.5,
+    description: "Sparkling natural mineral water, 16.9 oz.",
+    visual: "iced",
+    photo: "/drink-san-pellegrino.webp",
+  },
+  {
+    id: "canned-soda",
+    name: "Canned Soda",
+    category: "Cold Drinks",
+    prepStation: "RETAIL",
+    price: 2,
+    description: "A chilled 12 oz can.",
+    configurable: true,
+    flavorLabel: "Choose a soda",
+    flavors: ["Coca-Cola", "Sprite", "Diet Coke", "Canada Dry Ginger Ale"],
+    visual: "iced",
+  },
+  {
+    id: "vita-coco",
+    name: "Vita Coco Coconut Water",
+    category: "Cold Drinks",
+    prepStation: "RETAIL",
+    price: 2.95,
+    description: "Original coconut water.",
+    visual: "iced",
+  },
+  {
+    id: "tropicana-refreshers",
+    name: "Tropicana Refreshers",
+    category: "Cold Drinks",
+    prepStation: "RETAIL",
+    price: 2.75,
+    description: "Chilled Tropicana bottled drink.",
+    configurable: true,
+    flavorLabel: "Choose a flavor",
+    flavors: ["Lemonade", "Cranberry Cocktail", "Fruit Punch"],
+    visual: "iced",
+  },
+  {
+    id: "tropicana-juice",
+    name: "Tropicana Juice",
+    category: "Cold Drinks",
+    prepStation: "RETAIL",
+    price: 3.25,
+    description: "Chilled 100% juice bottle.",
+    configurable: true,
+    flavorLabel: "Choose a flavor",
+    flavors: ["Orange Juice", "Apple Juice"],
+    visual: "iced",
+  },
+  {
+    id: "snapple",
+    name: "Snapple",
+    category: "Cold Drinks",
+    prepStation: "RETAIL",
+    price: 3,
+    description: "Chilled 20 oz Snapple.",
+    configurable: true,
+    flavorLabel: "Choose a flavor",
+    flavors: ["Peach Tea", "Raspberry Tea", "Lemon Tea", "Kiwi Strawberry"],
+    visual: "iced",
+  },
+  {
+    id: "arnold-palmer",
+    name: "Arnold Palmer",
+    category: "Cold Drinks",
+    prepStation: "RETAIL",
+    price: 3.25,
+    description: "Chilled 20 oz tea and lemonade.",
+    configurable: true,
+    flavorLabel: "Choose one",
+    flavors: ["Half & Half", "Sweet Tea & Lemonade"],
+    visual: "iced",
+  },
+  {
+    id: "gatorade",
+    name: "Gatorade",
+    category: "Cold Drinks",
+    prepStation: "RETAIL",
+    price: 2.75,
+    description: "Chilled 20 oz sports drink.",
+    configurable: true,
+    flavorLabel: "Choose a flavor",
+    flavors: ["Cool Blue", "Lemon-Lime", "Fruit Punch"],
+    visual: "iced",
+  },
+  {
+    id: "red-bull",
+    name: "Red Bull",
+    category: "Cold Drinks",
+    prepStation: "RETAIL",
+    price: 4,
+    description: "Chilled 8.4 oz energy drink.",
+    visual: "iced",
+  },
+  {
+    id: "bottled-soda",
+    name: "Bottled Soda",
+    category: "Cold Drinks",
+    prepStation: "RETAIL",
+    price: 3.5,
+    description: "Chilled bottled soda.",
+    configurable: true,
+    flavorLabel: "Choose a soda",
+    flavors: ["Inca Kola", "Coca-Cola", "Canada Dry Ginger Ale"],
+    visual: "iced",
+  },
+  {
+    id: "malta-bottle",
+    name: "Malta",
+    category: "Cold Drinks",
+    prepStation: "RETAIL",
+    price: 2.5,
+    description: "A chilled non-alcoholic malt beverage.",
+    visual: "iced",
+    photo: "/drink-malta.webp",
+  },
+  {
+    id: "el-chichero",
+    name: "El Chichero Chicha",
+    category: "Cold Drinks",
+    prepStation: "RETAIL",
+    price: 4.25,
+    description: "Chilled traditional chicha drink.",
+    visual: "iced",
+    photo: "/drink-chicha.webp",
   },
 ];
 

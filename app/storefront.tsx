@@ -7,10 +7,15 @@ import {
   featuredProducts,
   menuProducts,
   EXTRA_SHOT_PRICE,
+  ICE_MODIFIER,
   MILK_OPTIONS,
+  prepStationFor,
+  SWEETENER_MODIFIER,
   SYRUP_OPTIONS,
   SYRUP_PRICE,
+  type ModifierGroup,
   type MenuCategory,
+  type PrepStation,
   type Product,
 } from "./menu-data";
 import { CustomerHeader, SiteFooter } from "./site-chrome";
@@ -23,6 +28,7 @@ type CartItem = {
   quantity: number;
   unitPrice: number;
   options: string[];
+  prepStation: PrepStation;
 };
 
 type Configuration = {
@@ -36,6 +42,7 @@ type Configuration = {
   base: string;
   extraShot: number;
   syrups: SyrupFlavor[];
+  modifiers: Record<string, string[]>;
   notes: string;
   quantity: number;
 };
@@ -145,6 +152,11 @@ function ProductConfigurator({
     (product.category === "Coffee" || ["matcha-latte", "strawberry-matcha", "mango-matcha", "chai-tea-latte"].includes(product.id)) &&
     product.id !== "hot-tea";
   const hasFlavorOptions = !!product.flavors?.length;
+  const modifierGroups: ModifierGroup[] = [
+    ...(product.modifierGroups ?? []),
+    ...(isDrink && !isSmoothie && availableTemps.includes("Iced") ? [ICE_MODIFIER] : []),
+    ...(isDrink && !isSmoothie && product.id !== "hot-tea" ? [SWEETENER_MODIFIER] : []),
+  ];
 
   const defaultMilk: MilkChoice = ["americano", "drip-coffee", "espresso", "cold-brew", "chicha", "malta", "red-eye", "decaf-coffee", "regular-coffee"].includes(product.id) ? "None" : "Whole";
   const defaultTemp = availableTemps.includes("Iced") ? "Iced" : "Hot";
@@ -159,6 +171,12 @@ function ProductConfigurator({
         base: product.bases?.[0] ?? "",
         extraShot: 0,
         syrups: [],
+        modifiers: Object.fromEntries(
+          modifierGroups.map((group) => [
+            group.label,
+            group.required && group.options[0] ? [group.options[0].label] : [],
+          ]),
+        ),
         notes: "",
         quantity: 1,
       };
@@ -193,10 +211,27 @@ function ProductConfigurator({
       }
     }
 
+    const modifiers = Object.fromEntries(
+      modifierGroups.map((group) => {
+        const selected = group.options
+          .filter((option) => opts.includes(`${group.label}: ${option.label}`))
+          .map((option) => option.label);
+        return [
+          group.label,
+          selected.length
+            ? selected
+            : group.required && group.options[0]
+              ? [group.options[0].label]
+              : [],
+        ];
+      }),
+    );
+
     const knownPrefixes = [
       "Hot", "Iced", "Large", "Regular", "No milk", "Syrup:", "Extra shot", "extra shot",
       ...MILK_OPTIONS, ...sizeLabels, ...(product.flavors ?? []),
       ...(product.bases ?? []).map((b) => `${b} base`),
+      ...modifierGroups.flatMap((group) => group.options.map((option) => `${group.label}: ${option.label}`)),
     ];
     const noteOpt = opts.find((o) => !knownPrefixes.some((prefix) => o.startsWith(prefix)));
 
@@ -208,6 +243,7 @@ function ProductConfigurator({
       base,
       extraShot,
       syrups,
+      modifiers,
       notes: noteOpt || "",
       quantity: initialItem.quantity || 1,
     };
@@ -221,7 +257,14 @@ function ProductConfigurator({
     basePrice +
     (hasTwoSizes && config.size === "Large" ? 6 : 0) +
     (hasShotOptions ? config.extraShot * EXTRA_SHOT_PRICE : 0) +
-    (hasSyrupOptions ? config.syrups.length * SYRUP_PRICE : 0);
+    (hasSyrupOptions ? config.syrups.length * SYRUP_PRICE : 0) +
+    modifierGroups.reduce(
+      (total, group) => total + (config.modifiers[group.label] ?? []).reduce(
+        (sum, selected) => sum + (group.options.find((option) => option.label === selected)?.price ?? 0),
+        0,
+      ),
+      0,
+    );
 
   /* Iced pours are 16 oz only, so switching temperature re-picks the size. */
   const setTemperature = (value: "Hot" | "Iced") => {
@@ -253,6 +296,11 @@ function ProductConfigurator({
     if (hasShotOptions && config.extraShot) {
       options.push(config.extraShot === 1 ? "Extra shot" : `${config.extraShot} extra shots`);
     }
+    for (const group of modifierGroups) {
+      for (const selected of config.modifiers[group.label] ?? []) {
+        options.push(`${group.label}: ${selected}`);
+      }
+    }
     if (config.notes.trim()) options.push(config.notes.trim());
     onAdd({
       key: initialItem?.key ?? `${product.id}-${Date.now()}`,
@@ -261,6 +309,7 @@ function ProductConfigurator({
       quantity: config.quantity,
       unitPrice,
       options,
+      prepStation: prepStationFor(product),
     });
   }
 
@@ -370,6 +419,60 @@ function ProductConfigurator({
           {hasTwoSizes && (
             <OptionGroup label="Size" values={["Regular", "Large"]} selected={config.size} suffix={{ Large: "+$6.00" }} onSelect={(value) => setConfig({ ...config, size: value })} />
           )}
+          {modifierGroups.map((group) => {
+            const selected = config.modifiers[group.label] ?? [];
+            const suffix = Object.fromEntries(
+              group.options
+                .filter((option) => option.price)
+                .map((option) => [option.label, `+${money(option.price ?? 0)}`]),
+            );
+            if (group.type === "single") {
+              return (
+                <OptionGroup
+                  key={group.label}
+                  label={group.label}
+                  values={group.options.map((option) => option.label)}
+                  selected={selected[0] ?? ""}
+                  suffix={suffix}
+                  allowDeselect={!group.required}
+                  onSelect={(value) => setConfig({
+                    ...config,
+                    modifiers: { ...config.modifiers, [group.label]: value === "None" ? [] : [value] },
+                  })}
+                />
+              );
+            }
+            return (
+              <fieldset className="option-group" key={group.label}>
+                <legend>{group.label}</legend>
+                <div className="syrup-grid">
+                  {group.options.map((option) => {
+                    const isSelected = selected.includes(option.label);
+                    return (
+                      <button
+                        type="button"
+                        key={option.label}
+                        className={`syrup-pill ${isSelected ? "selected" : ""}`}
+                        onClick={() => setConfig({
+                          ...config,
+                          modifiers: {
+                            ...config.modifiers,
+                            [group.label]: isSelected
+                              ? selected.filter((value) => value !== option.label)
+                              : [...selected, option.label],
+                          },
+                        })}
+                        aria-pressed={isSelected}
+                      >
+                        <span className="syrup-name">{option.label}</span>
+                        {option.price ? <small>+{money(option.price)}</small> : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            );
+          })}
           <label className="notes-label">
             <span>Special instructions</span>
             <textarea value={config.notes} onChange={(event) => setConfig({ ...config, notes: event.target.value })} placeholder="Allergies or preparation notes" maxLength={180} />
@@ -555,6 +658,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
       quantity: 1,
       unitPrice: product.price,
       options: [],
+      prepStation: prepStationFor(product),
     }]);
     setJustAdded(product.id);
     window.clearTimeout(justAddedTimer.current);
@@ -621,9 +725,9 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
           <button
             type="button"
             className={`item-quick-add ${justAdded === product.id ? "added" : ""}`}
-            onClick={() => quickAdd(product)}
-            aria-label={`Add ${product.name} to cart`}
-            title={`Add ${product.name} to cart`}
+            onClick={() => product.configurable ? openProduct(product) : quickAdd(product)}
+            aria-label={`${product.configurable ? "Customize" : "Add"} ${product.name}`}
+            title={`${product.configurable ? "Customize" : "Add"} ${product.name}`}
           >
             <span className="universal-cart-glyph" aria-hidden="true" />
             <span className="quick-add-plus" aria-hidden="true" />

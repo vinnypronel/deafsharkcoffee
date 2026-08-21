@@ -34,3 +34,14 @@ test("server-renders the counter dashboard", async () => {
   assert.match(html, /Pause online orders/i);
 });
 
+test("server-renders the expanded photographed menu", async () => {
+  const response = await render("/menu");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /Cold Drinks/i);
+  assert.match(html, /Poland Spring Water/i);
+  assert.match(html, /Snapple/i);
+  assert.match(html, /Maple Waffle Sandwich/i);
+  assert.match(html, /Chicken Wings with French Fries/i);
+  assert.match(html, /Taylor Ham, Egg and Cheese/i);
+});
