@@ -2265,7 +2265,7 @@ body.modal-open { overflow: hidden !important; touch-action: none; }
 .config-product h2 { margin: 0 0 2px; font-family: Georgia, serif; font-size: 32px; line-height: 1.08; color: var(--deep); }
 .config-product p { margin: 0 0 4px; max-width: 400px; color: var(--muted); line-height: 1.4; font-size: 13.5px; }
 .config-product strong { font-size: 24px; color: var(--deep); }
-.config-options { padding: 20px 34px 18px; }
+.config-options { padding: 62px 34px 22px; }
 .option-group { margin: 0 0 9px; border: 0; padding: 0; }
 .option-group legend, .notes-label > span, .payment-options legend { margin-bottom: 7px; font-weight: 800; font-size: 13.5px; }
 .option-group > div { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
