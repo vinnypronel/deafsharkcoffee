@@ -17,6 +17,16 @@ const statusLabels: Record<string, string> = { new: "Received", preparing: "Prep
 type ProfileResponse = { authenticated: boolean; profile?: { displayName: string; email: string; phone?: string | null; points: number; lifetimePoints: number } };
 type AuthConfig = { googleEnabled: boolean; emailEnabled: boolean; emailVerificationEnabled: boolean };
 
+async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit, timeoutMs = 6000) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
 function latestSavedOrder(): SavedOrder | null {
   try {
     const saved = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "[]") as SavedOrder[];
@@ -132,22 +142,34 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
     setSearchOpen(false);
     setProfileOpen(true);
     setAuthError("");
-    setProfile(null);
-    try {
-      const [profileResponse, configResponse] = await Promise.all([
-        fetch("/api/profile", { cache: "no-store", credentials: "include" }),
-        fetch("/api/auth-config", { cache: "no-store" }),
-      ]);
-      const nextProfile = await profileResponse.json() as ProfileResponse;
+    // Show a usable sign-in form immediately. If a session exists, replace it
+    // with the customer's profile as soon as the background request completes.
+    setProfile((current) => current ?? { authenticated: false });
+
+    const [profileResult, configResult] = await Promise.allSettled([
+      fetchWithTimeout("/api/profile", { cache: "no-store", credentials: "include" }).then(async (response) => {
+        if (!response.ok) throw new Error("Profile request failed");
+        return response.json() as Promise<ProfileResponse>;
+      }),
+      fetchWithTimeout("/api/auth-config", { cache: "no-store" }).then(async (response) => {
+        if (!response.ok) throw new Error("Authentication settings request failed");
+        return response.json() as Promise<AuthConfig>;
+      }),
+    ]);
+
+    if (profileResult.status === "fulfilled") {
+      const nextProfile = profileResult.value;
       setProfile(nextProfile);
       if (nextProfile.profile) {
         setProfileName(nextProfile.profile.displayName);
         setProfilePhone(nextProfile.profile.phone ?? "");
       }
-      if (configResponse.ok) setAuthConfig(await configResponse.json());
-    } catch {
+    } else {
       setProfile({ authenticated: false });
+      setAuthError("We could not load your saved profile. You can still sign in or create an account below.");
     }
+
+    if (configResult.status === "fulfilled") setAuthConfig(configResult.value);
   }
 
   async function handleGoogleSignIn() {
