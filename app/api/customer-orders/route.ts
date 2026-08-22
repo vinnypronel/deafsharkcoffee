@@ -34,6 +34,8 @@ export async function POST(request: Request) {
         status: order.status,
         paymentMethod: order.paymentMethod,
         pickupEta: order.pickupEta,
+        fulfillmentType: order.fulfillmentType,
+        scheduledFor: order.scheduledFor,
         createdAt: order.createdAt,
       },
     });

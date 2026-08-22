@@ -87,6 +87,8 @@ export const orders = sqliteTable(
     source: text("source").notNull().default("website"),
     paymentMethod: text("payment_method").notNull().default("pickup"),
     pickupEta: text("pickup_eta").notNull().default("15 min"),
+    fulfillmentType: text("fulfillment_type").notNull().default("asap"),
+    scheduledFor: integer("scheduled_for", { mode: "timestamp" }),
     customerUserId: text("customer_user_id"),
     createdAt: integer("created_at", { mode: "timestamp" })
       .notNull()
@@ -133,4 +135,17 @@ export const menuAvailability = sqliteTable("menu_availability", {
   updatedAt: integer("updated_at", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),
+});
+
+export const storeSettings = sqliteTable("store_settings", {
+  id: integer("id").primaryKey().default(1),
+  prepTimeMinutes: integer("prep_time_minutes").notNull().default(15),
+  paused: integer("paused", { mode: "boolean" }).notNull().default(false),
+  openTime: text("open_time").notNull().default("06:00"),
+  closeTime: text("close_time").notNull().default("20:00"),
+  cutoffMinutes: integer("cutoff_minutes").notNull().default(30),
+  schedulingEnabled: integer("scheduling_enabled", { mode: "boolean" }).notNull().default(true),
+  schedulingHorizonMinutes: integer("scheduling_horizon_minutes").notNull().default(240),
+  slotMinutes: integer("slot_minutes").notNull().default(15),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });

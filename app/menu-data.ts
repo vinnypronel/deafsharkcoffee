@@ -33,6 +33,24 @@ export type ModifierGroup = {
   options: ModifierOption[];
 };
 
+export type ProductSelection = {
+  temperature?: "Hot" | "Iced";
+  size?: string;
+  milk?: string;
+  flavor?: string;
+  base?: string;
+  extraShot?: number;
+  syrups?: string[];
+  modifiers?: Record<string, string[]>;
+  notes?: string;
+};
+
+export type PricedSelection = {
+  unitPrice: number;
+  options: string[];
+  selection: ProductSelection;
+};
+
 /* Sizes exactly as the shop board reads them. A drink with no `sizing` is a
    single price. Iced pours are 16 oz only, which is why the lists differ. */
 export type DrinkSizing = { hot?: SizeOption[]; iced?: SizeOption[] };
@@ -126,6 +144,132 @@ export const prepStationFor = (product: Pick<Product, "category" | "prepStation"
   if (product.category === "Cold Drinks" || product.category === "Coffee Beans") return "RETAIL";
   return "KITCHEN";
 };
+
+export const temperaturesForProduct = (product: Product): ("Hot" | "Iced")[] => {
+  if (product.sizing) {
+    const values: ("Hot" | "Iced")[] = [];
+    if (product.sizing.hot?.length) values.push("Hot");
+    if (product.sizing.iced?.length) values.push("Iced");
+    if (values.length) return values;
+  }
+  return product.temps ?? ["Hot", "Iced"];
+};
+
+export const modifierGroupsForProduct = (product: Product): ModifierGroup[] => {
+  const isDrink = product.category === "Coffee" || product.category === "Non-Coffee";
+  const isSmoothie = Boolean(product.bases?.length);
+  return [
+    ...(product.modifierGroups ?? []),
+    ...(isDrink && !isSmoothie && temperaturesForProduct(product).includes("Iced") ? [ICE_MODIFIER] : []),
+    ...(isDrink && !isSmoothie && product.id !== "hot-tea" ? [SWEETENER_MODIFIER] : []),
+  ];
+};
+
+const roundMoney = (value: number) => Math.round(value * 100) / 100;
+
+export function priceProductSelection(product: Product, input: ProductSelection = {}): PricedSelection {
+  const isDrink = product.category === "Coffee" || product.category === "Non-Coffee";
+  const isSmoothie = Boolean(product.bases?.length);
+  const availableTemperatures = temperaturesForProduct(product);
+  const temperature = input.temperature ?? (availableTemperatures.includes("Iced") ? "Iced" : availableTemperatures[0]);
+  if (isDrink && (!temperature || !availableTemperatures.includes(temperature))) {
+    throw new Error(`Invalid temperature for ${product.name}.`);
+  }
+
+  const sizes = temperature === "Hot" ? product.sizing?.hot ?? [] : product.sizing?.iced ?? [];
+  const hasTwoSizes = ["shark-cubano", "chicken-sandwich", "emilia"].includes(product.id);
+  const size = input.size ?? sizes[0]?.label ?? (hasTwoSizes ? "Regular" : "");
+  if (sizes.length && !sizes.some((entry) => entry.label === size)) {
+    throw new Error(`Invalid size for ${product.name}.`);
+  }
+  if (hasTwoSizes && !["Regular", "Large"].includes(size)) {
+    throw new Error(`Invalid sandwich size for ${product.name}.`);
+  }
+
+  const hasMilkOptions = isDrink && !isSmoothie && !["chicha", "malta", "hot-tea"].includes(product.id);
+  const defaultMilk = ["americano", "drip-coffee", "espresso", "cold-brew", "chicha", "malta", "red-eye", "decaf-coffee", "regular-coffee"].includes(product.id) ? "None" : "Whole";
+  const milk = input.milk ?? defaultMilk;
+  if (hasMilkOptions && milk !== "None" && !MILK_OPTIONS.includes(milk as (typeof MILK_OPTIONS)[number])) {
+    throw new Error(`Invalid milk choice for ${product.name}.`);
+  }
+
+  const flavor = input.flavor ?? product.flavors?.[0] ?? "";
+  if (product.flavors?.length && !product.flavors.includes(flavor)) {
+    throw new Error(`Invalid choice for ${product.name}.`);
+  }
+  const base = input.base ?? product.bases?.[0] ?? "";
+  if (product.bases?.length && !product.bases.includes(base)) {
+    throw new Error(`Invalid smoothie base for ${product.name}.`);
+  }
+
+  const hasSyrupOptions = isDrink && !isSmoothie && product.id !== "hot-tea";
+  const syrups = [...new Set(input.syrups ?? [])];
+  if ((!hasSyrupOptions && syrups.length) || syrups.some((value) => !SYRUP_OPTIONS.includes(value as (typeof SYRUP_OPTIONS)[number]))) {
+    throw new Error(`Invalid syrup choice for ${product.name}.`);
+  }
+
+  const hasShotOptions =
+    (product.category === "Coffee" || ["matcha-latte", "strawberry-matcha", "mango-matcha", "chai-tea-latte"].includes(product.id)) &&
+    product.id !== "hot-tea";
+  const extraShot = input.extraShot ?? 0;
+  if (!Number.isInteger(extraShot) || extraShot < 0 || extraShot > 5 || (!hasShotOptions && extraShot > 0)) {
+    throw new Error(`Invalid espresso-shot quantity for ${product.name}.`);
+  }
+
+  const modifierGroups = modifierGroupsForProduct(product);
+  const modifiers: Record<string, string[]> = {};
+  for (const group of modifierGroups) {
+    const selected = [...new Set(input.modifiers?.[group.label] ?? (group.required && group.options[0] ? [group.options[0].label] : []))];
+    if ((group.required && selected.length === 0) || (group.type === "single" && selected.length > 1)) {
+      throw new Error(`Choose a valid ${group.label.toLowerCase()} option for ${product.name}.`);
+    }
+    if (selected.some((value) => !group.options.some((option) => option.label === value))) {
+      throw new Error(`Invalid ${group.label.toLowerCase()} option for ${product.name}.`);
+    }
+    modifiers[group.label] = selected;
+  }
+
+  const notes = (input.notes ?? "").trim();
+  if (notes.length > 180) throw new Error("Special instructions must be 180 characters or fewer.");
+
+  const chosenSize = sizes.find((entry) => entry.label === size);
+  const modifierPrice = modifierGroups.reduce(
+    (total, group) => total + (modifiers[group.label] ?? []).reduce(
+      (sum, selected) => sum + (group.options.find((option) => option.label === selected)?.price ?? 0),
+      0,
+    ),
+    0,
+  );
+  const unitPrice = roundMoney(
+    (chosenSize?.price ?? product.price) +
+    (hasTwoSizes && size === "Large" ? 6 : 0) +
+    extraShot * EXTRA_SHOT_PRICE +
+    syrups.length * SYRUP_PRICE +
+    modifierPrice,
+  );
+
+  const options: string[] = [];
+  if (product.flavors?.length && flavor) options.push(flavor);
+  if (isDrink) {
+    if (availableTemperatures.length > 1 && temperature) options.push(temperature);
+    if (hasMilkOptions) options.push(milk === "None" ? "No milk" : milk);
+    if (isSmoothie && base) options.push(`${base} base`);
+    if (size) options.push(size);
+    if (syrups.length) options.push(`Syrup: ${syrups.join(", ")}`);
+  }
+  if (hasTwoSizes && size) options.push(size);
+  if (extraShot) options.push(extraShot === 1 ? "Extra shot" : `${extraShot} extra shots`);
+  for (const group of modifierGroups) {
+    for (const selected of modifiers[group.label] ?? []) options.push(`${group.label}: ${selected}`);
+  }
+  if (notes) options.push(notes);
+
+  return {
+    unitPrice,
+    options,
+    selection: { temperature, size, milk, flavor, base, extraShot, syrups, modifiers, notes },
+  };
+}
 
 export const menuProducts: Product[] = [
   {

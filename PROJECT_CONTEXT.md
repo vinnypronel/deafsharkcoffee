@@ -335,29 +335,26 @@ Dashboard UI is in `app/dashboard/dashboard.tsx`.
 - Staff can cancel a New order.
 - Cards display order date and local time in a format such as `Aug 17, 2026 · 9:53 PM`.
 - Menu availability updates persist in D1 and appear on the customer menu within a few seconds.
+- Customer wait time and the online-order pause switch persist in D1.
+- Pausing online ordering disables checkout and is also enforced by the order API.
+- Orders show whether pickup is ASAP or scheduled.
 
 ### Important current limitations
 
-- “Current customer wait time” is local React state only.
-- Changing it does not persist to D1.
-- Changing it does not currently update the customer checkout estimate.
-- New customer orders still submit a hard-coded `15 min` estimate.
-- “Pause online orders” is local React state only.
-- Pausing does not block customer orders.
 - Dashboard sales summary currently totals all loaded non-cancelled orders, even though the label may imply a daily total.
 - Completed and cancelled orders disappear from the three active columns, but there is no order history interface.
 - Dashboard API routes have no staff authorization.
+- Scheduling uses configurable default hours and validation, but the business must confirm its operating hours and cutoff policy.
+- Scheduled pickup is disabled for pay-at-pickup orders to reduce no-shows. The current card option remains a demo until Stripe is connected.
 
 Recommended next dashboard work:
 
-1. Add a persisted store-settings table for wait time and pause state.
-2. Read those settings on the customer site.
-3. Disable checkout while orders are paused.
-4. Write the active wait estimate into each submitted order.
-5. Protect dashboard routes and mutation APIs with a staff role.
-6. Add order history, date filters, daily totals, and search.
-7. Add sound or visual alerts for newly received orders.
-8. Consider platform source badges for DoorDash and future integrations.
+1. Protect dashboard routes and mutation APIs with a staff role.
+2. Add separate coffee and kitchen station views.
+3. Add order history, date filters, daily totals, and search.
+4. Add sound or visual alerts for newly received orders.
+5. Confirm and expose editable scheduling hours and cutoff rules.
+6. Consider platform source badges for DoorDash and future integrations.
 
 ## Data and API architecture
 
@@ -396,6 +393,8 @@ Stores:
 - source
 - payment method
 - pickup estimate
+- fulfillment type (`asap` or `scheduled`)
+- optional scheduled pickup timestamp
 - optional authenticated customer user ID
 - creation timestamp
 
@@ -406,6 +405,10 @@ Stores a product ID, available boolean, and update timestamp.
 #### `customer_profiles`
 
 Stores authenticated user ID, email, display name, loyalty points, and timestamps.
+
+#### `store_settings`
+
+Stores the active preparation estimate, online-order pause state, business hours, cutoff minutes, and scheduled-pickup slot and horizon settings.
 
 ### APIs
 
@@ -419,7 +422,10 @@ Stores authenticated user ID, email, display name, loyalty points, and timestamp
 
 - Creates a pickup order.
 - Requires name, phone, and at least one item.
-- Calculates subtotal, tax, and total.
+- Rebuilds and validates every item selection against the server-owned menu catalog.
+- Calculates authoritative subtotal, tax, and total instead of trusting browser prices.
+- Rejects sold-out products and all orders while online ordering is paused.
+- Validates ASAP business-hour cutoffs and scheduled pickup slots.
 - Associates the order with the authenticated user when available.
 - Awards loyalty points for authenticated users.
 
@@ -431,11 +437,11 @@ Stores authenticated user ID, email, display name, loyalty points, and timestamp
 
 #### `GET /api/menu-state`
 
-- Returns persisted availability by product ID.
+- Returns persisted availability by product ID plus wait time, pause state, hours, and scheduling settings.
 
 #### `PATCH /api/menu-state`
 
-- Updates availability.
+- Updates availability, wait time, and pause state.
 - Currently unauthenticated.
 
 #### `POST /api/customer-orders`
@@ -588,27 +594,25 @@ Do not launch as a real public ordering system until these are addressed:
 3. Confirm the merchant’s POS and payment provider.
 4. Integrate a real payment processor only after merchant approval.
 5. Protect the dashboard and staff mutation APIs.
-6. Persist wait time and pause state.
-7. Ensure pause state actually stops new orders.
-8. Add staff accounts or roles.
-9. Confirm tax handling.
-10. Add order throttling, validation, rate limiting, and abuse protection.
-11. Add privacy policy, terms, refund and cancellation policies, and accessibility review.
-12. Confirm SMS, email, or push notification requirements.
-13. Verify all origin, veteran-owned, product, and sourcing claims with the business.
-14. Test on the exact store hardware and network.
-15. Define backup procedures for internet or dashboard outages.
+6. Add staff accounts or roles.
+7. Confirm tax handling.
+8. Add order throttling, rate limiting, and abuse protection.
+9. Add privacy policy, terms, refund and cancellation policies, and accessibility review.
+10. Confirm SMS, email, or push notification requirements.
+11. Verify all origin, veteran-owned, product, and sourcing claims with the business.
+12. Test on the exact store hardware and network.
+13. Define backup procedures for internet or dashboard outages.
 
 ## Recommended next implementation sequence
 
 ### Phase 1: make the demo operationally accurate
 
 1. Obtain and enter the final menu.
-2. Add a persisted `store_settings` table.
-3. Connect customer wait time and pause state to checkout.
-4. Add dashboard authentication and staff authorization.
-5. Add order history and daily filtering.
-6. Add new-order alerts.
+2. Add dashboard authentication and staff authorization.
+3. Add separate coffee and kitchen station views.
+4. Add order history and daily filtering.
+5. Add new-order alerts.
+6. Confirm business hours and make scheduling settings editable.
 
 ### Phase 2: payments and customer communication
 
@@ -640,6 +644,6 @@ Do not launch as a real public ordering system until these are addressed:
 - Keep changes scoped and validate with `npm run build`.
 - Preserve existing user changes and assets.
 - Treat every current price and detailed menu description as demo data unless verified.
-- Do not claim that card payment, pause behavior, wait-time synchronization, dashboard security, or delivery integration is complete.
+- Do not claim that card payment, dashboard security, or delivery integration is complete.
 - Prefer real Deaf Shark media and facts over generic additions.
 - Maintain consistent responsive behavior and accessible keyboard interaction.

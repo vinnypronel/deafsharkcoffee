@@ -37,6 +37,8 @@ export function ensureSchema() {
           source text DEFAULT 'website' NOT NULL,
           payment_method text DEFAULT 'pickup' NOT NULL,
           pickup_eta text DEFAULT '15 min' NOT NULL,
+          fulfillment_type text DEFAULT 'asap' NOT NULL,
+          scheduled_for integer,
           customer_user_id text,
           created_at integer NOT NULL
         )`),
@@ -48,11 +50,39 @@ export function ensureSchema() {
           created_at integer NOT NULL,
           updated_at integer NOT NULL
         )`),
+        d1.prepare(`CREATE TABLE IF NOT EXISTS store_settings (
+          id integer PRIMARY KEY DEFAULT 1 NOT NULL,
+          prep_time_minutes integer DEFAULT 15 NOT NULL,
+          paused integer DEFAULT false NOT NULL,
+          open_time text DEFAULT '06:00' NOT NULL,
+          close_time text DEFAULT '20:00' NOT NULL,
+          cutoff_minutes integer DEFAULT 30 NOT NULL,
+          scheduling_enabled integer DEFAULT true NOT NULL,
+          scheduling_horizon_minutes integer DEFAULT 240 NOT NULL,
+          slot_minutes integer DEFAULT 15 NOT NULL,
+          updated_at integer NOT NULL
+        )`),
+        d1.prepare(`INSERT OR IGNORE INTO store_settings (
+          id, prep_time_minutes, paused, open_time, close_time, cutoff_minutes,
+          scheduling_enabled, scheduling_horizon_minutes, slot_minutes, updated_at
+        ) VALUES (1, 15, false, '06:00', '20:00', 30, true, 240, 15, unixepoch())`),
         d1.prepare("CREATE INDEX IF NOT EXISTS idx_orders_status_created_at ON orders (status, created_at)"),
       ]);
 
       try {
         await d1.prepare("ALTER TABLE orders ADD COLUMN customer_user_id text").run();
+      } catch {
+        // column already exists
+      }
+
+      try {
+        await d1.prepare("ALTER TABLE orders ADD COLUMN fulfillment_type text DEFAULT 'asap' NOT NULL").run();
+      } catch {
+        // column already exists
+      }
+
+      try {
+        await d1.prepare("ALTER TABLE orders ADD COLUMN scheduled_for integer").run();
       } catch {
         // column already exists
       }

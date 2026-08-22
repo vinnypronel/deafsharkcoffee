@@ -1,22 +1,56 @@
-import { env } from "cloudflare:workers";
 import { desc } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../db";
-import { customerProfiles, orders } from "../../../db/schema";
+import { customerProfiles, menuAvailability, orders, storeSettings } from "../../../db/schema";
 import { getCustomerSession } from "../../../lib/auth";
-import { menuProducts, prepStationFor, type PrepStation } from "../../menu-data";
+import { menuProducts, prepStationFor, priceProductSelection, type ProductSelection } from "../../menu-data";
 
 type CartPayload = {
   id: string;
-  name: string;
   quantity: number;
-  unitPrice: number;
-  options?: string[];
-  prepStation?: PrepStation;
+  selection?: ProductSelection;
 };
 
 function orderNumber() {
   const rand = Math.floor(1000 + Math.random() * 9000);
   return `DS${Date.now().toString().slice(-4)}${rand}`;
+}
+
+const STORE_TIME_ZONE = "America/New_York";
+
+function clockMinutes(value: string) {
+  const [hours, minutes] = value.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function localClockMinutes(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: STORE_TIME_ZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const hours = Number(parts.find((part) => part.type === "hour")?.value ?? 0);
+  const minutes = Number(parts.find((part) => part.type === "minute")?.value ?? 0);
+  return hours * 60 + minutes;
+}
+
+function localDateKey(date: Date) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: STORE_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function scheduledLabel(date: Date) {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: STORE_TIME_ZONE,
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
 }
 
 export async function GET() {
@@ -48,6 +82,8 @@ export async function POST(request: Request) {
       phone?: string;
       paymentMethod?: string;
       pickupEta?: string;
+      fulfillmentType?: "asap" | "scheduled";
+      scheduledFor?: string;
       items?: CartPayload[];
     };
 
@@ -62,12 +98,32 @@ export async function POST(request: Request) {
       );
     }
 
+    const [settingsRow, availabilityRows] = await Promise.all([
+      getDb().select().from(storeSettings).limit(1),
+      getDb().select().from(menuAvailability),
+    ]);
+    const settings = settingsRow[0];
+    if (!settings) throw new Error("Store settings are unavailable.");
+    if (settings.paused) {
+      return Response.json({ error: "Online ordering is temporarily paused. Please order at the counter." }, { status: 409 });
+    }
+
+    const availability = new Map(availabilityRows.map((item) => [item.productId, item.available]));
     const orderItems = items.map((item) => {
       const product = menuProducts.find((candidate) => candidate.id === item.id);
       if (!product) throw new Error(`Unknown menu item: ${item.id}`);
+      if (availability.get(product.id) === false) throw new Error(`${product.name} is currently sold out.`);
+      if (!Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 20) {
+        throw new Error(`Choose a valid quantity for ${product.name}.`);
+      }
+      const priced = priceProductSelection(product, item.selection);
       return {
-        ...item,
+        id: product.id,
         name: product.name,
+        quantity: item.quantity,
+        unitPrice: priced.unitPrice,
+        options: priced.options,
+        selection: priced.selection,
         prepStation: prepStationFor(product),
       };
     });
@@ -81,8 +137,40 @@ export async function POST(request: Request) {
 
     const orderNum = orderNumber();
     const createdTimestamp = Math.floor(Date.now() / 1000);
+    const fulfillmentType = payload.fulfillmentType === "scheduled" ? "scheduled" : "asap";
     const paymentMethod = payload.paymentMethod === "card" ? "card-demo" : "pickup";
-    const pickupEta = payload.pickupEta ?? "15 min";
+    const now = new Date();
+    const closingCutoff = clockMinutes(settings.closeTime) - settings.cutoffMinutes;
+    let scheduledFor: Date | null = null;
+    let pickupEta = `${settings.prepTimeMinutes} min`;
+
+    if (fulfillmentType === "scheduled") {
+      if (!settings.schedulingEnabled) {
+        return Response.json({ error: "Scheduled pickup is not available right now." }, { status: 409 });
+      }
+      if (paymentMethod !== "card-demo") {
+        return Response.json({ error: "Scheduled pickup requires advance online payment." }, { status: 400 });
+      }
+      scheduledFor = payload.scheduledFor ? new Date(payload.scheduledFor) : null;
+      if (!scheduledFor || Number.isNaN(scheduledFor.getTime())) {
+        return Response.json({ error: "Choose a valid scheduled pickup time." }, { status: 400 });
+      }
+      const minutesAhead = (scheduledFor.getTime() - now.getTime()) / 60_000;
+      const scheduledMinutes = localClockMinutes(scheduledFor);
+      if (
+        minutesAhead < settings.prepTimeMinutes ||
+        minutesAhead > settings.schedulingHorizonMinutes ||
+        localDateKey(scheduledFor) !== localDateKey(now) ||
+        scheduledMinutes < clockMinutes(settings.openTime) ||
+        scheduledMinutes > closingCutoff ||
+        scheduledMinutes % settings.slotMinutes !== 0
+      ) {
+        return Response.json({ error: "That pickup time is outside the available scheduling window." }, { status: 400 });
+      }
+      pickupEta = scheduledLabel(scheduledFor);
+    } else if (localClockMinutes(now) < clockMinutes(settings.openTime) || localClockMinutes(now) > closingCutoff) {
+      return Response.json({ error: "Online ordering is closed for today. Please schedule during store hours." }, { status: 409 });
+    }
     const customerUserId = session?.user.id ?? null;
 
     if (session) {
@@ -97,128 +185,25 @@ export async function POST(request: Request) {
       });
     }
 
-    const d1 = env.DB;
-    let insertResult: any;
+    const [createdOrder] = await getDb().insert(orders).values({
+      orderNumber: orderNum,
+      customerName,
+      phone,
+      itemsJson: JSON.stringify(orderItems),
+      subtotalCents,
+      taxCents,
+      totalCents,
+      status: "new",
+      source: "website",
+      paymentMethod,
+      pickupEta,
+      fulfillmentType,
+      scheduledFor,
+      customerUserId,
+      createdAt: new Date(createdTimestamp * 1000),
+    }).returning();
 
-    try {
-      insertResult = await d1
-        .prepare(
-          `INSERT INTO orders (
-            order_number,
-            customer_name,
-            phone,
-            items_json,
-            subtotal_cents,
-            tax_cents,
-            total_cents,
-            status,
-            source,
-            payment_method,
-            pickup_eta,
-            customer_user_id,
-            created_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        )
-        .bind(
-          orderNum,
-          customerName,
-          phone,
-          JSON.stringify(orderItems),
-          subtotalCents,
-          taxCents,
-          totalCents,
-          "new",
-          "website",
-          paymentMethod,
-          pickupEta,
-          customerUserId,
-          createdTimestamp,
-        )
-        .run();
-    } catch (insertError: any) {
-      if (insertError?.message?.includes("customer_user_id")) {
-        try {
-          await d1.prepare("ALTER TABLE orders ADD COLUMN customer_user_id text").run();
-        } catch {
-          // ignore if already added
-        }
-
-        try {
-          insertResult = await d1
-            .prepare(
-              `INSERT INTO orders (
-                order_number,
-                customer_name,
-                phone,
-                items_json,
-                subtotal_cents,
-                tax_cents,
-                total_cents,
-                status,
-                source,
-                payment_method,
-                pickup_eta,
-                customer_user_id,
-                created_at
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-            )
-            .bind(
-              orderNum,
-              customerName,
-              phone,
-              JSON.stringify(orderItems),
-              subtotalCents,
-              taxCents,
-              totalCents,
-              "new",
-              "website",
-              paymentMethod,
-              pickupEta,
-              customerUserId,
-              createdTimestamp,
-            )
-            .run();
-        } catch {
-          // fallback without customer_user_id if column still cannot be modified
-          insertResult = await d1
-            .prepare(
-              `INSERT INTO orders (
-                order_number,
-                customer_name,
-                phone,
-                items_json,
-                subtotal_cents,
-                tax_cents,
-                total_cents,
-                status,
-                source,
-                payment_method,
-                pickup_eta,
-                created_at
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-            )
-            .bind(
-              orderNum,
-              customerName,
-              phone,
-              JSON.stringify(orderItems),
-              subtotalCents,
-              taxCents,
-              totalCents,
-              "new",
-              "website",
-              paymentMethod,
-              pickupEta,
-              createdTimestamp,
-            )
-            .run();
-        }
-      } else {
-        throw insertError;
-      }
-    }
-
-    const orderId = insertResult?.meta?.last_row_id ?? Date.now();
+    const orderId = createdOrder.id;
 
     return Response.json(
       {
@@ -235,6 +220,8 @@ export async function POST(request: Request) {
           source: "website",
           paymentMethod,
           pickupEta,
+          fulfillmentType,
+          scheduledFor,
           customerUserId,
           createdAt: new Date(createdTimestamp * 1000),
           items: orderItems,

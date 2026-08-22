@@ -1,23 +1,45 @@
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../db";
-import { menuAvailability } from "../../../db/schema";
+import { menuAvailability, storeSettings } from "../../../db/schema";
 
-let globalShopState = {
-  prepTime: 15,
+const DEFAULT_SETTINGS = {
+  id: 1,
+  prepTimeMinutes: 15,
   paused: false,
+  openTime: "06:00",
+  closeTime: "20:00",
+  cutoffMinutes: 30,
+  schedulingEnabled: true,
+  schedulingHorizonMinutes: 240,
+  slotMinutes: 15,
 };
+
+async function readSettings() {
+  const [settings] = await getDb().select().from(storeSettings).where(eq(storeSettings.id, 1)).limit(1);
+  return settings ?? DEFAULT_SETTINGS;
+}
 
 export async function GET() {
   try {
     await ensureSchema();
-    const items = await getDb()
-      .select()
-      .from(menuAvailability)
-      .orderBy(desc(menuAvailability.updatedAt));
+    const [items, settings] = await Promise.all([
+      getDb().select().from(menuAvailability).orderBy(desc(menuAvailability.updatedAt)),
+      readSettings(),
+    ]);
     return Response.json({
       availability: Object.fromEntries(items.map((item) => [item.productId, item.available])),
-      prepTime: globalShopState.prepTime,
-      paused: globalShopState.paused,
+      prepTime: settings.prepTimeMinutes,
+      paused: settings.paused,
+      hours: {
+        openTime: settings.openTime,
+        closeTime: settings.closeTime,
+        cutoffMinutes: settings.cutoffMinutes,
+      },
+      scheduling: {
+        enabled: settings.schedulingEnabled,
+        horizonMinutes: settings.schedulingHorizonMinutes,
+        slotMinutes: settings.slotMinutes,
+      },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to load menu state";
@@ -35,12 +57,18 @@ export async function PATCH(request: Request) {
       paused?: boolean;
     };
 
+    const settingsUpdate: { prepTimeMinutes?: number; paused?: boolean; updatedAt: Date } = { updatedAt: new Date() };
     if (typeof payload.prepTime === "number") {
-      globalShopState.prepTime = Math.max(5, payload.prepTime);
+      settingsUpdate.prepTimeMinutes = Math.min(120, Math.max(5, Math.round(payload.prepTime)));
     }
+    if (typeof payload.paused === "boolean") settingsUpdate.paused = payload.paused;
 
-    if (typeof payload.paused === "boolean") {
-      globalShopState.paused = payload.paused;
+    if (settingsUpdate.prepTimeMinutes !== undefined || settingsUpdate.paused !== undefined) {
+      await getDb().insert(storeSettings).values({
+        ...DEFAULT_SETTINGS,
+        ...settingsUpdate,
+        updatedAt: new Date(),
+      }).onConflictDoUpdate({ target: storeSettings.id, set: settingsUpdate });
     }
 
     if (payload.productId && typeof payload.available === "boolean") {
@@ -57,10 +85,11 @@ export async function PATCH(request: Request) {
         });
     }
 
+    const settings = await readSettings();
     return Response.json({
       success: true,
-      prepTime: globalShopState.prepTime,
-      paused: globalShopState.paused,
+      prepTime: settings.prepTimeMinutes,
+      paused: settings.paused,
       productId: payload.productId,
       available: payload.available,
     });

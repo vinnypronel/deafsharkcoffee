@@ -23,6 +23,8 @@ type Order = {
   source: string;
   paymentMethod: string;
   pickupEta: string;
+  fulfillmentType?: "asap" | "scheduled";
+  scheduledFor?: string | null;
   createdAt: string;
 };
 
@@ -212,7 +214,7 @@ function OrderCard({ order, onAdvance, onCancel }: { order: Order; onAdvance: ()
   return (
     <article className="order-card">
       <div className="order-card-top"><div><span className={`source-badge source-${order.source}`}>{order.source === "website" ? "Website" : order.source}</span><strong>#{order.orderNumber.replace("DS", "")}</strong></div><time dateTime={order.createdAt}>{formatDateTime(order.createdAt)}</time></div>
-      <div className="customer-line"><strong>{order.customerName}</strong><span>Pickup · {order.pickupEta}</span></div>
+      <div className="customer-line"><strong>{order.customerName}</strong><span>{order.fulfillmentType === "scheduled" ? "Scheduled" : "ASAP"} pickup · {order.pickupEta}</span></div>
       <div className="order-items">
         {order.items.map((item, index) => <div key={`${item.id}-${index}`}><b>{item.quantity}</b><span><strong>{item.name}</strong>{(item.prepStation || (item.options && item.options.length > 0)) && <small>{[item.prepStation ? `${item.prepStation.toLowerCase()} station` : "", ...(item.options ?? [])].filter(Boolean).join(" · ")}</small>}</span></div>)}
       </div>

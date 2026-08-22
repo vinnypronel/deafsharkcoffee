@@ -4,19 +4,20 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import ScrollHero from "./scroll-hero";
 import {
   categories,
+  EXTRA_SHOT_PRICE,
   featuredProducts,
   menuProducts,
-  EXTRA_SHOT_PRICE,
-  ICE_MODIFIER,
   MILK_OPTIONS,
+  modifierGroupsForProduct,
   prepStationFor,
-  SWEETENER_MODIFIER,
+  priceProductSelection,
   SYRUP_OPTIONS,
   SYRUP_PRICE,
   type ModifierGroup,
   type MenuCategory,
   type PrepStation,
   type Product,
+  type ProductSelection,
 } from "./menu-data";
 import { CustomerHeader, SiteFooter } from "./site-chrome";
 import "./drink-visuals.css";
@@ -29,6 +30,13 @@ type CartItem = {
   unitPrice: number;
   options: string[];
   prepStation: PrepStation;
+  selection?: ProductSelection;
+};
+
+type SchedulingSettings = {
+  enabled: boolean;
+  horizonMinutes: number;
+  slotMinutes: number;
 };
 
 type Configuration = {
@@ -152,11 +160,7 @@ function ProductConfigurator({
     (product.category === "Coffee" || ["matcha-latte", "strawberry-matcha", "mango-matcha", "chai-tea-latte"].includes(product.id)) &&
     product.id !== "hot-tea";
   const hasFlavorOptions = !!product.flavors?.length;
-  const modifierGroups: ModifierGroup[] = [
-    ...(product.modifierGroups ?? []),
-    ...(isDrink && !isSmoothie && availableTemps.includes("Iced") ? [ICE_MODIFIER] : []),
-    ...(isDrink && !isSmoothie && product.id !== "hot-tea" ? [SWEETENER_MODIFIER] : []),
-  ];
+  const modifierGroups: ModifierGroup[] = modifierGroupsForProduct(product);
 
   const defaultMilk: MilkChoice = ["americano", "drip-coffee", "espresso", "cold-brew", "chicha", "malta", "red-eye", "decaf-coffee", "regular-coffee"].includes(product.id) ? "None" : "Whole";
   const defaultTemp = availableTemps.includes("Iced") ? "Iced" : "Hot";
@@ -251,20 +255,8 @@ function ProductConfigurator({
 
   const hasTwoSizes = ["shark-cubano", "chicken-sandwich", "emilia"].includes(product.id);
   const drinkSizes = sizesFor(product, config.temperature);
-  const chosenSize = drinkSizes.find((entry) => entry.label === config.size) ?? drinkSizes[0];
-  const basePrice = chosenSize ? chosenSize.price : product.price;
-  const unitPrice =
-    basePrice +
-    (hasTwoSizes && config.size === "Large" ? 6 : 0) +
-    (hasShotOptions ? config.extraShot * EXTRA_SHOT_PRICE : 0) +
-    (hasSyrupOptions ? config.syrups.length * SYRUP_PRICE : 0) +
-    modifierGroups.reduce(
-      (total, group) => total + (config.modifiers[group.label] ?? []).reduce(
-        (sum, selected) => sum + (group.options.find((option) => option.label === selected)?.price ?? 0),
-        0,
-      ),
-      0,
-    );
+  const pricedSelection = priceProductSelection(product, config);
+  const unitPrice = pricedSelection.unitPrice;
 
   /* Iced pours are 16 oz only, so switching temperature re-picks the size. */
   const setTemperature = (value: "Hot" | "Iced") => {
@@ -279,37 +271,15 @@ function ProductConfigurator({
   };
 
   function add() {
-    const options: string[] = [];
-    if (hasFlavorOptions && config.flavor) options.push(config.flavor);
-    if (isDrink) {
-      if (availableTemps.length > 1) options.push(config.temperature);
-      if (hasMilkOptions) {
-        options.push(config.milk === "None" ? "No milk" : config.milk);
-      }
-      if (isSmoothie && config.base) options.push(`${config.base} base`);
-      if (config.size) options.push(config.size);
-      if (hasSyrupOptions && config.syrups.length) {
-        options.push(`Syrup: ${config.syrups.join(", ")}`);
-      }
-    }
-    if (hasTwoSizes) options.push(config.size);
-    if (hasShotOptions && config.extraShot) {
-      options.push(config.extraShot === 1 ? "Extra shot" : `${config.extraShot} extra shots`);
-    }
-    for (const group of modifierGroups) {
-      for (const selected of config.modifiers[group.label] ?? []) {
-        options.push(`${group.label}: ${selected}`);
-      }
-    }
-    if (config.notes.trim()) options.push(config.notes.trim());
     onAdd({
       key: initialItem?.key ?? `${product.id}-${Date.now()}`,
       id: product.id,
       name: product.name,
       quantity: config.quantity,
       unitPrice,
-      options,
+      options: pricedSelection.options,
       prepStation: prepStationFor(product),
+      selection: pricedSelection.selection,
     });
   }
 
@@ -557,6 +527,8 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [availability, setAvailability] = useState<Record<string, boolean>>({});
   const [prepTime, setPrepTime] = useState(15);
+  const [ordersPaused, setOrdersPaused] = useState(false);
+  const [scheduling, setScheduling] = useState<SchedulingSettings>({ enabled: true, horizonMinutes: 240, slotMinutes: 15 });
   const [interactionStarted, setInteractionStarted] = useState(false);
   const [confirmation, setConfirmation] = useState<{ number: string; eta: string } | null>(null);
   const [activeVideoModal, setActiveVideoModal] = useState<Product | null>(null);
@@ -607,6 +579,8 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
           const data = await response.json();
           setAvailability(data.availability ?? {});
           if (typeof data.prepTime === "number") setPrepTime(data.prepTime);
+          if (typeof data.paused === "boolean") setOrdersPaused(data.paused);
+          if (data.scheduling) setScheduling(data.scheduling);
         }
       } catch {
         // Menu remains available if the demo database is not connected yet.
@@ -1089,13 +1063,15 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
           onEdit={handleEditCartItem}
           onRemove={(key) => setCart((current) => current.filter((item) => item.key !== key))}
           onCheckout={() => {
+            if (ordersPaused) return;
             setCartOpen(false);
             setCheckoutOpen(true);
           }}
+          ordersPaused={ordersPaused}
         />
       )}
       {checkoutOpen && (
-        <Checkout prepTime={prepTime} cart={cart} subtotal={subtotal} onClose={() => setCheckoutOpen(false)} onComplete={(number, eta, phone) => { rememberOrder({ orderNumber: number, phone }); setCheckoutOpen(false); setCart([]); setConfirmation({ number, eta }); }} />
+        <Checkout prepTime={prepTime} scheduling={scheduling} ordersPaused={ordersPaused} cart={cart} subtotal={subtotal} onClose={() => setCheckoutOpen(false)} onComplete={(number, eta, phone) => { rememberOrder({ orderNumber: number, phone }); setCheckoutOpen(false); setCart([]); setConfirmation({ number, eta }); }} />
       )}
       {confirmation && (
         <div className="modal-backdrop">
@@ -1348,7 +1324,7 @@ function CustomVideoModal({
   );
 }
 
-function CartDrawer({ cart, subtotal, onClose, onEdit, onRemove, onCheckout }: { cart: CartItem[]; subtotal: number; onClose: () => void; onEdit: (item: CartItem) => void; onRemove: (key: string) => void; onCheckout: () => void }) {
+function CartDrawer({ cart, subtotal, ordersPaused, onClose, onEdit, onRemove, onCheckout }: { cart: CartItem[]; subtotal: number; ordersPaused: boolean; onClose: () => void; onEdit: (item: CartItem) => void; onRemove: (key: string) => void; onCheckout: () => void }) {
   return (
     <div className="drawer-backdrop" onMouseDown={onClose}>
       <aside className="cart-drawer" data-lenis-prevent onMouseDown={(event) => event.stopPropagation()}>
@@ -1371,23 +1347,42 @@ function CartDrawer({ cart, subtotal, onClose, onEdit, onRemove, onCheckout }: {
             </article>
           ))}
         </div>
-        {cart.length > 0 && <div className="cart-summary"><div><span>Subtotal</span><strong>{money(subtotal)}</strong></div><small><em>Taxes are calculated at checkout.</em></small><button className="primary-button" onClick={onCheckout}>Continue to checkout</button></div>}
+        {cart.length > 0 && <div className="cart-summary"><div><span>Subtotal</span><strong>{money(subtotal)}</strong></div><small><em>Taxes are calculated at checkout.</em></small>{ordersPaused && <p className="form-error">Online ordering is temporarily paused. Your cart will stay here.</p>}<button className="primary-button" disabled={ordersPaused} onClick={onCheckout}>{ordersPaused ? "Online ordering paused" : "Continue to checkout"}</button></div>}
       </aside>
     </div>
   );
 }
 
-function Checkout({ cart, subtotal, prepTime = 15, onClose, onComplete }: { cart: CartItem[]; subtotal: number; prepTime?: number; onClose: () => void; onComplete: (number: string, eta: string, phone: string) => void }) {
+function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onClose, onComplete }: { cart: CartItem[]; subtotal: number; prepTime?: number; scheduling: SchedulingSettings; ordersPaused: boolean; onClose: () => void; onComplete: (number: string, eta: string, phone: string) => void }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [payment, setPayment] = useState<"pickup" | "card">("pickup");
+  const [fulfillmentType, setFulfillmentType] = useState<"asap" | "scheduled">("asap");
+  const [scheduledFor, setScheduledFor] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [scheduleAnchor] = useState(() => Date.now());
   const tax = subtotal * 0.06625;
+
+  function localInputValue(date: Date) {
+    const offset = date.getTimezoneOffset() * 60_000;
+    return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+  }
+
+  const firstScheduledDate = new Date(Math.ceil((scheduleAnchor + prepTime * 60_000) / (scheduling.slotMinutes * 60_000)) * scheduling.slotMinutes * 60_000);
+  const lastScheduledDate = new Date(scheduleAnchor + scheduling.horizonMinutes * 60_000);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setError("");
+    if (ordersPaused) {
+      setError("Online ordering is temporarily paused. Please order at the counter.");
+      return;
+    }
+    if (fulfillmentType === "scheduled" && !scheduledFor) {
+      setError("Choose a scheduled pickup time.");
+      return;
+    }
     setSubmitting(true);
     try {
       const response = await fetch("/api/orders", {
@@ -1397,7 +1392,8 @@ function Checkout({ cart, subtotal, prepTime = 15, onClose, onComplete }: { cart
           customerName: name,
           phone,
           paymentMethod: payment,
-          pickupEta: `${prepTime} min`,
+          fulfillmentType,
+          scheduledFor: fulfillmentType === "scheduled" ? new Date(scheduledFor).toISOString() : undefined,
           items: cart,
         }),
       });
@@ -1426,9 +1422,15 @@ function Checkout({ cart, subtotal, prepTime = 15, onClose, onComplete }: { cart
         <h2>Finish your order</h2>
         <label><span>Name for the order</span><input required value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name" /></label>
         <label><span>Mobile number</span><input required type="tel" value={phone} onChange={(event) => setPhone(formatPhoneInput(event.target.value))} placeholder="(908)-555-0123" maxLength={14} /><small className="field-note">We send one text when your order is ready. That is the only message you will get.</small></label>
+        <fieldset className="payment-options pickup-options">
+          <legend>Pickup time</legend>
+          <label><input type="radio" name="fulfillment" checked={fulfillmentType === "asap"} onChange={() => setFulfillmentType("asap")} /><span><strong>As soon as possible</strong><small>Estimated in about {prepTime} minutes</small></span></label>
+          {scheduling.enabled && <label><input type="radio" name="fulfillment" checked={fulfillmentType === "scheduled"} onChange={() => { setFulfillmentType("scheduled"); setPayment("card"); if (!scheduledFor) setScheduledFor(localInputValue(firstScheduledDate)); }} /><span><strong>Schedule pickup</strong><small>Choose a time within the next few hours</small></span></label>}
+        </fieldset>
+        {fulfillmentType === "scheduled" && <label><span>Scheduled pickup</span><input required type="datetime-local" value={scheduledFor} min={localInputValue(firstScheduledDate)} max={localInputValue(lastScheduledDate)} step={scheduling.slotMinutes * 60} onChange={(event) => setScheduledFor(event.target.value)} /><small className="field-note">Scheduled orders require advance online payment.</small></label>}
         <fieldset className="payment-options">
           <legend>Payment</legend>
-          <label><input type="radio" name="payment" checked={payment === "pickup"} onChange={() => setPayment("pickup")} /><span><strong>Pay at pickup</strong><small>Pay at the counter when you arrive</small></span></label>
+          <label><input type="radio" name="payment" disabled={fulfillmentType === "scheduled"} checked={payment === "pickup"} onChange={() => setPayment("pickup")} /><span><strong>Pay at pickup</strong><small>{fulfillmentType === "scheduled" ? "Not available for scheduled orders" : "Pay at the counter when you arrive"}</small></span></label>
           <label><input type="radio" name="payment" checked={payment === "card"} onChange={() => setPayment("card")} /><span><strong>Card payment demo</strong><small>Production payment provider to be confirmed</small></span></label>
         </fieldset>
         <div className="checkout-total">
@@ -1441,10 +1443,10 @@ function Checkout({ cart, subtotal, prepTime = 15, onClose, onComplete }: { cart
             <circle cx="12" cy="12" r="10" />
             <polyline points="12 6 12 12 16 14" />
           </svg>
-          <span>Estimated pickup in <strong>about {prepTime} minutes</strong></span>
+          <span>{fulfillmentType === "scheduled" ? <>Pickup at <strong>{scheduledFor ? new Date(scheduledFor).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "your selected time"}</strong></> : <>Estimated pickup in <strong>about {prepTime} minutes</strong></>}</span>
         </div>
         {error && <p className="form-error">{error}</p>}
-        <button className="primary-button" disabled={submitting}>{submitting ? "Sending order..." : `Place pickup order · ${money(subtotal + tax)}`}</button>
+        <button className="primary-button" disabled={submitting || ordersPaused}>{submitting ? "Sending order..." : ordersPaused ? "Online ordering paused" : `Place pickup order · ${money(subtotal + tax)}`}</button>
       </form>
     </div>
   );
