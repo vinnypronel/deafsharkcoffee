@@ -492,11 +492,27 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
 export function SiteFooter() {
   const [email, setEmail] = useState("");
   const [subscribed, setSubscribed] = useState(false);
+  const [newsletterConsent, setNewsletterConsent] = useState(false);
+  const [newsletterBusy, setNewsletterBusy] = useState(false);
+  const [newsletterError, setNewsletterError] = useState("");
 
-  function handleSubscribe(e: React.FormEvent) {
+  async function handleSubscribe(e: React.FormEvent) {
     e.preventDefault();
-    if (email.trim()) {
+    setNewsletterError("");
+    setNewsletterBusy(true);
+    try {
+      const response = await fetch("/api/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), consent: newsletterConsent }),
+      });
+      const data = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(data.error || "We could not save your subscription.");
       setSubscribed(true);
+    } catch (error) {
+      setNewsletterError(error instanceof Error ? error.message : "We could not save your subscription.");
+    } finally {
+      setNewsletterBusy(false);
     }
   }
 
@@ -527,8 +543,14 @@ export function SiteFooter() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
                   />
-                  <button type="submit">Join <span>→</span></button>
+                  <button type="submit" disabled={newsletterBusy}>{newsletterBusy ? "Saving" : "Join"} <span>→</span></button>
                 </div>
+                <label className="newsletter-consent">
+                  <input type="checkbox" checked={newsletterConsent} onChange={(event) => setNewsletterConsent(event.target.checked)} required />
+                  <span>I agree to receive Deaf Shark Coffee news and promotions by email. I can unsubscribe at any time.</span>
+                </label>
+                {newsletterError && <p className="newsletter-error" role="alert">{newsletterError}</p>}
+                {newsletterBusy && <p className="newsletter-status" role="status">Saving your subscription...</p>}
               </form>
             )}
           </div>

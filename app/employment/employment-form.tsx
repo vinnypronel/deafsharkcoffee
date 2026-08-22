@@ -38,6 +38,9 @@ export default function EmploymentForm() {
   const [resumeName, setResumeName] = useState("");
   const [errors, setErrors] = useState<Errors>({});
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [reference, setReference] = useState("");
 
   function clearError(field: FieldName) {
     setErrors((current) => {
@@ -68,8 +71,9 @@ export default function EmploymentForm() {
     return next;
   }
 
-  function onSubmit(event: FormEvent<HTMLFormElement>) {
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setSubmitError("");
     const nextErrors = validate();
     setErrors(nextErrors);
     const firstError = Object.keys(nextErrors)[0];
@@ -77,7 +81,19 @@ export default function EmploymentForm() {
       document.getElementById(`emp-${firstError}`)?.focus();
       return;
     }
-    setSubmitted(true);
+    const form = event.currentTarget;
+    setSubmitting(true);
+    try {
+      const response = await fetch("/api/employment", { method: "POST", body: new FormData(form) });
+      const data = (await response.json()) as { error?: string; reference?: string };
+      if (!response.ok) throw new Error(data.error || "We could not save your application.");
+      setReference(data.reference || "");
+      setSubmitted(true);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "We could not save your application.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   function startOver() {
@@ -98,6 +114,7 @@ export default function EmploymentForm() {
           <p>
             Thank you for your interest in joining the Deaf Shark Coffee team! We will review your application and get in touch with you shortly.
           </p>
+          {reference && <p><strong>Application reference: {reference}</strong></p>}
           <p>To follow up on working at the shop, you can also call (908) 481-8884 or stop by 900 Green Lane in Union.</p>
           <div className="emp-confirmation-actions">
             <button type="button" className="primary-button" onClick={startOver}>
@@ -385,9 +402,10 @@ export default function EmploymentForm() {
         </div>
 
         <div className="emp-submit-row">
-          <button type="submit" className="primary-button emp-submit">
-            Submit application
+          <button type="submit" className="primary-button emp-submit" disabled={submitting}>
+            {submitting ? "Saving application..." : "Submit application"}
           </button>
+          {submitError && <p className="emp-error emp-submit-note" role="alert">{submitError}</p>}
         </div>
       </form>
     </section>

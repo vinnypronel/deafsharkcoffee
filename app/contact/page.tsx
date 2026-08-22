@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { CustomerHeader, SiteFooter } from "../site-chrome";
+import ContactForm from "./contact-form";
 
 export const metadata: Metadata = {
   title: "Visit Us | Deaf Shark Coffee",
@@ -42,6 +43,7 @@ export default function ContactPage() {
           </a>
         </article>
       </section>
+      <ContactForm />
       <section className="contact-map-section">
         <div className="contact-map-container">
           <iframe

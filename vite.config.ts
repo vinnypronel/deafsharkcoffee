@@ -9,12 +9,12 @@ const D1_DATABASE_ID =
 // Hosting bindings. Inlined because `.openai/` is gitignored and is not
 // present on CI, where importing it broke the build.
 const d1: string | null = "DB";
-const r2: string | null = null;
+const r2: string | null = "UPLOADS";
 
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 const localAuthVars = Object.fromEntries(
-  ["BETTER_AUTH_SECRET", "BETTER_AUTH_URL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"]
+  ["BETTER_AUTH_SECRET", "BETTER_AUTH_URL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "STAFF_EMAILS", "TURNSTILE_SECRET_KEY"]
     .flatMap((key) => process.env[key] ? [[key, process.env[key]]] : []),
 );
 

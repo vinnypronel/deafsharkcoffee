@@ -149,3 +149,59 @@ export const storeSettings = sqliteTable("store_settings", {
   slotMinutes: integer("slot_minutes").notNull().default(15),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
+
+export const newsletterSubscriptions = sqliteTable(
+  "newsletter_subscriptions",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    email: text("email").notNull(),
+    status: text("status").notNull().default("pending"),
+    consentText: text("consent_text").notNull(),
+    consentSource: text("consent_source").notNull().default("website_footer"),
+    consentedAt: integer("consented_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+  },
+  (table) => [uniqueIndex("idx_newsletter_email_unique").on(table.email)],
+);
+
+export const contactInquiries = sqliteTable(
+  "contact_inquiries",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    phone: text("phone"),
+    topic: text("topic").notNull().default("general"),
+    message: text("message").notNull(),
+    status: text("status").notNull().default("new"),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+  },
+  (table) => [index("idx_contact_status_created_at").on(table.status, table.createdAt)],
+);
+
+export const employmentApplications = sqliteTable(
+  "employment_applications",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    fullName: text("full_name").notNull(),
+    email: text("email").notNull(),
+    phone: text("phone").notNull(),
+    position: text("position").notNull(),
+    employmentType: text("employment_type").notNull(),
+    daysJson: text("days_json").notNull().default("[]"),
+    shift: text("shift"),
+    startDate: text("start_date"),
+    isAdult: integer("is_adult", { mode: "boolean" }).notNull(),
+    experience: text("experience"),
+    why: text("why"),
+    resumeKey: text("resume_key"),
+    resumeName: text("resume_name"),
+    resumeType: text("resume_type"),
+    resumeSize: integer("resume_size"),
+    status: text("status").notNull().default("new"),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+  },
+  (table) => [index("idx_employment_status_created_at").on(table.status, table.createdAt)],
+);

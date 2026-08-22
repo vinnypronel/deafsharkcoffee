@@ -1,6 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../db";
 import { menuAvailability, storeSettings } from "../../../db/schema";
+import { requireStaff } from "../../../lib/staff-auth";
 
 const DEFAULT_SETTINGS = {
   id: 1,
@@ -49,6 +50,8 @@ export async function GET() {
 
 export async function PATCH(request: Request) {
   try {
+    const staff = await requireStaff(request);
+    if (staff.response) return staff.response;
     await ensureSchema();
     const payload = (await request.json()) as {
       productId?: string;

@@ -2,6 +2,7 @@ import { desc } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../db";
 import { customerProfiles, menuAvailability, orders, storeSettings } from "../../../db/schema";
 import { getCustomerSession } from "../../../lib/auth";
+import { requireStaff } from "../../../lib/staff-auth";
 import { menuProducts, prepStationFor, priceProductSelection, type ProductSelection } from "../../menu-data";
 
 type CartPayload = {
@@ -53,8 +54,10 @@ function scheduledLabel(date: Date) {
   }).format(date);
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const staff = await requireStaff(request);
+    if (staff.response) return staff.response;
     await ensureSchema();
     const rows = await getDb()
       .select()

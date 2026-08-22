@@ -62,11 +62,55 @@ export function ensureSchema() {
           slot_minutes integer DEFAULT 15 NOT NULL,
           updated_at integer NOT NULL
         )`),
+        d1.prepare(`CREATE TABLE IF NOT EXISTS newsletter_subscriptions (
+          id integer PRIMARY KEY AUTOINCREMENT,
+          email text NOT NULL UNIQUE,
+          status text DEFAULT 'pending' NOT NULL,
+          consent_text text NOT NULL,
+          consent_source text DEFAULT 'website_footer' NOT NULL,
+          consented_at integer NOT NULL,
+          updated_at integer NOT NULL
+        )`),
+        d1.prepare(`CREATE TABLE IF NOT EXISTS contact_inquiries (
+          id integer PRIMARY KEY AUTOINCREMENT,
+          name text NOT NULL,
+          email text NOT NULL,
+          phone text,
+          topic text DEFAULT 'general' NOT NULL,
+          message text NOT NULL,
+          status text DEFAULT 'new' NOT NULL,
+          created_at integer NOT NULL,
+          updated_at integer NOT NULL
+        )`),
+        d1.prepare(`CREATE TABLE IF NOT EXISTS employment_applications (
+          id integer PRIMARY KEY AUTOINCREMENT,
+          full_name text NOT NULL,
+          email text NOT NULL,
+          phone text NOT NULL,
+          position text NOT NULL,
+          employment_type text NOT NULL,
+          days_json text DEFAULT '[]' NOT NULL,
+          shift text,
+          start_date text,
+          is_adult integer NOT NULL,
+          experience text,
+          why text,
+          resume_key text,
+          resume_name text,
+          resume_type text,
+          resume_size integer,
+          status text DEFAULT 'new' NOT NULL,
+          created_at integer NOT NULL,
+          updated_at integer NOT NULL
+        )`),
         d1.prepare(`INSERT OR IGNORE INTO store_settings (
           id, prep_time_minutes, paused, open_time, close_time, cutoff_minutes,
           scheduling_enabled, scheduling_horizon_minutes, slot_minutes, updated_at
         ) VALUES (1, 15, false, '06:00', '20:00', 30, true, 240, 15, unixepoch())`),
         d1.prepare("CREATE INDEX IF NOT EXISTS idx_orders_status_created_at ON orders (status, created_at)"),
+        d1.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_newsletter_email_unique ON newsletter_subscriptions (email)"),
+        d1.prepare("CREATE INDEX IF NOT EXISTS idx_contact_status_created_at ON contact_inquiries (status, created_at)"),
+        d1.prepare("CREATE INDEX IF NOT EXISTS idx_employment_status_created_at ON employment_applications (status, created_at)"),
       ]);
 
       try {

@@ -1,6 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../../db";
 import { customerProfiles, loyaltyTransactions, orders } from "../../../../db/schema";
+import { requireStaff } from "../../../../lib/staff-auth";
 
 const validStatuses = new Set(["new", "preparing", "ready", "complete", "cancelled"]);
 
@@ -9,6 +10,8 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
+    const staff = await requireStaff(request);
+    if (staff.response) return staff.response;
     await ensureSchema();
     const { id } = await context.params;
     const orderId = Number(id);
