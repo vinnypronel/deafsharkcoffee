@@ -172,6 +172,18 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
     if (configResult.status === "fulfilled") setAuthConfig(configResult.value);
   }
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("account") === "signin") openProfile();
+    // This deep link is used by the protected admin page.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function requestedReturnTo() {
+    const value = new URLSearchParams(window.location.search).get("returnTo") || "";
+    return value.startsWith("/") && !value.startsWith("//") ? value : "";
+  }
+
   async function handleGoogleSignIn() {
     if (!authConfig.googleEnabled) return;
     setAuthBusy(true);
@@ -181,7 +193,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: "google", callbackURL: window.location.href }),
+        body: JSON.stringify({ provider: "google", callbackURL: requestedReturnTo() ? `${window.location.origin}${requestedReturnTo()}` : window.location.href }),
       });
       const data = await response.json() as { url?: string; message?: string };
       if (!response.ok || !data.url) throw new Error(data.message || "Google sign-in could not start.");
@@ -220,6 +232,8 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
       const data = await response.json() as { message?: string };
       if (!response.ok) throw new Error(data.message || "We could not complete that request.");
       setAuthPassword("");
+      const returnTo = requestedReturnTo();
+      if (returnTo) { window.location.href = returnTo; return; }
       await openProfile();
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : "We could not complete that request.");

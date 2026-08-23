@@ -39,6 +39,8 @@ type SchedulingSettings = {
   slotMinutes: number;
 };
 
+type FeaturedProduct = Product & { featuredButtonLabel?: string };
+
 type Configuration = {
   temperature: "Hot" | "Iced";
   /* A size label from the product, or the sandwich Regular/Large. */
@@ -515,7 +517,8 @@ function PriceTicker({ targetPrice }: { targetPrice: number }) {
 
 export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   const [activeCategory, setActiveCategory] = useState<MenuCategory>("Coffee");
-  const [heroProduct, setHeroProduct] = useState(featuredProducts[0]);
+  const [featuredSlides, setFeaturedSlides] = useState<FeaturedProduct[]>(featuredProducts);
+  const [heroProduct, setHeroProduct] = useState<FeaturedProduct>(featuredProducts[0]);
   const [menuShowcaseProduct, setMenuShowcaseProduct] = useState<Product>(
     menuProducts.find((p) => p.category === "Coffee") ?? menuProducts[0]
   );
@@ -553,12 +556,38 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
     if (activeVideoModal) return;
     const timer = window.setInterval(() => {
       setHeroProduct((current) => {
-        const index = featuredProducts.findIndex((item) => item.id === current.id);
-        return featuredProducts[(index + 1) % featuredProducts.length];
+        const index = featuredSlides.findIndex((item) => item.id === current.id);
+        return featuredSlides[(index + 1) % featuredSlides.length] ?? current;
       });
     }, 5000);
     return () => window.clearInterval(timer);
-  }, [activeVideoModal, heroProduct.id]);
+  }, [activeVideoModal, heroProduct.id, featuredSlides]);
+
+  useEffect(() => {
+    if (isMenuPage) return;
+    fetch("/api/site-content", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => {
+        if (!data?.featured?.length) return;
+        const slides = data.featured.flatMap((entry: { productId: string; categoryLabel: string; title: string; buttonLabel: string; priceCents: number; mediaUrl: string }) => {
+          const product = menuProducts.find((candidate) => candidate.id === entry.productId);
+          if (!product) return [];
+          return [{
+            ...product,
+            category: entry.categoryLabel || product.category,
+            name: entry.title || product.name,
+            price: Number(entry.priceCents) / 100,
+            video: entry.mediaUrl || product.video,
+            featuredButtonLabel: entry.buttonLabel || "Add to cart",
+          } as FeaturedProduct];
+        });
+        if (slides.length) {
+          setFeaturedSlides(slides);
+          setHeroProduct(slides[0]);
+        }
+      })
+      .catch(() => undefined);
+  }, [isMenuPage]);
 
   useEffect(() => {
     const itemId = new URLSearchParams(window.location.search).get("item");
@@ -810,12 +839,12 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
                 <strong>{heroProduct.name}</strong>
               </div>
               <button className="hero-add-btn" onClick={() => openProduct(heroProduct)}>
-                <span>Add to cart · <PriceTicker targetPrice={heroProduct.price} /></span>
+                <span>{heroProduct.featuredButtonLabel || "Add to cart"} · <PriceTicker targetPrice={heroProduct.price} /></span>
                 <span className="btn-cart-glyph" />
               </button>
             </div>
             <div className="product-dots" aria-label="Featured products">
-              {featuredProducts.map((product) => {
+              {featuredSlides.map((product) => {
                 const isActive = product.id === heroProduct.id;
                 return (
                   <button

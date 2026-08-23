@@ -205,3 +205,38 @@ export const employmentApplications = sqliteTable(
   },
   (table) => [index("idx_employment_status_created_at").on(table.status, table.createdAt)],
 );
+
+export const featuredContent = sqliteTable("featured_content", {
+  slot: integer("slot").primaryKey(),
+  productId: text("product_id").notNull(),
+  categoryLabel: text("category_label").notNull(),
+  title: text("title").notNull(),
+  buttonLabel: text("button_label").notNull().default("Add to cart"),
+  priceCents: integer("price_cents").notNull(),
+  mediaUrl: text("media_url").notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+});
+
+export const events = sqliteTable(
+  "events",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    title: text("title").notNull(),
+    description: text("description").notNull(),
+    dateLabel: text("date_label").notNull(),
+    timeLabel: text("time_label").notNull(),
+    location: text("location").notNull(),
+    entryLabel: text("entry_label").notNull(),
+    details: text("details").notNull(),
+    buttonLabel: text("button_label").notNull().default("Learn more"),
+    buttonHref: text("button_href").notNull().default("/contact"),
+    imageLeftUrl: text("image_left_url").notNull(),
+    imageRightUrl: text("image_right_url").notNull(),
+    imageCaption: text("image_caption"),
+    published: integer("published", { mode: "boolean" }).notNull().default(true),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+  },
+  (table) => [index("idx_events_published_sort").on(table.published, table.sortOrder)],
+);

@@ -202,8 +202,10 @@
 }
 .ev-upcoming-head {
   margin-bottom: clamp(36px, 4.2vw, 60px);
-  transform: translateX(-18px);
+  transform: translateX(-34px);
 }
+.ev-upcoming-list { display: grid; gap: clamp(70px, 8vw, 120px); }
+.ev-upcoming-inner + .ev-upcoming-inner { padding-top: clamp(56px, 7vw, 96px); border-top: 1px solid var(--line); }
 .ev-upcoming-head h2 {
   margin: 0;
   font-family: Georgia, serif;

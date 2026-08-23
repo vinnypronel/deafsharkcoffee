@@ -10,8 +10,8 @@ function AccessRequired() {
       <img src="/favicon.png" alt="Deaf Shark Coffee" />
       <span>Deaf Shark staff</span>
       <h1>Staff access required.</h1>
-      <p>Sign in from the customer account button using an email address approved for the staff dashboard, then return here.</p>
-      <div><Link className="primary-button" href="/">Go to sign in</Link><Link className="soft-button" href="/">Return home</Link></div>
+      <p>Use the account button and sign in with the approved Deaf Shark administrator email. Orders, website editing, events, and submitted forms all live here.</p>
+      <div><Link className="primary-button" href="/?account=signin&returnTo=/dashboard">Open admin sign in</Link><Link className="soft-button" href="/">Return home</Link></div>
     </main>
   );
 }

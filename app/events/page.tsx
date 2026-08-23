@@ -2,7 +2,7 @@ import "./events.css";
 import type { Metadata } from "next";
 import { CustomerHeader, SiteFooter } from "../site-chrome";
 import { EventVideos } from "./event-videos";
-import { PuppyRsvp } from "./puppy-rsvp";
+import { UpcomingEvents } from "./upcoming-events";
 
 export const metadata: Metadata = {
   title: "Events | Deaf Shark Coffee",
@@ -84,51 +84,7 @@ export default function EventsPage() {
         </div>
       </section>
 
-      <section className="ev-upcoming">
-        <div className="ev-upcoming-head">
-          <h2>Events coming soon...</h2>
-        </div>
-        <div className="ev-upcoming-inner">
-          <div className="ev-upcoming-copy">
-            <h3>Puppy Party</h3>
-            <p>An evening for the neighborhood and their dogs, hosted by Mango the Doxy. Free entry, a menu made for dogs, raffles and prizes through the night. BYOB.</p>
-            <dl className="ev-details">
-              <div>
-                <dt>Date</dt>
-                <dd>Friday, August 21, 2026</dd>
-              </div>
-              <div>
-                <dt>Time</dt>
-                <dd>6:00 to 9:00 PM</dd>
-              </div>
-              <div>
-                <dt>Location</dt>
-                <dd>900 Green Lane, Union NJ 07083</dd>
-              </div>
-              <div>
-                <dt>Entry</dt>
-                <dd>Free entry</dd>
-              </div>
-              <div>
-                <dt>Details</dt>
-                <dd>BYOB, puppies, dog menu, raffles, prizes</dd>
-              </div>
-            </dl>
-            <PuppyRsvp />
-          </div>
-          <div className="ev-upcoming-media">
-            <figure className="ev-host-shot">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/events/puppy-mango.jpg" alt="Mango the Doxy, a long haired dapple dachshund, held in someone&apos;s arms at the shop." loading="lazy" width={3024} height={3780} />
-              <figcaption>Mango the Doxy, your host.</figcaption>
-            </figure>
-            <figure className="ev-flyer">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/events/puppy-party-flyer.jpg" alt="Puppy Party flyer. Live at Deaf Shark Coffee, hosted by Mango the Doxy. August 21 2026, 900 Green Lane Union NJ 07083, free entry, 6 PM to 9 PM." loading="lazy" width={1080} height={1350} />
-            </figure>
-          </div>
-        </div>
-      </section>
+      <UpcomingEvents />
 
       <section className="ev-gallery">
         <div className="ev-gallery-head">

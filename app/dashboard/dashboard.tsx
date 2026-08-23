@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { menuProducts, type PrepStation } from "../menu-data";
+import { AdminPanels } from "./admin-panels";
 
 type OrderItem = {
   id: string;
@@ -60,7 +61,7 @@ export function Dashboard() {
   const [availability, setAvailability] = useState<Record<string, boolean>>({});
   const [prepTime, setPrepTime] = useState(15);
   const [paused, setPaused] = useState(false);
-  const [activeView, setActiveView] = useState<"orders" | "menu">("orders");
+  const [activeView, setActiveView] = useState<"orders" | "menu" | "website" | "events" | "forms" | "history">("orders");
   const [mobileColumn, setMobileColumn] = useState<Order["status"]>("new");
   const [connection, setConnection] = useState<"live" | "waiting">("waiting");
   const [lastNewCount, setLastNewCount] = useState(0);
@@ -139,15 +140,22 @@ export function Dashboard() {
     <main className="dashboard-page">
       <header className="dashboard-header">
         <a className="dashboard-brand" href="/"><img src="/favicon.png" alt="" /><span><strong>Deaf Shark Coffee</strong></span></a>
-        <div className="dashboard-tabs"><button className={activeView === "orders" ? "active" : ""} onClick={() => setActiveView("orders")}>Orders <span>{openOrders.length}</span></button><button className={activeView === "menu" ? "active" : ""} onClick={() => setActiveView("menu")}>Menu controls</button></div>
+        <div className="dashboard-tabs">
+          <button className={activeView === "orders" ? "active" : ""} onClick={() => setActiveView("orders")}>Live orders <span>{openOrders.length}</span></button>
+          <button className={activeView === "menu" ? "active" : ""} onClick={() => setActiveView("menu")}>Menu</button>
+          <button className={activeView === "website" ? "active" : ""} onClick={() => setActiveView("website")}>Homepage</button>
+          <button className={activeView === "events" ? "active" : ""} onClick={() => setActiveView("events")}>Events</button>
+          <button className={activeView === "forms" ? "active" : ""} onClick={() => setActiveView("forms")}>Forms</button>
+          <button className={activeView === "history" ? "active" : ""} onClick={() => setActiveView("history")}>Order history</button>
+        </div>
         <div className={`connection-status ${connection}`}><i />{connection === "live" ? "Live" : "Connecting"}</div>
       </header>
 
-      <section className="rush-bar">
+      {(activeView === "orders" || activeView === "menu") && <section className="rush-bar">
         <div><span>Current customer wait time</span><button onClick={() => changePrepTime(prepTime - 5)}>−</button><strong>{prepTime} min</strong><button onClick={() => changePrepTime(prepTime + 5)}>+</button></div>
         <div className="rush-summary"><span><strong>{newCount}</strong> new</span><span><strong>{orders.filter((order) => order.status === "preparing").length}</strong> preparing</span><span><strong>${todayTotal.toFixed(2)}</strong> demo sales</span></div>
         <button className={`pause-button ${paused ? "paused" : ""}`} onClick={togglePaused}>{paused ? "Resume online orders" : "Pause online orders"}</button>
-      </section>
+      </section>}
 
       {activeView === "orders" ? (
         <section className="orders-area">
@@ -169,7 +177,7 @@ export function Dashboard() {
             })}
           </div>
         </section>
-      ) : (
+      ) : activeView === "menu" ? (
         <section className="menu-control-area">
           <div className="menu-control-heading"><div><h1>What is available right now?</h1><p>Changes appear on the customer menu within a few seconds.</p></div><span>{menuProducts.filter((product) => availability[product.id] === false).length} sold out</span></div>
           <div className="availability-grid">
@@ -205,7 +213,7 @@ export function Dashboard() {
             })}
           </div>
         </section>
-      )}
+      ) : <AdminPanels view={activeView} />}
     </main>
   );
 }

@@ -103,6 +103,35 @@ export function ensureSchema() {
           created_at integer NOT NULL,
           updated_at integer NOT NULL
         )`),
+        d1.prepare(`CREATE TABLE IF NOT EXISTS featured_content (
+          slot integer PRIMARY KEY NOT NULL,
+          product_id text NOT NULL,
+          category_label text NOT NULL,
+          title text NOT NULL,
+          button_label text DEFAULT 'Add to cart' NOT NULL,
+          price_cents integer NOT NULL,
+          media_url text NOT NULL,
+          updated_at integer NOT NULL
+        )`),
+        d1.prepare(`CREATE TABLE IF NOT EXISTS events (
+          id integer PRIMARY KEY AUTOINCREMENT,
+          title text NOT NULL,
+          description text NOT NULL,
+          date_label text NOT NULL,
+          time_label text NOT NULL,
+          location text NOT NULL,
+          entry_label text NOT NULL,
+          details text NOT NULL,
+          button_label text DEFAULT 'Learn more' NOT NULL,
+          button_href text DEFAULT '/contact' NOT NULL,
+          image_left_url text NOT NULL,
+          image_right_url text NOT NULL,
+          image_caption text,
+          published integer DEFAULT true NOT NULL,
+          sort_order integer DEFAULT 0 NOT NULL,
+          created_at integer NOT NULL,
+          updated_at integer NOT NULL
+        )`),
         d1.prepare(`INSERT OR IGNORE INTO store_settings (
           id, prep_time_minutes, paused, open_time, close_time, cutoff_minutes,
           scheduling_enabled, scheduling_horizon_minutes, slot_minutes, updated_at
@@ -111,6 +140,16 @@ export function ensureSchema() {
         d1.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_newsletter_email_unique ON newsletter_subscriptions (email)"),
         d1.prepare("CREATE INDEX IF NOT EXISTS idx_contact_status_created_at ON contact_inquiries (status, created_at)"),
         d1.prepare("CREATE INDEX IF NOT EXISTS idx_employment_status_created_at ON employment_applications (status, created_at)"),
+        d1.prepare("CREATE INDEX IF NOT EXISTS idx_events_published_sort ON events (published, sort_order)"),
+      ]);
+
+      await d1.batch([
+        d1.prepare(`INSERT OR IGNORE INTO featured_content (slot, product_id, category_label, title, button_label, price_cents, media_url, updated_at) VALUES (1, 'strawberry-matcha', 'Non-Coffee', 'Strawberry Matcha', 'Add to cart', 775, '/featured-strawberry-matcha.mp4', unixepoch())`),
+        d1.prepare(`INSERT OR IGNORE INTO featured_content (slot, product_id, category_label, title, button_label, price_cents, media_url, updated_at) VALUES (2, 'ocean-blend-bag', 'Coffee Beans', 'Ocean Blend', 'Add to cart', 1900, '/featured-ocean-blend.mp4', unixepoch())`),
+        d1.prepare(`INSERT OR IGNORE INTO featured_content (slot, product_id, category_label, title, button_label, price_cents, media_url, updated_at) VALUES (3, 'chicken-pesto', 'Sandwiches', 'Chicken Pesto', 'Add to cart', 775, '/featured-chicken-pesto.mp4', unixepoch())`),
+        d1.prepare(`INSERT INTO events (title, description, date_label, time_label, location, entry_label, details, button_label, button_href, image_left_url, image_right_url, image_caption, published, sort_order, created_at, updated_at)
+          SELECT 'Puppy Party', 'An evening for the neighborhood and their dogs, hosted by Mango the Doxy. Free entry, a menu made for dogs, raffles and prizes through the night. BYOB.', 'Friday, August 21, 2026', '6:00 to 9:00 PM', '900 Green Lane, Union NJ 07083', 'Free entry', 'BYOB, puppies, dog menu, raffles, prizes', 'RSVP for Puppy Party · FREE', '/contact', '/events/puppy-mango.jpg', '/events/puppy-party-flyer.jpg', 'Mango the Doxy, your host.', true, 0, unixepoch(), unixepoch()
+          WHERE NOT EXISTS (SELECT 1 FROM events)`),
       ]);
 
       try {
