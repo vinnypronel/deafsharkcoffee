@@ -4,10 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { menuProducts } from "../menu-data";
 
-type View = "website" | "events" | "forms" | "history";
+type View = "website" | "events" | "forms" | "history" | "loyalty";
 type Featured = { slot: number; productId: string; categoryLabel: string; title: string; buttonLabel: string; priceCents: number; mediaUrl: string };
 type EventDraft = { id?: number; title: string; description: string; dateLabel: string; timeLabel: string; location: string; entryLabel: string; details: string; buttonLabel: string; buttonHref: string; imageLeftUrl: string; imageRightUrl: string; imageCaption: string | null; published: boolean; sortOrder: number; createdAt?: string };
 type Records = { orders: any[]; contacts: any[]; applications: any[]; subscribers: any[] };
+type LoyaltyMember = { userId: string; email: string; displayName: string; phone?: string | null; points: number; lifetimePoints: number; updatedAt: string };
+type LoyaltyTransaction = { id: number; userId: string; orderId?: number | null; pointsChange: number; balanceAfter: number; reason: string; createdAt: string };
+type LoyaltyData = { members: LoyaltyMember[]; transactions: LoyaltyTransaction[] };
 
 const emptyEvent: EventDraft = {
   title: "", description: "", dateLabel: "", timeLabel: "", location: "900 Green Lane, Union NJ 07083",
@@ -26,13 +29,15 @@ export function AdminPanels({ view }: { view: View }) {
   const [featured, setFeatured] = useState<Featured[]>([]);
   const [events, setEvents] = useState<EventDraft[]>([]);
   const [records, setRecords] = useState<Records>({ orders: [], contacts: [], applications: [], subscribers: [] });
+  const [loyalty, setLoyalty] = useState<LoyaltyData>({ members: [], transactions: [] });
   const [message, setMessage] = useState("");
   const [newEvent, setNewEvent] = useState<EventDraft>(emptyEvent);
 
   const load = useCallback(async () => {
-    const [contentResponse, recordsResponse] = await Promise.all([
+    const [contentResponse, recordsResponse, loyaltyResponse] = await Promise.all([
       fetch("/api/admin/content", { cache: "no-store" }),
       fetch("/api/admin/records", { cache: "no-store" }),
+      fetch("/api/admin/loyalty", { cache: "no-store" }),
     ]);
     if (contentResponse.ok) {
       const data = await contentResponse.json();
@@ -40,6 +45,7 @@ export function AdminPanels({ view }: { view: View }) {
       setEvents(data.events ?? []);
     }
     if (recordsResponse.ok) setRecords(await recordsResponse.json());
+    if (loyaltyResponse.ok) setLoyalty(await loyaltyResponse.json());
   }, []);
 
   useEffect(() => { load().catch(() => setMessage("Some admin data could not be loaded.")); }, [load]);
@@ -101,12 +107,71 @@ export function AdminPanels({ view }: { view: View }) {
     </AdminSection>
   );
 
+  if (view === "loyalty") return (
+    <LoyaltyManager data={loyalty} message={message} setMessage={setMessage} reload={load} />
+  );
+
   return (
     <AdminSection eyebrow="Inbox" title="Submitted forms" description="Contact messages, employment applications, and newsletter subscriptions are stored with submission dates.">
       <div className="record-summary"><span><strong>{records.contacts.length}</strong> contact messages</span><span><strong>{records.applications.length}</strong> applications</span><span><strong>{records.subscribers.length}</strong> subscribers</span></div>
       <RecordsBlock title="Contact messages" rows={records.contacts.map((row) => ({ id: row.id, date: row.createdAt, heading: row.name, meta: `${row.email}${row.phone ? ` · ${row.phone}` : ""} · ${row.topic}`, body: row.message }))} />
       <RecordsBlock title="Employment applications" rows={records.applications.map((row) => ({ id: row.id, date: row.createdAt, heading: row.fullName, meta: `${row.email} · ${row.phone} · ${row.position} · ${row.employmentType}`, body: [row.experience, row.why].filter(Boolean).join("\n\n") || "No additional notes." }))} />
       <RecordsBlock title="Newsletter subscriptions" rows={records.subscribers.map((row) => ({ id: row.id, date: row.consentedAt, heading: row.email, meta: row.status, body: row.consentText }))} />
+    </AdminSection>
+  );
+}
+
+function LoyaltyManager({ data, message, setMessage, reload }: { data: LoyaltyData; message: string; setMessage: (message: string) => void; reload: () => Promise<void> }) {
+  const [search, setSearch] = useState("");
+  const [changes, setChanges] = useState<Record<string, string>>({});
+  const [reasons, setReasons] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState<string | null>(null);
+  const query = search.trim().toLowerCase();
+  const members = data.members.filter((member) => !query || [member.displayName, member.email, member.phone].some((value) => value?.toLowerCase().includes(query)));
+  const memberNames = new Map(data.members.map((member) => [member.userId, member.displayName]));
+
+  async function adjust(member: LoyaltyMember) {
+    const pointsChange = Number(changes[member.userId]);
+    const reason = reasons[member.userId]?.trim();
+    if (!Number.isInteger(pointsChange) || pointsChange === 0) return setMessage("Enter a whole number of points to add or remove.");
+    if (!reason) return setMessage("Add a reason so every points change has a record.");
+    setSaving(member.userId);
+    setMessage("Saving points adjustment…");
+    const response = await fetch("/api/admin/loyalty", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: member.userId, pointsChange, reason }),
+    });
+    const result = await response.json();
+    setSaving(null);
+    if (!response.ok) return setMessage(result.error || "Could not update points.");
+    setChanges((current) => ({ ...current, [member.userId]: "" }));
+    setReasons((current) => ({ ...current, [member.userId]: "" }));
+    setMessage(`${member.displayName} now has ${result.balanceAfter} points.`);
+    await reload();
+  }
+
+  return (
+    <AdminSection eyebrow="Customer rewards" title="Loyalty members" description="Review member balances and make traceable corrections. Customers earn one point per dollar when a signed-in order is completed; every 100 points unlocks a $5 reward.">
+      {message && <AdminNotice>{message}</AdminNotice>}
+      <div className="record-summary"><span><strong>{data.members.length}</strong> members</span><span><strong>{data.members.reduce((total, member) => total + member.points, 0)}</strong> active points</span><span><strong>{data.transactions.length}</strong> recent point records</span></div>
+      <label className="loyalty-search">Find a member<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name, email, or phone" /></label>
+      <div className="loyalty-member-grid">
+        {members.map((member) => (
+          <article className="loyalty-member-card" key={member.userId}>
+            <header><div><strong>{member.displayName}</strong><small>{member.email}{member.phone ? ` · ${member.phone}` : ""}</small></div><span>{member.points} pts</span></header>
+            <div className="loyalty-progress"><i style={{ width: `${Math.min(100, member.points % 100 || (member.points > 0 ? 100 : 0))}%` }} /></div>
+            <p>{member.points >= 100 ? `${Math.floor(member.points / 100)} reward${Math.floor(member.points / 100) === 1 ? "" : "s"} available` : `${100 - member.points} points to a $5 reward`} · {member.lifetimePoints} earned from orders</p>
+            <div className="loyalty-adjustment">
+              <label>Points<input type="number" step="1" value={changes[member.userId] ?? ""} onChange={(event) => setChanges((current) => ({ ...current, [member.userId]: event.target.value }))} placeholder="+25 or -25" /></label>
+              <label>Reason<input value={reasons[member.userId] ?? ""} onChange={(event) => setReasons((current) => ({ ...current, [member.userId]: event.target.value }))} maxLength={120} placeholder="Customer service correction" /></label>
+              <button className="admin-save" disabled={saving === member.userId} onClick={() => adjust(member)}>{saving === member.userId ? "Saving…" : "Apply"}</button>
+            </div>
+          </article>
+        ))}
+        {members.length === 0 && <p className="empty-records">No matching loyalty members.</p>}
+      </div>
+      <section className="records-block"><h2>Recent points activity</h2><div className="admin-table-wrap"><table className="admin-table loyalty-ledger"><thead><tr><th>Date</th><th>Customer</th><th>Change</th><th>Balance</th><th>Reason</th></tr></thead><tbody>{data.transactions.map((entry) => <tr key={entry.id}><td>{when(entry.createdAt)}</td><td>{memberNames.get(entry.userId) || "Customer"}</td><td><strong className={entry.pointsChange >= 0 ? "points-positive" : "points-negative"}>{entry.pointsChange >= 0 ? "+" : ""}{entry.pointsChange}</strong></td><td>{entry.balanceAfter}</td><td>{entry.reason === "completed_order" ? `Completed order${entry.orderId ? ` #${entry.orderId}` : ""}` : entry.reason.replace(/^staff_adjustment:/, "Staff: ")}</td></tr>)}</tbody></table></div></section>
     </AdminSection>
   );
 }

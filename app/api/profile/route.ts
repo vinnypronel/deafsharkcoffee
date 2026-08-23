@@ -1,11 +1,12 @@
-import { eq } from "drizzle-orm";
-import { getDb } from "../../../db";
-import { customerProfiles } from "../../../db/schema";
+import { desc, eq } from "drizzle-orm";
+import { ensureSchema, getDb } from "../../../db";
+import { customerProfiles, loyaltyTransactions } from "../../../db/schema";
 import { getCustomerSession } from "../../../lib/auth";
 
 export async function GET(request: Request) {
   const session = await getCustomerSession(request);
   if (!session) return Response.json({ authenticated: false });
+  await ensureSchema();
 
   const user = session.user;
   const [existing] = await getDb().select().from(customerProfiles).where(eq(customerProfiles.userId, user.id)).limit(1);
@@ -14,6 +15,16 @@ export async function GET(request: Request) {
     email: user.email,
     displayName: user.name || user.email.split("@")[0],
   }).returning())[0];
+  const activity = await getDb().select({
+    id: loyaltyTransactions.id,
+    pointsChange: loyaltyTransactions.pointsChange,
+    balanceAfter: loyaltyTransactions.balanceAfter,
+    reason: loyaltyTransactions.reason,
+    createdAt: loyaltyTransactions.createdAt,
+  }).from(loyaltyTransactions)
+    .where(eq(loyaltyTransactions.userId, user.id))
+    .orderBy(desc(loyaltyTransactions.createdAt))
+    .limit(12);
 
   return Response.json({
     authenticated: true,
@@ -23,6 +34,7 @@ export async function GET(request: Request) {
       phone: profile.phone,
       points: profile.points,
       lifetimePoints: profile.lifetimePoints,
+      activity,
     },
   });
 }
@@ -30,6 +42,7 @@ export async function GET(request: Request) {
 export async function PATCH(request: Request) {
   const session = await getCustomerSession(request);
   if (!session) return Response.json({ error: "Sign in to update your profile." }, { status: 401 });
+  await ensureSchema();
 
   const payload = (await request.json()) as { displayName?: string; phone?: string };
   const displayName = payload.displayName?.trim();

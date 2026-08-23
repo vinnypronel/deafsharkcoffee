@@ -1066,10 +1066,6 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
 
       <SiteFooter />
 
-      <button className={`mobile-cart ${cartCount ? "visible" : ""}`} onClick={() => setCartOpen(true)}>
-        <span>{cartCount} {cartCount === 1 ? "item" : "items"}</span><strong>View cart · {money(subtotal)}</strong>
-      </button>
-
       {selectedProduct && (
         <ProductConfigurator
           product={selectedProduct}

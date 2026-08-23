@@ -885,29 +885,40 @@
 
 /* 5. Gallery mosaic */
 .ev-gallery {
-  padding: clamp(30px, 3vw, 46px) 0 0;
+  padding: clamp(20px, 2.2vw, 32px) 0 0;
   background: var(--paper);
+  min-height: calc(100vh - 84px);
+  min-height: calc(100dvh - 84px);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
 }
 .ev-gallery-head {
-  margin-bottom: clamp(16px, 1.8vw, 24px);
+  margin-bottom: clamp(12px, 1.3vw, 18px);
   padding-inline: clamp(20px, 3.5vw, 44px);
+  flex-shrink: 0;
 }
 .ev-gallery-head h2 {
   margin-bottom: 0;
   text-align: left;
-  font-size: clamp(32px, 3.6vw, 56px);
+  font-size: clamp(28px, 3vw, 48px);
   letter-spacing: -.035em;
 }
 .ev-gallery-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-rows: 1fr 1fr;
   gap: 0;
   margin-bottom: 0;
+  flex: 1;
+  min-height: 0;
 }
 .ev-shot {
   position: relative;
   margin: 0;
-  aspect-ratio: 5 / 4;
+  height: 100%;
+  width: 100%;
+  min-height: 0;
   overflow: hidden;
   background: var(--sand);
   cursor: pointer;
@@ -1044,7 +1055,6 @@
   background: rgba(33, 19, 14, 0.92);
   border-color: var(--gold);
   color: #e4b36e;
-  box-shadow: 0 0 26px rgba(214, 158, 46, 0.45);
   transform: translateY(-50%) scale(1.12);
 }
 

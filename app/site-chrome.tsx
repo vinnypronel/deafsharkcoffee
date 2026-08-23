@@ -14,7 +14,7 @@ type HeaderOrder = {
 
 const STORAGE_KEY = "deaf-shark-customer-orders";
 const statusLabels: Record<string, string> = { new: "Received", preparing: "Preparing", ready: "Ready for pickup", complete: "Completed", cancelled: "Cancelled" };
-type ProfileResponse = { authenticated: boolean; profile?: { displayName: string; email: string; phone?: string | null; points: number; lifetimePoints: number } };
+type ProfileResponse = { authenticated: boolean; profile?: { displayName: string; email: string; phone?: string | null; points: number; lifetimePoints: number; activity?: Array<{ id: number; pointsChange: number; balanceAfter: number; reason: string; createdAt: string }> } };
 type AuthConfig = { googleEnabled: boolean; emailEnabled: boolean; emailVerificationEnabled: boolean };
 
 async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit, timeoutMs = 6000) {
@@ -48,7 +48,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
   const [profileOpen, setProfileOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
-  const [authConfig, setAuthConfig] = useState<AuthConfig>({ googleEnabled: false, emailEnabled: true, emailVerificationEnabled: false });
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const links = [["/", "Home"], ["/menu", "Menu"], ["/about", "Our Story"], ["/events", "Events"], ["/contact", "Visit Us"], ["/employment", "Apply now"]];
   const loadReference = useCallback(() => setReference(latestSavedOrder()), []);
 
@@ -65,6 +65,15 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
       window.removeEventListener("deaf-shark-open-order", openOrder);
     };
   }, [loadReference]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [mobileMenuOpen]);
 
   useEffect(() => {
     if (!reference) { setOrder(null); return; }
@@ -298,13 +307,13 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
         <nav aria-label="Primary navigation">{links.map(([href, label]) => <a key={href} href={href} className={active === href ? "active" : ""}>{label}</a>)}</nav>
         <a className="header-brand" href="/" aria-label="Deaf Shark Coffee home"><BrandMark /></a>
         <div className="header-action">
-          <button className="header-icon-button" onClick={() => { setOpen(false); setSearchOpen((current) => !current); }} aria-label="Search menu">
+          <button className="header-icon-button" onClick={() => { setOpen(false); setMobileMenuOpen(false); setSearchOpen((current) => !current); }} aria-label="Search menu">
             <svg className="header-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
           </button>
-          <button className="header-icon-button" onClick={openProfile} aria-label="Open profile">
+          <button className="header-icon-button" onClick={() => { setMobileMenuOpen(false); openProfile(); }} aria-label="Open profile">
             <svg className="header-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
               <circle cx="12" cy="7" r="4" />
@@ -316,7 +325,34 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
               <i />
             </button>
           )}
-          {action ?? <a className="header-order-link" href="/menu">Order now</a>}
+          {action ?? (
+            <a className="header-cart header-cart-fallback" href="/menu" aria-label="View cart and menu">
+              <img src="/cart-icon-white.png" className="cart-glyph" alt="" aria-hidden="true" />
+              <span>0</span>
+            </a>
+          )}
+
+          {/* Morphing Hamburger Button */}
+          <button
+            type="button"
+            className={`nav-hamburger ${mobileMenuOpen ? "open" : ""}`}
+            onClick={() => {
+              setOpen(false);
+              setSearchOpen(false);
+              setProfileOpen(false);
+              setMobileMenuOpen((prev) => !prev);
+            }}
+            aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+            aria-expanded={mobileMenuOpen}
+            aria-controls="mobile-nav-takeover"
+          >
+            <span className="hamburger-box" aria-hidden="true">
+              <span className="hamburger-line line-top" />
+              <span className="hamburger-line line-mid" />
+              <span className="hamburger-line line-bot" />
+            </span>
+          </button>
+
           {open && order && (order.status === "new" || order.status === "preparing" || order.status === "ready") && (
             <section className="header-order-popover" aria-label="Current order status">
               <button className="popover-close" onClick={() => setOpen(false)} aria-label="Close order status">×</button>
@@ -329,7 +365,45 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
           )}
         </div>
       </header>
-      <nav className="mobile-site-nav" aria-label="Mobile navigation">{links.map(([href, label]) => <a key={href} href={href} className={active === href ? "active" : ""}>{label}</a>)}</nav>
+
+      {/* Full-Screen Takeover Mobile Navigation */}
+      <div
+        id="mobile-nav-takeover"
+        className={`nav-fullscreen-takeover ${mobileMenuOpen ? "open" : ""}`}
+        aria-hidden={!mobileMenuOpen}
+      >
+        <ul className="nav-fs-links">
+          {links.map(([href, label], idx) => {
+            const isActive = active === href;
+            return (
+              <li key={href} style={{ "--delay": `${0.06 + idx * 0.05}s` } as React.CSSProperties}>
+                <a
+                  href={href}
+                  className={`nav-fs-link ${isActive ? "active" : ""}`}
+                  tabIndex={mobileMenuOpen ? 0 : -1}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {isActive && <span className="nav-fs-glyph" aria-hidden="true">✦</span>}
+                  <span>{label}</span>
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+
+        <div className="nav-fs-footer">
+          <a className="nav-fs-cta" href="/menu" tabIndex={mobileMenuOpen ? 0 : -1} onClick={() => setMobileMenuOpen(false)}>
+            <span>Order pickup</span>
+            <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="15" height="15">
+              <path d="M2.5 8h11M9.5 3.5l4.5 4.5-4.5 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </a>
+          <div className="nav-fs-contact-info">
+            <span>900 Green Lane, Union NJ 07083</span>
+            <a href="tel:+19084818884" tabIndex={mobileMenuOpen ? 0 : -1}>(908) 481-8884</a>
+          </div>
+        </div>
+      </div>
 
       {searchOpen && (
         <div className="search-backdrop" onMouseDown={() => setSearchOpen(false)}>
@@ -501,6 +575,12 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                   <small>{Math.max(0, 100 - profile.profile.points)} points until your next $5 reward</small>
                 </div>
                 <p className="loyalty-note">Earn one point for every dollar spent on signed-in orders.</p>
+                {profile.profile.activity && profile.profile.activity.length > 0 && (
+                  <div className="account-points-activity">
+                    <strong>Recent points</strong>
+                    {profile.profile.activity.slice(0, 3).map((entry) => <div key={entry.id}><span>{entry.reason === "completed_order" ? "Completed order" : entry.reason.replace(/^staff_adjustment:/, "Staff adjustment: ")}</span><b className={entry.pointsChange >= 0 ? "points-positive" : "points-negative"}>{entry.pointsChange >= 0 ? "+" : ""}{entry.pointsChange}</b></div>)}
+                  </div>
+                )}
                 <form className="account-profile-form" onSubmit={saveProfile} noValidate>
                   <label>Name<input value={profileName} onChange={(e) => { setProfileName(e.target.value); setProfileMessage(""); }} maxLength={80} autoComplete="name" /></label>
                   <label>Mobile number<input value={profilePhone} onChange={(e) => { setProfilePhone(e.target.value); setProfileMessage(""); }} type="tel" autoComplete="tel" placeholder="Used to find your rewards in store" /></label>

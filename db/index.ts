@@ -48,9 +48,22 @@ export function ensureSchema() {
           user_id text PRIMARY KEY NOT NULL,
           email text NOT NULL,
           display_name text NOT NULL,
+          phone text,
           points integer DEFAULT 0 NOT NULL,
+          lifetime_points integer DEFAULT 0 NOT NULL,
+          birthday_month integer,
+          birthday_day integer,
           created_at integer NOT NULL,
           updated_at integer NOT NULL
+        )`),
+        d1.prepare(`CREATE TABLE IF NOT EXISTS loyalty_transactions (
+          id integer PRIMARY KEY AUTOINCREMENT,
+          user_id text NOT NULL,
+          order_id integer,
+          points_change integer NOT NULL,
+          balance_after integer NOT NULL,
+          reason text NOT NULL,
+          created_at integer NOT NULL
         )`),
         d1.prepare(`CREATE TABLE IF NOT EXISTS store_settings (
           id integer PRIMARY KEY DEFAULT 1 NOT NULL,
@@ -139,6 +152,8 @@ export function ensureSchema() {
           scheduling_enabled, scheduling_horizon_minutes, slot_minutes, updated_at
         ) VALUES (1, 15, false, '06:00', '20:00', 30, true, 240, 15, unixepoch())`),
         d1.prepare("CREATE INDEX IF NOT EXISTS idx_orders_status_created_at ON orders (status, created_at)"),
+        d1.prepare("CREATE INDEX IF NOT EXISTS idx_loyalty_user_created_at ON loyalty_transactions (user_id, created_at)"),
+        d1.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_loyalty_order_unique ON loyalty_transactions (order_id)"),
         d1.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_newsletter_email_unique ON newsletter_subscriptions (email)"),
         d1.prepare("CREATE INDEX IF NOT EXISTS idx_contact_status_created_at ON contact_inquiries (status, created_at)"),
         d1.prepare("CREATE INDEX IF NOT EXISTS idx_employment_status_created_at ON employment_applications (status, created_at)"),
@@ -182,6 +197,19 @@ export function ensureSchema() {
         await d1.prepare("ALTER TABLE orders ADD COLUMN kitchen_status text DEFAULT 'not_needed' NOT NULL").run();
       } catch {
         // column already exists
+      }
+
+      for (const statement of [
+        "ALTER TABLE customer_profiles ADD COLUMN phone text",
+        "ALTER TABLE customer_profiles ADD COLUMN lifetime_points integer DEFAULT 0 NOT NULL",
+        "ALTER TABLE customer_profiles ADD COLUMN birthday_month integer",
+        "ALTER TABLE customer_profiles ADD COLUMN birthday_day integer",
+      ]) {
+        try {
+          await d1.prepare(statement).run();
+        } catch {
+          // column already exists
+        }
       }
 
       await d1.prepare("PRAGMA optimize").run();
