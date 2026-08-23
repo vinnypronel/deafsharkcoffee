@@ -25,8 +25,8 @@ export default function ContactPage() {
           </a>
         </article>
         <article>
-          <h2>August Hours</h2>
-          <p><strong>5:00 AM – 5:00 PM</strong><span>7 days a week for the month of August.</span></p>
+          <h2>Hours</h2>
+          <p><strong>6:00 AM – 5:00 PM</strong><span>Through August 31. Starting September 1: 6:00 AM – 8:00 PM.</span></p>
           <a className="primary-button hero-cta-btn" href="/menu">
             <span>Order pickup</span>
             <svg className="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
@@ -74,7 +74,7 @@ export default function ContactPage() {
           </a>
         </div>
       </section>
-      <section className="contact-note"><span className="eyebrow">Good to know</span><h2>Pickup only for now.</h2><p>Delivery platform integrations can be added later. Online orders currently flow directly into the Deaf Shark order dashboard.</p></section>
+      <section className="contact-note"><span className="eyebrow">Good to know</span><h2>Pickup only for now.</h2><p>Delivery platform integrations can be added later. The launch ordering flow will send website orders into Deaf Shark&apos;s existing Quantic system.</p></section>
       <SiteFooter />
     </main>
   );

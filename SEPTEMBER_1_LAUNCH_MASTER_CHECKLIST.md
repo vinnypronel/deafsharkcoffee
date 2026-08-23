@@ -273,13 +273,13 @@ Transactional messages and marketing messages are different. Order confirmations
 ## Business and ordering
 
 - [ ] Exact legal business name and public brand name.
-- [ ] Final daily and holiday hours starting September 1.
+- [x] Standard hours confirmed: 6:00 AM to 5:00 PM through August 31; 6:00 AM to 8:00 PM starting September 1.
 - [ ] Online-order start/end times and last-order cutoff.
 - [ ] ASAP pickup estimate rules.
-- [ ] Whether scheduled pickup is enabled at launch.
+- [x] Scheduled pickup is enabled and must be paid online in advance.
 - [ ] Minimum/maximum scheduled lead time and slot size.
-- [ ] Whether pay-at-pickup is allowed online.
-- [ ] Cancellation, no-show, refund, and chargeback policies.
+- [x] Pay at pickup is allowed only for signed-in members placing ASAP orders.
+- [ ] Finish cancellation, no-show, refund, and chargeback policies. Confirmed portion: full refund when the customer cancels before Preparing.
 - [ ] Whether tips are allowed and suggested percentages.
 - [ ] Maximum order size and whether large/catering orders require a call.
 - [ ] Who can pause orders, change prep time, issue refunds, and mark items sold out.
@@ -293,10 +293,12 @@ Transactional messages and marketing messages are different. Order confirmations
 - [ ] Milk types and upcharges.
 - [ ] Syrup flavors and upcharges.
 - [ ] Extra shots and upcharges.
-- [ ] Hot/iced eligibility.
+- [x] Hot-only items confirmed: cortado, espresso, hot tea, and cappuccino.
 - [ ] Light ice, no ice, extra ice, sweetness, temperature, and preparation choices.
-- [ ] Sandwich/breakfast bread choices and substitutions.
-- [ ] Add-ons, removals, and “no” ingredients.
+- [ ] Finish sandwich/breakfast bread choices and substitutions. Plain and everything are the only bagel types currently confirmed.
+- [ ] Finish add-ons, removals, and “no” ingredients. Confirmed $1 choices: Swiss swap, extra cheese, add bacon, and extra bacon.
+- [x] Smoothie base choices confirmed: Water or Milk.
+- [x] Half-caf is not offered; decaf is $1 extra and needs a twice-normal-preparation-time warning.
 - [ ] Refrigerator brands, sizes, flavors, and prices.
 - [ ] Coffee bag sizes, roast details, and grind choices.
 - [ ] Allergens and cross-contact disclaimer.
@@ -411,8 +413,11 @@ Transactional messages and marketing messages are different. Order confirmations
 - [ ] Add order idempotency to prevent duplicate orders from double taps/retries.
 - [ ] Add explicit transactional SMS consent.
 - [ ] Add pickup instructions and cancellation policy acknowledgment.
-- [ ] Decide whether guest checkout is allowed and which payment methods it requires.
-- [ ] Decide whether scheduled pickup requires online payment.
+- [x] Guest checkout is allowed only with advance online payment; guests cannot pay at pickup.
+- [x] Scheduled pickup requires advance online payment.
+- [x] Automatically confirm submitted orders without a separate employee acceptance step.
+- [ ] Implement customer cancellation and a full refund only while an order is New, before Preparing.
+- [ ] Owner decides the substitution/refund/cancellation procedure when a paid item becomes unexpectedly unavailable after submission.
 
 ## Stripe
 

@@ -19,6 +19,21 @@ Last updated: August 22, 2026
 - The existing Quantic problem where some register items reach a preparation screen and other items do not is a separate configuration/support issue to diagnose before launch.
 - Cart and stored order items now carry an authoritative preparation station: `COFFEE`, `KITCHEN`, or `RETAIL`.
 
+## August 22 confirmed ordering and menu rules
+
+- Pay at pickup is allowed only for signed-in customer accounts and only for ASAP orders.
+- Guest checkout requires advance online payment.
+- Every scheduled pickup requires advance online payment.
+- Submitted online orders are automatically confirmed and sent into the production Quantic workflow; staff should not have to accept each order first.
+- A customer may cancel for a full refund only while the order is still New and has not entered Preparing. Real refund execution depends on the production payment integration.
+- The owner still needs to decide the response when an accepted item is unexpectedly unavailable because staff did not mark it sold out.
+- Cortado, espresso, hot tea, and cappuccino are hot-only.
+- Half-caf is not offered.
+- Decaf costs $1 more and customers must be warned that it takes about twice the normal preparation time.
+- Swapping to Swiss, adding extra cheese, adding bacon, or adding extra bacon costs $1 each on applicable breakfast items.
+- Smoothies must offer Water or Milk as the blending base.
+- Current hours through August 31 are 6:00 AM to 5:00 PM. Starting September 1, hours are 6:00 AM to 8:00 PM.
+
 ## Quick links
 
 - Private live demo: https://deaf-shark-coffee-demo.darweez.chatgpt.site
@@ -247,7 +262,7 @@ The main implementation is in `app/storefront.tsx`.
 4. Open the cart drawer.
 5. Continue to checkout.
 6. Enter name and phone.
-7. Select pay at pickup or card demo.
+7. Signed-in members may select pay at pickup for ASAP orders. Guests and all scheduled orders require online payment.
 8. Submit the order.
 9. Receive an order number and 15-minute estimate.
 10. View order status from the header.
@@ -268,7 +283,8 @@ The Ocean Blend bag is currently a simple whole-bean retail item without grind s
 
 ### Payment status
 
-- “Pay at pickup” is the real first-release direction.
+- “Pay at pickup” is available only to signed-in members placing ASAP orders.
+- Guest orders and scheduled orders require advance online payment.
 - “Card payment demo” is UI only.
 - No card number is collected.
 - No payment processor is integrated.
@@ -326,6 +342,10 @@ Known provisional product details:
 - Ocean Blend is displayed as a 12 oz medium roast whole-bean bag from El Salvador.
 - Ocean Blend is currently priced at $19.00 from the in-store notes.
 - Refrigerator availability and exact flavors should remain staff-controlled because stock changes frequently.
+- Cortado, espresso, hot tea, and cappuccino are hot-only.
+- Half-caf is not offered. Eligible espresso drinks offer decaf for a $1 upcharge with a twice-normal-preparation-time warning.
+- Smoothies offer Water or Milk as their required base.
+- Applicable breakfast items offer $1 Swiss, extra-cheese, add-bacon, and extra-bacon choices.
 
 The photographed menu is now the primary source for displayed products and prices; remaining ambiguous items still require owner confirmation.
 
@@ -350,7 +370,7 @@ Dashboard UI is in `app/dashboard/dashboard.tsx`.
 - Completed and cancelled orders disappear from the three active columns, but there is no order history interface.
 - Dashboard API routes have no staff authorization.
 - Scheduling uses configurable default hours and validation, but the business must confirm its operating hours and cutoff policy.
-- Scheduled pickup is disabled for pay-at-pickup orders to reduce no-shows. The current card option remains a demo until Stripe is connected.
+- Scheduled pickup is disabled for pay-at-pickup orders. Guest pay-at-pickup is also blocked. The current card option remains a demo until Stripe is connected.
 
 Recommended next dashboard work:
 

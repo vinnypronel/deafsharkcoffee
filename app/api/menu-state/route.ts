@@ -2,6 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../db";
 import { menuAvailability, storeSettings } from "../../../db/schema";
 import { requireStaff } from "../../../lib/staff-auth";
+import { effectiveOrderingHours } from "../../../lib/store-hours";
 
 const DEFAULT_SETTINGS = {
   id: 1,
@@ -27,13 +28,14 @@ export async function GET() {
       getDb().select().from(menuAvailability).orderBy(desc(menuAvailability.updatedAt)),
       readSettings(),
     ]);
+    const hours = effectiveOrderingHours(settings);
     return Response.json({
       availability: Object.fromEntries(items.map((item) => [item.productId, item.available])),
       prepTime: settings.prepTimeMinutes,
       paused: settings.paused,
       hours: {
-        openTime: settings.openTime,
-        closeTime: settings.closeTime,
+        openTime: hours.openTime,
+        closeTime: hours.closeTime,
         cutoffMinutes: settings.cutoffMinutes,
       },
       scheduling: {

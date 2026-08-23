@@ -3,6 +3,7 @@ import { ensureSchema, getDb } from "../../../db";
 import { customerProfiles, menuAvailability, orders, storeSettings } from "../../../db/schema";
 import { getCustomerSession } from "../../../lib/auth";
 import { requireStaff } from "../../../lib/staff-auth";
+import { effectiveOrderingHours } from "../../../lib/store-hours";
 import { menuProducts, prepStationFor, priceProductSelection, type ProductSelection } from "../../menu-data";
 
 type CartPayload = {
@@ -142,8 +143,12 @@ export async function POST(request: Request) {
     const createdTimestamp = Math.floor(Date.now() / 1000);
     const fulfillmentType = payload.fulfillmentType === "scheduled" ? "scheduled" : "asap";
     const paymentMethod = payload.paymentMethod === "card" ? "card-demo" : "pickup";
+    if (paymentMethod === "pickup" && !session) {
+      return Response.json({ error: "Sign in to your Deaf Shark account to pay at pickup." }, { status: 401 });
+    }
     const now = new Date();
-    const closingCutoff = clockMinutes(settings.closeTime) - settings.cutoffMinutes;
+    const effectiveHours = effectiveOrderingHours(settings, now);
+    const closingCutoff = clockMinutes(effectiveHours.closeTime) - settings.cutoffMinutes;
     let scheduledFor: Date | null = null;
     let pickupEta = `${settings.prepTimeMinutes} min`;
 
@@ -164,14 +169,14 @@ export async function POST(request: Request) {
         minutesAhead < settings.prepTimeMinutes ||
         minutesAhead > settings.schedulingHorizonMinutes ||
         localDateKey(scheduledFor) !== localDateKey(now) ||
-        scheduledMinutes < clockMinutes(settings.openTime) ||
+        scheduledMinutes < clockMinutes(effectiveHours.openTime) ||
         scheduledMinutes > closingCutoff ||
         scheduledMinutes % settings.slotMinutes !== 0
       ) {
         return Response.json({ error: "That pickup time is outside the available scheduling window." }, { status: 400 });
       }
       pickupEta = scheduledLabel(scheduledFor);
-    } else if (localClockMinutes(now) < clockMinutes(settings.openTime) || localClockMinutes(now) > closingCutoff) {
+    } else if (localClockMinutes(now) < clockMinutes(effectiveHours.openTime) || localClockMinutes(now) > closingCutoff) {
       return Response.json({ error: "Online ordering is closed for today. Please schedule during store hours." }, { status: 409 });
     }
     const customerUserId = session?.user.id ?? null;

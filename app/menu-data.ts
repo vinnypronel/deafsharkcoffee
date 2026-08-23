@@ -78,6 +78,8 @@ export type Product = {
   flavorLabel?: string;
   /* Smoothies are blended with water or milk. */
   bases?: string[];
+  /* Espresso-based drinks that can be prepared decaf for an upcharge. */
+  decafAvailable?: boolean;
   modifierGroups?: ModifierGroup[];
 };
 
@@ -120,12 +122,40 @@ export const BREAKFAST_BREAD_MODIFIER: ModifierGroup = {
 };
 
 export const FOOD_ADD_ONS: ModifierGroup = {
-  label: "Add-ons",
+  label: "Meat upgrade",
+  type: "multiple",
+  options: [{ label: "Extra meat", price: 2.5 }],
+};
+
+export const DECAF_MODIFIER: ModifierGroup = {
+  label: "Coffee type",
+  type: "single",
+  required: true,
+  options: [
+    { label: "Regular" },
+    { label: "Decaf (about twice the prep time)", price: 1 },
+  ],
+};
+
+export const CHEESE_UPGRADES: ModifierGroup = {
+  label: "Cheese",
   type: "multiple",
   options: [
-    { label: "Extra bacon", price: 1 },
-    { label: "Extra meat", price: 2.5 },
+    { label: "Swap to Swiss", price: 1 },
+    { label: "Extra cheese", price: 1 },
   ],
+};
+
+export const ADD_BACON: ModifierGroup = {
+  label: "Bacon",
+  type: "single",
+  options: [{ label: "Add bacon", price: 1 }],
+};
+
+export const EXTRA_BACON: ModifierGroup = {
+  label: "Bacon",
+  type: "single",
+  options: [{ label: "Extra bacon", price: 1 }],
 };
 
 export const categories: MenuCategory[] = [
@@ -160,6 +190,7 @@ export const modifierGroupsForProduct = (product: Product): ModifierGroup[] => {
   const isSmoothie = Boolean(product.bases?.length);
   return [
     ...(product.modifierGroups ?? []),
+    ...(product.decafAvailable ? [DECAF_MODIFIER] : []),
     ...(isDrink && !isSmoothie && temperaturesForProduct(product).includes("Iced") ? [ICE_MODIFIER] : []),
     ...(isDrink && !isSmoothie && product.id !== "hot-tea" ? [SWEETENER_MODIFIER] : []),
   ];
@@ -298,6 +329,7 @@ export const menuProducts: Product[] = [
     description: "Espresso with silky steamed milk, made hot or iced.",
     popular: true,
     configurable: true,
+    decafAvailable: true,
     visual: "iced",
     photo: "/drink-iced-latte.webp",
     drink: "latte",
@@ -311,6 +343,7 @@ export const menuProducts: Product[] = [
     description: "A balanced pour of espresso and warm milk.",
     popular: true,
     configurable: true,
+    decafAvailable: true,
     visual: "iced",
     photo: "/drink-iced-cortado.webp",
     drink: "cortado",
@@ -326,6 +359,7 @@ export const menuProducts: Product[] = [
     },
     description: "Espresso opened with hot water for a clean finish.",
     configurable: true,
+    decafAvailable: true,
     visual: "iced",
     photo: "/drink-iced-americano.webp",
     drink: "americano",
@@ -338,6 +372,7 @@ export const menuProducts: Product[] = [
     temps: ["Hot"],
     description: "Espresso, steamed milk, and a generous cap of foam.",
     configurable: true,
+    decafAvailable: true,
     visual: "iced",
     photo: "/drink-iced-cappuccino.webp",
     drink: "cappuccino",
@@ -351,6 +386,7 @@ export const menuProducts: Product[] = [
     sizing: { hot: [{ label: "Single", price: 2.75 }, { label: "Double", price: 3.5 }] },
     description: "A concentrated shot of Deaf Shark coffee.",
     configurable: true,
+    decafAvailable: true,
     visual: "iced",
     photo: "/drink-iced-espresso.webp",
     drink: "espresso",
@@ -374,11 +410,11 @@ export const menuProducts: Product[] = [
     id: "decaf-coffee",
     name: "Decaf Coffee",
     category: "Coffee",
-    price: 3,
-    description: "The same fresh brew, without the caffeine.",
+    price: 4,
+    description: "Freshly prepared decaf coffee. Please allow about twice the usual preparation time.",
     configurable: true,
     temps: ["Hot"],
-    sizing: { hot: [{ label: "12 oz", price: 3 }] },
+    sizing: { hot: [{ label: "12 oz", price: 4 }] },
     visual: "hot",
     photo: "/cup-hot.png",
     drink: "drip-coffee",
@@ -390,6 +426,7 @@ export const menuProducts: Product[] = [
     price: 5.95,
     description: "Brewed coffee with a shot of espresso pulled straight into it.",
     configurable: true,
+    decafAvailable: true,
     sizing: {
       hot: [{ label: "16 oz", price: 5.95 }],
       iced: [{ label: "16 oz", price: 5.95 }],
@@ -406,6 +443,7 @@ export const menuProducts: Product[] = [
     description: "Traditional Salvadoran peanut horchata with cinnamon, topped with fresh espresso over ice.",
     popular: true,
     configurable: true,
+    decafAvailable: true,
     visual: "iced",
     photo: "/drink-salvi-horchata.webp",
     drink: "horchata-latte",
@@ -429,6 +467,7 @@ export const menuProducts: Product[] = [
     price: 5.95,
     description: "Cold milk, double espresso, and rich warm caramel drizzle over ice.",
     configurable: true,
+    decafAvailable: true,
     visual: "iced",
     photo: "/drink-caramel-macchiato.webp",
     drink: "caramel-macchiato",
@@ -592,7 +631,7 @@ export const menuProducts: Product[] = [
     price: 6.25,
     description: "Maple waffle sandwich with sausage and egg.",
     configurable: true,
-    modifierGroups: [FOOD_ADD_ONS],
+    modifierGroups: [ADD_BACON, FOOD_ADD_ONS],
     visual: "bite",
     photo: "/food-maple-waffle.jpg",
   },
@@ -603,7 +642,7 @@ export const menuProducts: Product[] = [
     price: 6.25,
     description: "Jalapeño biscuit with sausage, egg, and cheddar.",
     configurable: true,
-    modifierGroups: [FOOD_ADD_ONS],
+    modifierGroups: [CHEESE_UPGRADES, ADD_BACON, FOOD_ADD_ONS],
     visual: "sandwich",
     photo: "/food-artisan-breakfast.jpg",
   },
@@ -614,7 +653,7 @@ export const menuProducts: Product[] = [
     price: 6.25,
     description: "Ham and cheese on your choice of breakfast bread.",
     configurable: true,
-    modifierGroups: [BREAKFAST_BREAD_MODIFIER, FOOD_ADD_ONS],
+    modifierGroups: [BREAKFAST_BREAD_MODIFIER, CHEESE_UPGRADES, ADD_BACON, FOOD_ADD_ONS],
     visual: "sandwich",
   },
   {
@@ -624,7 +663,7 @@ export const menuProducts: Product[] = [
     price: 6.25,
     description: "Egg and cheese on your choice of breakfast bread.",
     configurable: true,
-    modifierGroups: [BREAKFAST_BREAD_MODIFIER, FOOD_ADD_ONS],
+    modifierGroups: [BREAKFAST_BREAD_MODIFIER, CHEESE_UPGRADES, ADD_BACON, FOOD_ADD_ONS],
     visual: "sandwich",
   },
   {
@@ -635,7 +674,7 @@ export const menuProducts: Product[] = [
     description: "Sausage, egg, and cheese on a flaky croissant.",
     popular: true,
     configurable: true,
-    modifierGroups: [FOOD_ADD_ONS],
+    modifierGroups: [CHEESE_UPGRADES, ADD_BACON, FOOD_ADD_ONS],
     visual: "sandwich",
     photo: "/food-breakfast-croissant.jpg",
   },
@@ -649,6 +688,8 @@ export const menuProducts: Product[] = [
     modifierGroups: [
       BREAKFAST_BREAD_MODIFIER,
       { label: "Meat", type: "single", required: true, options: ["Bacon", "Turkey bacon"].map((label) => ({ label })) },
+      CHEESE_UPGRADES,
+      EXTRA_BACON,
       FOOD_ADD_ONS,
     ],
     visual: "sandwich",
@@ -660,7 +701,7 @@ export const menuProducts: Product[] = [
     price: 6.75,
     description: "Bacon, egg, and cheese wrapped for an easy breakfast.",
     configurable: true,
-    modifierGroups: [FOOD_ADD_ONS],
+    modifierGroups: [CHEESE_UPGRADES, EXTRA_BACON, FOOD_ADD_ONS],
     visual: "sandwich",
   },
   {
@@ -670,7 +711,7 @@ export const menuProducts: Product[] = [
     price: 7.25,
     description: "Taylor ham, egg, and cheese on your choice of breakfast bread.",
     configurable: true,
-    modifierGroups: [BREAKFAST_BREAD_MODIFIER, FOOD_ADD_ONS],
+    modifierGroups: [BREAKFAST_BREAD_MODIFIER, CHEESE_UPGRADES, ADD_BACON, FOOD_ADD_ONS],
     visual: "sandwich",
   },
   {

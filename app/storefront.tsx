@@ -1020,9 +1020,9 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
                 <a href="https://maps.google.com/?q=900+Green+Lane+Union+NJ+07083" target="_blank" rel="noopener noreferrer">Get directions</a>
               </div>
               <div className="visit-card">
-                <span className="visit-card-label">August Hours</span>
-                <strong>5:00 AM – 5:00 PM</strong>
-                <span>7 days a week for August</span>
+                <span className="visit-card-label">Hours</span>
+                <strong>6:00 AM – 5:00 PM</strong>
+                <span>Through Aug. 31 · 6:00 AM – 8:00 PM starting Sept. 1</span>
                 <a href="/menu">Order ahead</a>
               </div>
               <div className="visit-card">
@@ -1385,7 +1385,8 @@ function CartDrawer({ cart, subtotal, ordersPaused, onClose, onEdit, onRemove, o
 function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onClose, onComplete }: { cart: CartItem[]; subtotal: number; prepTime?: number; scheduling: SchedulingSettings; ordersPaused: boolean; onClose: () => void; onComplete: (number: string, eta: string, phone: string) => void }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [payment, setPayment] = useState<"pickup" | "card">("pickup");
+  const [payment, setPayment] = useState<"pickup" | "card">("card");
+  const [accountState, setAccountState] = useState<"loading" | "member" | "guest">("loading");
   const [fulfillmentType, setFulfillmentType] = useState<"asap" | "scheduled">("asap");
   const [scheduledFor, setScheduledFor] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -1393,6 +1394,24 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onC
   const [fieldErrors, setFieldErrors] = useState<{ name?: string; phone?: string; scheduledFor?: string }>({});
   const [scheduleAnchor] = useState(() => Date.now());
   const tax = subtotal * 0.06625;
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/profile", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((data) => {
+        if (!active) return;
+        if (data.authenticated && data.profile) {
+          setAccountState("member");
+          setName((current) => current || data.profile.displayName || "");
+          setPhone((current) => current || formatPhoneInput(data.profile.phone || ""));
+        } else {
+          setAccountState("guest");
+        }
+      })
+      .catch(() => { if (active) setAccountState("guest"); });
+    return () => { active = false; };
+  }, []);
 
   function localInputValue(date: Date) {
     const offset = date.getTimezoneOffset() * 60_000;
@@ -1462,7 +1481,7 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onC
         {fulfillmentType === "scheduled" && <label className={fieldErrors.scheduledFor ? "has-error" : undefined}><span>Scheduled pickup</span><input type="datetime-local" value={scheduledFor} min={localInputValue(firstScheduledDate)} max={localInputValue(lastScheduledDate)} step={scheduling.slotMinutes * 60} onChange={(event) => { setScheduledFor(event.target.value); if (fieldErrors.scheduledFor) setFieldErrors((current) => ({ ...current, scheduledFor: undefined })); }} aria-invalid={fieldErrors.scheduledFor ? true : undefined} aria-describedby={fieldErrors.scheduledFor ? "checkout-schedule-error" : undefined} />{fieldErrors.scheduledFor && <small className="checkout-field-error" id="checkout-schedule-error" role="alert"><i aria-hidden="true">!</i>{fieldErrors.scheduledFor}</small>}<small className="field-note">Scheduled orders require advance online payment.</small></label>}
         <fieldset className="payment-options">
           <legend>Payment</legend>
-          <label><input type="radio" name="payment" disabled={fulfillmentType === "scheduled"} checked={payment === "pickup"} onChange={() => setPayment("pickup")} /><span><strong>Pay at pickup</strong><small>{fulfillmentType === "scheduled" ? "Not available for scheduled orders" : "Pay at the counter when you arrive"}</small></span></label>
+          <label><input type="radio" name="payment" disabled={fulfillmentType === "scheduled" || accountState !== "member"} checked={payment === "pickup"} onChange={() => setPayment("pickup")} /><span><strong>Pay at pickup</strong><small>{fulfillmentType === "scheduled" ? "Not available for scheduled orders" : accountState === "member" ? "Available to signed-in members" : accountState === "loading" ? "Checking your account…" : "Sign in to use pay at pickup"}</small></span></label>
           <label><input type="radio" name="payment" checked={payment === "card"} onChange={() => setPayment("card")} /><span><strong>Card payment demo</strong><small>Production payment provider to be confirmed</small></span></label>
         </fieldset>
         <div className="checkout-total">
