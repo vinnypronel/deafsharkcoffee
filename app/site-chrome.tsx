@@ -194,7 +194,18 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
 
   async function handleEmailSignIn(e: React.FormEvent) {
     e.preventDefault();
-    if (!authEmail.trim() || authPassword.length < 8 || (authMode === "signup" && !authName.trim())) return;
+    if (authMode === "signup" && !authName.trim()) {
+      setAuthError("Enter your name to create your Deaf Shark account.");
+      return;
+    }
+    if (!authEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(authEmail.trim())) {
+      setAuthError("Enter a complete email address, like you@example.com.");
+      return;
+    }
+    if (authPassword.length < 8) {
+      setAuthError("Your password needs at least 8 characters.");
+      return;
+    }
     setAuthBusy(true);
     setAuthError("");
     try {
@@ -231,6 +242,14 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
   async function saveProfile(e: React.FormEvent) {
     e.preventDefault();
     setProfileMessage("");
+    if (!profileName.trim()) {
+      setProfileMessage("Enter the name you want shown on your account.");
+      return;
+    }
+    if (profilePhone.replace(/\D/g, "").length < 10) {
+      setProfileMessage("Enter a complete 10-digit mobile number.");
+      return;
+    }
     const response = await fetch("/api/profile", {
       method: "PATCH",
       credentials: "include",
@@ -415,11 +434,10 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                   <span>or continue with email</span>
                 </div>
 
-                <form className="auth-email-form" onSubmit={handleEmailSignIn}>
+                <form className="auth-email-form" onSubmit={handleEmailSignIn} noValidate>
                   {authMode === "signup" && (
                     <input
                       type="text"
-                      required
                       maxLength={80}
                       value={authName}
                       onChange={(e) => setAuthName(e.target.value)}
@@ -430,7 +448,6 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                   )}
                   <input
                     type="email"
-                    required
                     value={authEmail}
                     onChange={(e) => setAuthEmail(e.target.value)}
                     placeholder="Enter your email address"
@@ -439,7 +456,6 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                   />
                   <input
                     type="password"
-                    required
                     minLength={8}
                     maxLength={128}
                     value={authPassword}
@@ -471,11 +487,11 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                   <small>{Math.max(0, 100 - profile.profile.points)} points until your next $5 reward</small>
                 </div>
                 <p className="loyalty-note">Earn one point for every dollar spent on signed-in orders.</p>
-                <form className="account-profile-form" onSubmit={saveProfile}>
-                  <label>Name<input value={profileName} onChange={(e) => setProfileName(e.target.value)} maxLength={80} autoComplete="name" required /></label>
-                  <label>Mobile number<input value={profilePhone} onChange={(e) => setProfilePhone(e.target.value)} type="tel" autoComplete="tel" placeholder="Used to find your rewards in store" required /></label>
+                <form className="account-profile-form" onSubmit={saveProfile} noValidate>
+                  <label>Name<input value={profileName} onChange={(e) => { setProfileName(e.target.value); setProfileMessage(""); }} maxLength={80} autoComplete="name" /></label>
+                  <label>Mobile number<input value={profilePhone} onChange={(e) => { setProfilePhone(e.target.value); setProfileMessage(""); }} type="tel" autoComplete="tel" placeholder="Used to find your rewards in store" /></label>
                   <button type="submit" className="primary-button">Save profile</button>
-                  {profileMessage && <small className="account-form-message">{profileMessage}</small>}
+                  {profileMessage && <small className={`account-form-message${profileMessage === "Saved." ? "" : " error"}`} role="status">{profileMessage}</small>}
                 </form>
                 <button type="button" className="account-signout" onClick={handleSignOut} disabled={authBusy}>
                   Sign out
@@ -495,16 +511,25 @@ export function SiteFooter() {
   const [newsletterConsent, setNewsletterConsent] = useState(false);
   const [newsletterBusy, setNewsletterBusy] = useState(false);
   const [newsletterError, setNewsletterError] = useState("");
+  const [newsletterFieldErrors, setNewsletterFieldErrors] = useState<{ email?: string; consent?: string }>({});
 
   async function handleSubscribe(e: React.FormEvent) {
     e.preventDefault();
     setNewsletterError("");
+    const trimmedEmail = email.trim();
+    const fieldErrors: { email?: string; consent?: string } = {};
+    if (!trimmedEmail) fieldErrors.email = "Enter your email address to join the club.";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) fieldErrors.email = "Enter a complete email address, like you@example.com.";
+    if (!newsletterConsent) fieldErrors.consent = "Please agree before joining the email list.";
+    setNewsletterFieldErrors(fieldErrors);
+    if (Object.keys(fieldErrors).length) return;
+
     setNewsletterBusy(true);
     try {
       const response = await fetch("/api/newsletter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), consent: newsletterConsent }),
+        body: JSON.stringify({ email: trimmedEmail, consent: newsletterConsent }),
       });
       const data = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(data.error || "We could not save your subscription.");
@@ -532,23 +557,38 @@ export function SiteFooter() {
             {subscribed ? (
               <p className="newsletter-success">✓ You&#39;re in! We&#39;ll send your welcome perks soon.</p>
             ) : (
-              <form className="newsletter-form" onSubmit={handleSubscribe}>
+              <form className="newsletter-form" onSubmit={handleSubscribe} noValidate>
                 <label htmlFor="footer-email">E-MAIL</label>
-                <div className="newsletter-input-row">
+                <div className={`newsletter-input-row${newsletterFieldErrors.email ? " has-error" : ""}`}>
                   <input
                     id="footer-email"
                     type="email"
-                    required
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (newsletterFieldErrors.email) setNewsletterFieldErrors((current) => ({ ...current, email: undefined }));
+                    }}
                     placeholder="you@example.com"
+                    aria-invalid={newsletterFieldErrors.email ? true : undefined}
+                    aria-describedby={newsletterFieldErrors.email ? "footer-email-error" : undefined}
                   />
                   <button type="submit" disabled={newsletterBusy}>{newsletterBusy ? "Saving" : "Join"} <span>→</span></button>
                 </div>
-                <label className="newsletter-consent">
-                  <input type="checkbox" checked={newsletterConsent} onChange={(event) => setNewsletterConsent(event.target.checked)} required />
+                {newsletterFieldErrors.email && <p className="newsletter-field-error" id="footer-email-error" role="alert"><span aria-hidden="true">!</span>{newsletterFieldErrors.email}</p>}
+                <label className={`newsletter-consent${newsletterFieldErrors.consent ? " has-error" : ""}`}>
+                  <input
+                    type="checkbox"
+                    checked={newsletterConsent}
+                    onChange={(event) => {
+                      setNewsletterConsent(event.target.checked);
+                      if (newsletterFieldErrors.consent) setNewsletterFieldErrors((current) => ({ ...current, consent: undefined }));
+                    }}
+                    aria-invalid={newsletterFieldErrors.consent ? true : undefined}
+                    aria-describedby={newsletterFieldErrors.consent ? "footer-consent-error" : undefined}
+                  />
                   <span>I agree to receive Deaf Shark Coffee news and promotions by email. I can unsubscribe at any time.</span>
                 </label>
+                {newsletterFieldErrors.consent && <p className="newsletter-field-error" id="footer-consent-error" role="alert"><span aria-hidden="true">!</span>{newsletterFieldErrors.consent}</p>}
                 {newsletterError && <p className="newsletter-error" role="alert">{newsletterError}</p>}
                 {newsletterBusy && <p className="newsletter-status" role="status">Saving your subscription...</p>}
               </form>

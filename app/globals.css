@@ -1937,6 +1937,8 @@ h1, h2, h3, p { margin-top: 0; }
 .newsletter-input-row:focus-within {
   border-color: var(--gold);
 }
+.newsletter-input-row.has-error { border-color: #ef9f88; }
+.newsletter-input-row.has-error:focus-within { border-color: #ffc0ae; box-shadow: 0 5px 0 -4px rgba(255, 192, 174, .55); }
 .newsletter-input-row input {
   flex: 1;
   background: transparent;
@@ -1986,6 +1988,31 @@ h1, h2, h3, p { margin-top: 0; }
   letter-spacing: 0 !important;
 }
 .newsletter-consent input { margin-top: 2px; accent-color: var(--gold); }
+.newsletter-consent.has-error { color: #ffd1c5 !important; }
+.newsletter-consent.has-error input { outline: 2px solid #ef9f88; outline-offset: 2px; }
+.newsletter-field-error {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 2px 0 4px;
+  color: #ffd1c5;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+.newsletter-field-error > span {
+  display: inline-grid;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border: 1px solid rgba(255, 209, 197, .7);
+  border-radius: 50%;
+  background: rgba(168, 55, 34, .32);
+  color: #fff7f1;
+  font-size: 12px;
+  font-weight: 900;
+}
 .newsletter-error { margin: 2px 0 0; color: #ffaaa0; font-size: 13px; }
 .newsletter-status { margin: 2px 0 0; color: rgba(255, 250, 243, 0.72); font-size: 13px; }
 .footer-divider {
@@ -2217,6 +2244,9 @@ h1, h2, h3, p { margin-top: 0; }
 .contact-form label { display: flex; flex-direction: column; gap: 7px; color: var(--deep); font-size: 13px; font-weight: 750; }
 .contact-form input, .contact-form select, .contact-form textarea { width: 100%; border: 1px solid rgba(55, 35, 26, .2); border-radius: 12px; background: rgba(255, 250, 243, .82); padding: 13px 14px; color: var(--ink); font: inherit; font-weight: 500; outline: none; }
 .contact-form input:focus, .contact-form select:focus, .contact-form textarea:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(31, 116, 111, .13); }
+.contact-form label.has-error > input, .contact-form label.has-error > textarea { border-color: #b64b3b; background: #fff7f2; box-shadow: 0 0 0 3px rgba(182, 75, 59, .1); }
+.contact-field-error { display: flex; align-items: center; gap: 8px; color: #96382d; font-size: 12px; font-weight: 650; line-height: 1.4; }
+.contact-field-error i { display: inline-grid; flex: 0 0 19px; width: 19px; height: 19px; place-items: center; border-radius: 50%; background: #96382d; color: white; font-size: 11px; font-style: normal; font-weight: 900; }
 .contact-message, .contact-form .primary-button, .contact-form-error { grid-column: 1 / -1; }
 .contact-form textarea { resize: vertical; min-height: 140px; }
 .contact-form .primary-button { justify-self: start; }
@@ -2340,6 +2370,9 @@ body.modal-open { overflow: hidden !important; touch-action: none; }
 .checkout-card h2, .confirmation-card h2 { font-family: Georgia, serif; font-size: 42px; }
 .checkout-card > label { display: flex; flex-direction: column; gap: 8px; margin: 18px 0; font-weight: 750; }
 .checkout-card > label .field-note { margin-top: -2px; color: var(--muted); font-size: 12px; font-weight: 500; line-height: 1.35; }
+.checkout-card > label.has-error input { border-color: #a84335; background: #fff7f2; box-shadow: 0 0 0 3px rgba(168, 67, 53, .1); }
+.checkout-field-error { display: flex; align-items: center; gap: 8px; color: #96382d; font-size: 12px; font-weight: 700; line-height: 1.4; }
+.checkout-field-error i { display: inline-grid; flex: 0 0 19px; width: 19px; height: 19px; place-items: center; border-radius: 50%; background: #96382d; color: white; font-size: 11px; font-style: normal; font-weight: 900; }
 .checkout-card input[type="text"], .checkout-card input[type="tel"], .checkout-card > label input { min-height: 52px; border: 1px solid var(--line); border-radius: 14px; padding: 0 14px; background: white; outline: none; }
 .payment-options { display: grid; gap: 8px; margin: 24px 0; border: 0; padding: 0; }
 .payment-options label { min-height: 74px; display: grid; grid-template-columns: 24px 1fr; align-items: center; gap: 12px; border: 1px solid var(--line); border-radius: 14px; padding: 12px 15px; background: white; cursor: pointer; }

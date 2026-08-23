@@ -1361,6 +1361,7 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onC
   const [scheduledFor, setScheduledFor] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<{ name?: string; phone?: string; scheduledFor?: string }>({});
   const [scheduleAnchor] = useState(() => Date.now());
   const tax = subtotal * 0.06625;
 
@@ -1375,12 +1376,14 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onC
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setError("");
+    const nextFieldErrors: { name?: string; phone?: string; scheduledFor?: string } = {};
+    if (!name.trim()) nextFieldErrors.name = "Enter the name we should put on the order.";
+    if (phone.replace(/\D/g, "").length !== 10) nextFieldErrors.phone = "Enter a complete 10-digit mobile number.";
+    if (fulfillmentType === "scheduled" && !scheduledFor) nextFieldErrors.scheduledFor = "Choose your pickup date and time.";
+    setFieldErrors(nextFieldErrors);
+    if (Object.keys(nextFieldErrors).length) return;
     if (ordersPaused) {
       setError("Online ordering is temporarily paused. Please order at the counter.");
-      return;
-    }
-    if (fulfillmentType === "scheduled" && !scheduledFor) {
-      setError("Choose a scheduled pickup time.");
       return;
     }
     setSubmitting(true);
@@ -1417,17 +1420,17 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onC
 
   return (
     <div className="modal-backdrop" onMouseDown={onClose}>
-      <form className="checkout-card" data-lenis-prevent onSubmit={submit} onMouseDown={(event) => event.stopPropagation()}>
+      <form className="checkout-card" data-lenis-prevent onSubmit={submit} noValidate onMouseDown={(event) => event.stopPropagation()}>
         <button type="button" className="modal-close" onClick={onClose} aria-label="Close checkout">×</button>
         <h2>Finish your order</h2>
-        <label><span>Name for the order</span><input required value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name" /></label>
-        <label><span>Mobile number</span><input required type="tel" value={phone} onChange={(event) => setPhone(formatPhoneInput(event.target.value))} placeholder="(908)-555-0123" maxLength={14} /><small className="field-note">We send one text when your order is ready. That is the only message you will get.</small></label>
+        <label className={fieldErrors.name ? "has-error" : undefined}><span>Name for the order</span><input value={name} onChange={(event) => { setName(event.target.value); if (fieldErrors.name) setFieldErrors((current) => ({ ...current, name: undefined })); }} placeholder="Your name" aria-invalid={fieldErrors.name ? true : undefined} aria-describedby={fieldErrors.name ? "checkout-name-error" : undefined} />{fieldErrors.name && <small className="checkout-field-error" id="checkout-name-error" role="alert"><i aria-hidden="true">!</i>{fieldErrors.name}</small>}</label>
+        <label className={fieldErrors.phone ? "has-error" : undefined}><span>Mobile number</span><input type="tel" value={phone} onChange={(event) => { setPhone(formatPhoneInput(event.target.value)); if (fieldErrors.phone) setFieldErrors((current) => ({ ...current, phone: undefined })); }} placeholder="(908)-555-0123" maxLength={14} aria-invalid={fieldErrors.phone ? true : undefined} aria-describedby={fieldErrors.phone ? "checkout-phone-error checkout-phone-note" : "checkout-phone-note"} />{fieldErrors.phone && <small className="checkout-field-error" id="checkout-phone-error" role="alert"><i aria-hidden="true">!</i>{fieldErrors.phone}</small>}<small className="field-note" id="checkout-phone-note">We send one text when your order is ready. That is the only message you will get.</small></label>
         <fieldset className="payment-options pickup-options">
           <legend>Pickup time</legend>
           <label><input type="radio" name="fulfillment" checked={fulfillmentType === "asap"} onChange={() => setFulfillmentType("asap")} /><span><strong>As soon as possible</strong><small>Estimated in about {prepTime} minutes</small></span></label>
           {scheduling.enabled && <label><input type="radio" name="fulfillment" checked={fulfillmentType === "scheduled"} onChange={() => { setFulfillmentType("scheduled"); setPayment("card"); if (!scheduledFor) setScheduledFor(localInputValue(firstScheduledDate)); }} /><span><strong>Schedule pickup</strong><small>Choose a time within the next few hours</small></span></label>}
         </fieldset>
-        {fulfillmentType === "scheduled" && <label><span>Scheduled pickup</span><input required type="datetime-local" value={scheduledFor} min={localInputValue(firstScheduledDate)} max={localInputValue(lastScheduledDate)} step={scheduling.slotMinutes * 60} onChange={(event) => setScheduledFor(event.target.value)} /><small className="field-note">Scheduled orders require advance online payment.</small></label>}
+        {fulfillmentType === "scheduled" && <label className={fieldErrors.scheduledFor ? "has-error" : undefined}><span>Scheduled pickup</span><input type="datetime-local" value={scheduledFor} min={localInputValue(firstScheduledDate)} max={localInputValue(lastScheduledDate)} step={scheduling.slotMinutes * 60} onChange={(event) => { setScheduledFor(event.target.value); if (fieldErrors.scheduledFor) setFieldErrors((current) => ({ ...current, scheduledFor: undefined })); }} aria-invalid={fieldErrors.scheduledFor ? true : undefined} aria-describedby={fieldErrors.scheduledFor ? "checkout-schedule-error" : undefined} />{fieldErrors.scheduledFor && <small className="checkout-field-error" id="checkout-schedule-error" role="alert"><i aria-hidden="true">!</i>{fieldErrors.scheduledFor}</small>}<small className="field-note">Scheduled orders require advance online payment.</small></label>}
         <fieldset className="payment-options">
           <legend>Payment</legend>
           <label><input type="radio" name="payment" disabled={fulfillmentType === "scheduled"} checked={payment === "pickup"} onChange={() => setPayment("pickup")} /><span><strong>Pay at pickup</strong><small>{fulfillmentType === "scheduled" ? "Not available for scheduled orders" : "Pay at the counter when you arrive"}</small></span></label>
