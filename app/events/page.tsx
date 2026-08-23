@@ -2,6 +2,7 @@ import "./events.css";
 import type { Metadata } from "next";
 import { CustomerHeader, SiteFooter } from "../site-chrome";
 import { EventVideos } from "./event-videos";
+import { EventGallery } from "./event-gallery";
 import { UpcomingEvents } from "./upcoming-events";
 
 export const metadata: Metadata = {
@@ -37,41 +38,89 @@ export default function EventsPage() {
         </div>
       </section>
 
-      <section className="ev-featured">
-        <div className="ev-featured-copy">
-          <h2>Salsa and Networking</h2>
-          <p>An evening hosted with the Township of Union. Live open format DJ set by DJ Eazy E, salsa dancing that spilled from the counter out to the pavilion, and local business owners meeting each other over coffee.</p>
-          <dl className="ev-details">
-            <div>
-              <dt>Date</dt>
-              <dd>Thursday, August 13, 2026</dd>
-            </div>
-            <div>
-              <dt>Location</dt>
-              <dd>900 Green Lane, Union NJ 07083</dd>
-            </div>
-            <div>
-              <dt>Partner</dt>
-              <dd>Township of Union</dd>
-            </div>
-            <div>
-              <dt>Music</dt>
-              <dd>DJ Eazy E</dd>
-            </div>
-          </dl>
-          <a className="primary-button" href="/contact">Visit the shop</a>
+      {/* Past Events Showcase */}
+      <section className="ev-past-section">
+        <div className="ev-past-head">
+          <h2>Past events...</h2>
         </div>
-        <div className="ev-featured-media">
-          <figure className="ev-featured-shot ev-featured-shot-tall">
-            <img src="/events/salsa-05.jpg" alt="A couple dancing salsa" loading="lazy" />
-          </figure>
-          <figure className="ev-featured-shot">
-            <img src="/events/salsa-02.jpg" alt="DJ Eazy E at the decks with his open format screen display behind him" loading="lazy" />
-          </figure>
-          <figure className="ev-featured-shot">
-            <img src="/events/salsa-06.jpg" alt="Guests indoors under the Welcome to Salsa and Networking screen beside a balloon arch" loading="lazy" />
-          </figure>
-        </div>
+
+        {/* Past Event 1: Puppy Party */}
+        <article className="ev-featured ev-featured-puppy">
+          <div className="ev-featured-copy">
+            <h2>Puppy Party</h2>
+            <p>An evening for the neighborhood and their dogs, hosted by Mango the Doxy. Free entry, a custom menu crafted for dogs, raffles, and prizes through the night. BYOB.</p>
+            <dl className="ev-details">
+              <div>
+                <dt>Date</dt>
+                <dd>Friday, August 21, 2026</dd>
+              </div>
+              <div>
+                <dt>Time</dt>
+                <dd>6:00 to 9:00 PM</dd>
+              </div>
+              <div>
+                <dt>Location</dt>
+                <dd>900 Green Lane, Union NJ 07083</dd>
+              </div>
+              <div>
+                <dt>Host</dt>
+                <dd>Mango the Doxy</dd>
+              </div>
+              <div>
+                <dt>Highlights</dt>
+                <dd>BYOB, puppies, dog menu, raffles, prizes</dd>
+              </div>
+            </dl>
+            <a className="primary-button" href="/contact">Visit the shop</a>
+          </div>
+          <div className="ev-featured-media ev-puppy-media">
+            <figure className="ev-featured-shot ev-host-shot">
+              <img src="/events/puppy-mango.jpg" alt="Mango the Doxy, your host" loading="lazy" />
+              <figcaption>Mango the Doxy, your host.</figcaption>
+            </figure>
+            <figure className="ev-featured-shot ev-flyer">
+              <img src="/events/puppy-party-flyer.jpg" alt="Puppy Party event artwork" loading="lazy" />
+            </figure>
+          </div>
+        </article>
+
+        {/* Past Event 2: Salsa and Networking */}
+        <article className="ev-featured ev-featured-salsa">
+          <div className="ev-featured-copy">
+            <h2>Salsa and Networking</h2>
+            <p>An evening hosted with the Township of Union. Live open format DJ set by DJ Eazy E, salsa dancing that spilled from the counter out to the pavilion, and local business owners meeting each other over coffee.</p>
+            <dl className="ev-details">
+              <div>
+                <dt>Date</dt>
+                <dd>Thursday, August 13, 2026</dd>
+              </div>
+              <div>
+                <dt>Location</dt>
+                <dd>900 Green Lane, Union NJ 07083</dd>
+              </div>
+              <div>
+                <dt>Partner</dt>
+                <dd>Township of Union</dd>
+              </div>
+              <div>
+                <dt>Music</dt>
+                <dd>DJ Eazy E</dd>
+              </div>
+            </dl>
+            <a className="primary-button" href="/contact">Visit the shop</a>
+          </div>
+          <div className="ev-featured-media">
+            <figure className="ev-featured-shot ev-featured-shot-tall">
+              <img src="/events/salsa-05.jpg" alt="A couple dancing salsa" loading="lazy" />
+            </figure>
+            <figure className="ev-featured-shot">
+              <img src="/events/salsa-02.jpg" alt="DJ Eazy E at the decks with his open format screen display behind him" loading="lazy" />
+            </figure>
+            <figure className="ev-featured-shot">
+              <img src="/events/salsa-06.jpg" alt="Guests indoors under the Welcome to Salsa and Networking screen beside a balloon arch" loading="lazy" />
+            </figure>
+          </div>
+        </article>
       </section>
 
       <section className="ev-mayor">
@@ -86,18 +135,7 @@ export default function EventsPage() {
 
       <UpcomingEvents />
 
-      <section className="ev-gallery">
-        <div className="ev-gallery-head">
-          <h2>Salsa and Networking, in photos.</h2>
-        </div>
-        <div className="ev-gallery-grid">
-          {gallery.map((shot) => (
-            <figure key={shot.src} className="ev-shot">
-              <img src={shot.src} alt={shot.alt} loading="lazy" />
-            </figure>
-          ))}
-        </div>
-      </section>
+      <EventGallery photos={gallery} />
 
       <section className="ev-cta">
         <div>

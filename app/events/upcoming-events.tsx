@@ -18,31 +18,24 @@ type EventRecord = {
   imageCaption?: string | null;
 };
 
-const fallback: EventRecord = {
-  id: 0,
-  title: "Puppy Party",
-  description: "An evening for the neighborhood and their dogs, hosted by Mango the Doxy. Free entry, a menu made for dogs, raffles and prizes through the night. BYOB.",
-  dateLabel: "Friday, August 21, 2026",
-  timeLabel: "6:00 to 9:00 PM",
-  location: "900 Green Lane, Union NJ 07083",
-  entryLabel: "Free entry",
-  details: "BYOB, puppies, dog menu, raffles, prizes",
-  buttonLabel: "RSVP for Puppy Party · FREE",
-  buttonHref: "/contact",
-  imageLeftUrl: "/events/puppy-mango.jpg",
-  imageRightUrl: "/events/puppy-party-flyer.jpg",
-  imageCaption: "Mango the Doxy, your host.",
-};
-
 export function UpcomingEvents() {
-  const [items, setItems] = useState<EventRecord[]>([fallback]);
+  const [items, setItems] = useState<EventRecord[]>([]);
 
   useEffect(() => {
     fetch("/api/site-content", { cache: "no-store" })
-      .then((response) => response.ok ? response.json() : null)
-      .then((data) => data?.events?.length && setItems(data.events))
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (data?.events?.length) {
+          const upcoming = data.events.filter((e: EventRecord) => e.title !== "Puppy Party");
+          setItems(upcoming);
+        }
+      })
       .catch(() => undefined);
   }, []);
+
+  if (!items.length) {
+    return null;
+  }
 
   return (
     <section className="ev-upcoming">

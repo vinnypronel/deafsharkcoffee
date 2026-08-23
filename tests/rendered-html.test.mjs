@@ -34,6 +34,16 @@ test("protects the counter dashboard for anonymous visitors", async () => {
   assert.doesNotMatch(html, /Pause online orders/i);
 });
 
+test("protects both preparation-station screens for anonymous visitors", async () => {
+  for (const station of ["coffee", "kitchen"]) {
+    const response = await render(`/kds/${station}`, { "x-deaf-shark-render-test": "denied" });
+    assert.equal(response.status, 200);
+    const html = await response.text();
+    assert.match(html, /Staff access required/i);
+    assert.doesNotMatch(html, /Enable sound/i);
+  }
+});
+
 test("server-renders the expanded photographed menu", async () => {
   const response = await render("/menu");
   assert.equal(response.status, 200);

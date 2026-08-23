@@ -34,6 +34,8 @@ export function ensureSchema() {
           tax_cents integer NOT NULL,
           total_cents integer NOT NULL,
           status text DEFAULT 'new' NOT NULL,
+          coffee_status text DEFAULT 'not_needed' NOT NULL,
+          kitchen_status text DEFAULT 'not_needed' NOT NULL,
           source text DEFAULT 'website' NOT NULL,
           payment_method text DEFAULT 'pickup' NOT NULL,
           pickup_eta text DEFAULT '15 min' NOT NULL,
@@ -166,6 +168,18 @@ export function ensureSchema() {
 
       try {
         await d1.prepare("ALTER TABLE orders ADD COLUMN scheduled_for integer").run();
+      } catch {
+        // column already exists
+      }
+
+      try {
+        await d1.prepare("ALTER TABLE orders ADD COLUMN coffee_status text DEFAULT 'not_needed' NOT NULL").run();
+      } catch {
+        // column already exists
+      }
+
+      try {
+        await d1.prepare("ALTER TABLE orders ADD COLUMN kitchen_status text DEFAULT 'not_needed' NOT NULL").run();
       } catch {
         // column already exists
       }

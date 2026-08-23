@@ -84,6 +84,8 @@ export const orders = sqliteTable(
     taxCents: integer("tax_cents").notNull(),
     totalCents: integer("total_cents").notNull(),
     status: text("status").notNull().default("new"),
+    coffeeStatus: text("coffee_status").notNull().default("not_needed"),
+    kitchenStatus: text("kitchen_status").notNull().default("not_needed"),
     source: text("source").notNull().default("website"),
     paymentMethod: text("payment_method").notNull().default("pickup"),
     pickupEta: text("pickup_eta").notNull().default("15 min"),

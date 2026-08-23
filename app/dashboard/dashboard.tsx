@@ -21,6 +21,8 @@ type Order = {
   items: OrderItem[];
   totalCents: number;
   status: "new" | "preparing" | "ready" | "complete" | "cancelled";
+  coffeeStatus?: "new" | "preparing" | "ready" | "not_needed";
+  kitchenStatus?: "new" | "preparing" | "ready" | "not_needed";
   source: string;
   paymentMethod: string;
   pickupEta: string;
@@ -142,6 +144,8 @@ export function Dashboard() {
         <a className="dashboard-brand" href="/"><img src="/favicon.png" alt="" /><span><strong>Deaf Shark Coffee</strong></span></a>
         <div className="dashboard-tabs">
           <button className={activeView === "orders" ? "active" : ""} onClick={() => setActiveView("orders")}>Live orders <span>{openOrders.length}</span></button>
+          <a href="/kds/coffee" target="_blank" rel="noreferrer">Coffee screen</a>
+          <a href="/kds/kitchen" target="_blank" rel="noreferrer">Kitchen screen</a>
           <button className={activeView === "menu" ? "active" : ""} onClick={() => setActiveView("menu")}>Menu</button>
           <button className={activeView === "website" ? "active" : ""} onClick={() => setActiveView("website")}>Homepage</button>
           <button className={activeView === "events" ? "active" : ""} onClick={() => setActiveView("events")}>Events</button>

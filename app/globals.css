@@ -3268,3 +3268,16 @@ body.modal-open { overflow: hidden !important; touch-action: none; }
     transform: scale(1.02);
   }
 }
+
+video:fullscreen {
+  object-fit: contain !important;
+}
+
+video:-webkit-full-screen {
+  object-fit: contain !important;
+}
+
+video:-moz-full-screen {
+  object-fit: contain !important;
+}
+

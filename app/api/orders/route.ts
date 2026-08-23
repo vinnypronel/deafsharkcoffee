@@ -180,6 +180,8 @@ export async function POST(request: Request) {
       return Response.json({ error: "Online ordering is closed for today. Please schedule during store hours." }, { status: 409 });
     }
     const customerUserId = session?.user.id ?? null;
+    const hasCoffeeItems = orderItems.some((item) => item.prepStation === "COFFEE" || item.prepStation === "RETAIL");
+    const hasKitchenItems = orderItems.some((item) => item.prepStation === "KITCHEN");
 
     if (session) {
       await getDb().insert(customerProfiles).values({
@@ -202,6 +204,8 @@ export async function POST(request: Request) {
       taxCents,
       totalCents,
       status: "new",
+      coffeeStatus: hasCoffeeItems ? "new" : "not_needed",
+      kitchenStatus: hasKitchenItems ? "new" : "not_needed",
       source: "website",
       paymentMethod,
       pickupEta,
@@ -225,6 +229,8 @@ export async function POST(request: Request) {
           taxCents,
           totalCents,
           status: "new",
+          coffeeStatus: hasCoffeeItems ? "new" : "not_needed",
+          kitchenStatus: hasKitchenItems ? "new" : "not_needed",
           source: "website",
           paymentMethod,
           pickupEta,
