@@ -428,10 +428,16 @@ Transactional messages and marketing messages are different. Order confirmations
 
 ## Quantic and two KDS screens
 
+- [x] Keep Quantic as the production POS for launch.
+- [x] Defer a custom Deaf Shark POS/register interface to a future phase.
+- [x] Defer the custom staff preparation dashboard/KDS to a future phase or emergency fallback.
 - [ ] Choose the Quantic-approved integration path.
+- [ ] Make the production website submit completed online orders into Quantic.
 - [ ] Map website product IDs/modifiers to Quantic catalog IDs.
 - [ ] Map every order item to Coffee, Kitchen, or Retail.
 - [ ] Split mixed orders correctly without losing one customer order number.
+- [ ] Confirm drink line items reach the front coffee preparation screen.
+- [ ] Confirm food line items reach the kitchen preparation screen.
 - [ ] Send payment status, tip, tax, pickup time, customer name, phone, and notes.
 - [ ] Receive or poll acknowledgment from Quantic.
 - [ ] Retry transient failures without creating duplicates.
@@ -440,6 +446,20 @@ Transactional messages and marketing messages are different. Order confirmations
 - [ ] Decide which system owns status changes.
 - [ ] Sync Ready status back to the website before sending customer notifications.
 - [ ] Complete test cases: coffee only, food only, mixed order, sold-out item, modifier upcharge, scheduled order, refund, cancellation, and connection failure.
+
+### Diagnose the shop's existing missing-item routing issue
+
+- [ ] List specific items that correctly reach a preparation screen and items that do not.
+- [ ] For each failed example, record the date/time, Quantic order number, register used, order type, and expected preparation screen.
+- [ ] Determine whether the entire order is missing, only a line item is missing, or the item appears on the receipt/POS but not on the KDS.
+- [ ] Compare a working and non-working item's Quantic configuration: category/department, course, preparation station, printer/KDS routing, product type, active menu, and fulfillment/order-type rules.
+- [ ] Test a failing item by itself and in a mixed order, both with and without modifiers.
+- [ ] Test from each in-store register to determine whether the problem follows the item configuration or one register/device.
+- [ ] Verify both Quantic preparation screens are online, synchronized, and assigned to the intended station.
+- [ ] Capture Quantic app/software versions and the names/models of both preparation-screen devices.
+- [ ] Obtain Quantic owner/admin access or schedule a session with the owner present. Do not request or store the owner's password in project files.
+- [ ] Open a Quantic support case with example order numbers and configuration screenshots if the routing difference is not visible in the admin settings.
+- [ ] Retest every previously failing item after configuration changes and save the results.
 
 ## Fallback plan if Quantic is not approved by cutoff
 

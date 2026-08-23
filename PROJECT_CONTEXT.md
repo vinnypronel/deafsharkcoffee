@@ -4,14 +4,19 @@
 
 This document describes the current product direction, completed implementation, technical architecture, known assumptions, and recommended next steps. It is intended to let another developer or AI continue the project without needing the original conversation.
 
-Last updated: August 21, 2026
+Last updated: August 22, 2026
 
 ## August 21 launch-scope decision
 
 - Deaf Shark will continue using its existing Quantic POS at launch; this project is not replacing the register software.
 - The photographed register is a SUNMI D3 Pro.
-- Online orders must eventually enter Quantic and route prepared drinks to the front coffee KDS and food to the kitchen KDS.
-- Until Quantic confirms an approved API or embedded-eCommerce path, the custom dashboard remains a fallback/testing monitor rather than the intended production POS.
+- Online orders must enter Quantic for launch and route prepared drinks to the front coffee KDS and food to the kitchen KDS.
+- A custom Deaf Shark POS/register interface is a future phase and is not required for the September 1 launch.
+- A custom staff order-preparation dashboard/KDS is also future work. The admin area may retain order history and diagnostic/fallback views, but staff should not need it to prepare normal launch-day orders.
+- The required launch path is: Deaf Shark website -> Quantic -> drink line items on the front coffee preparation screen and food line items on the kitchen preparation screen.
+- Mixed website orders must remain one customer order and payment while Quantic routes each line item to the correct preparation station.
+- Until Quantic confirms an approved API or embedded-eCommerce path, the custom dashboard remains a fallback/testing monitor rather than the intended production order system.
+- The existing Quantic problem where some register items reach a preparation screen and other items do not is a separate configuration/support issue to diagnose before launch.
 - Cart and stored order items now carry an authoritative preparation station: `COFFEE`, `KITCHEN`, or `RETAIL`.
 
 ## Quick links
@@ -70,7 +75,7 @@ The intended staff experience is:
 2. Route drink items to the front coffee station and food items to the kitchen station.
 3. Move orders through New, Preparing, Ready, and Complete in Quantic.
 4. Mark items available or sold out.
-5. Use the custom dashboard only as a fallback/testing monitor until the Quantic integration is approved.
+5. Use the website admin area for content, forms, and history. Treat its live-order board only as a future/fallback/testing tool rather than the launch-day KDS.
 
 ## Brand and design direction
 
