@@ -1,6 +1,6 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../../db";
-import { customerProfiles, loyaltyTransactions } from "../../../../db/schema";
+import { customerProfiles, loyaltyTransactions, memberOffers } from "../../../../db/schema";
 import { requireStaff } from "../../../../lib/staff-auth";
 
 export async function GET(request: Request) {
@@ -8,12 +8,36 @@ export async function GET(request: Request) {
   if (staff.response) return staff.response;
   await ensureSchema();
 
-  const [members, transactions] = await Promise.all([
+  const [members, transactions, offers] = await Promise.all([
     getDb().select().from(customerProfiles).orderBy(desc(customerProfiles.updatedAt)).limit(500),
     getDb().select().from(loyaltyTransactions).orderBy(desc(loyaltyTransactions.createdAt)).limit(250),
+    getDb().select().from(memberOffers).orderBy(desc(memberOffers.issuedAt)).limit(500),
   ]);
 
-  return Response.json({ members, transactions });
+  return Response.json({ members, transactions, offers });
+}
+
+export async function POST(request: Request) {
+  const staff = await requireStaff(request);
+  if (staff.response) return staff.response;
+  await ensureSchema();
+
+  const payload = (await request.json()) as { offerId?: number; action?: string };
+  const offerId = Number(payload.offerId);
+  if (!Number.isInteger(offerId) || offerId < 1 || payload.action !== "redeem") {
+    return Response.json({ error: "Choose an active member offer to redeem." }, { status: 400 });
+  }
+
+  const [redeemed] = await getDb().update(memberOffers).set({
+    status: "redeemed",
+    redeemedAt: new Date(),
+    redeemedBy: staff.session.user.email,
+  }).where(and(eq(memberOffers.id, offerId), eq(memberOffers.status, "active"))).returning();
+
+  if (!redeemed) {
+    return Response.json({ error: "This offer has already been redeemed or is no longer active." }, { status: 409 });
+  }
+  return Response.json({ ok: true, offer: redeemed });
 }
 
 export async function PATCH(request: Request) {

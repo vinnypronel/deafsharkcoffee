@@ -110,6 +110,7 @@ export const customerProfiles = sqliteTable("customer_profiles", {
   lifetimePoints: integer("lifetime_points").notNull().default(0),
   birthdayMonth: integer("birthday_month"),
   birthdayDay: integer("birthday_day"),
+  signupBonusAwarded: integer("signup_bonus_awarded", { mode: "boolean" }).notNull().default(false),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
@@ -120,6 +121,7 @@ export const loyaltyTransactions = sqliteTable(
     id: integer("id").primaryKey({ autoIncrement: true }),
     userId: text("user_id").notNull(),
     orderId: integer("order_id"),
+    reference: text("reference"),
     pointsChange: integer("points_change").notNull(),
     balanceAfter: integer("balance_after").notNull(),
     reason: text("reason").notNull(),
@@ -128,6 +130,26 @@ export const loyaltyTransactions = sqliteTable(
   (table) => [
     index("idx_loyalty_user_created_at").on(table.userId, table.createdAt),
     uniqueIndex("idx_loyalty_order_unique").on(table.orderId),
+    uniqueIndex("idx_loyalty_reference_unique").on(table.reference),
+  ],
+);
+
+export const memberOffers = sqliteTable(
+  "member_offers",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    userId: text("user_id").notNull(),
+    offerType: text("offer_type").notNull(),
+    code: text("code").notNull(),
+    status: text("status").notNull().default("active"),
+    issuedAt: integer("issued_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+    redeemedAt: integer("redeemed_at", { mode: "timestamp" }),
+    redeemedBy: text("redeemed_by"),
+  },
+  (table) => [
+    uniqueIndex("idx_member_offer_user_type_unique").on(table.userId, table.offerType),
+    uniqueIndex("idx_member_offer_code_unique").on(table.code),
+    index("idx_member_offer_status_issued_at").on(table.status, table.issuedAt),
   ],
 );
 

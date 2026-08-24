@@ -10,7 +10,8 @@ type EventDraft = { id?: number; title: string; description: string; dateLabel: 
 type Records = { orders: any[]; contacts: any[]; applications: any[]; subscribers: any[] };
 type LoyaltyMember = { userId: string; email: string; displayName: string; phone?: string | null; points: number; lifetimePoints: number; updatedAt: string };
 type LoyaltyTransaction = { id: number; userId: string; orderId?: number | null; pointsChange: number; balanceAfter: number; reason: string; createdAt: string };
-type LoyaltyData = { members: LoyaltyMember[]; transactions: LoyaltyTransaction[] };
+type MemberOffer = { id: number; userId: string; offerType: string; code: string; status: string; issuedAt: string; redeemedAt?: string | null; redeemedBy?: string | null };
+type LoyaltyData = { members: LoyaltyMember[]; transactions: LoyaltyTransaction[]; offers: MemberOffer[] };
 
 const emptyEvent: EventDraft = {
   title: "", description: "", dateLabel: "", timeLabel: "", location: "900 Green Lane, Union NJ 07083",
@@ -29,7 +30,7 @@ export function AdminPanels({ view }: { view: View }) {
   const [featured, setFeatured] = useState<Featured[]>([]);
   const [events, setEvents] = useState<EventDraft[]>([]);
   const [records, setRecords] = useState<Records>({ orders: [], contacts: [], applications: [], subscribers: [] });
-  const [loyalty, setLoyalty] = useState<LoyaltyData>({ members: [], transactions: [] });
+  const [loyalty, setLoyalty] = useState<LoyaltyData>({ members: [], transactions: [], offers: [] });
   const [message, setMessage] = useState("");
   const [newEvent, setNewEvent] = useState<EventDraft>(emptyEvent);
 
@@ -45,7 +46,10 @@ export function AdminPanels({ view }: { view: View }) {
       setEvents(data.events ?? []);
     }
     if (recordsResponse.ok) setRecords(await recordsResponse.json());
-    if (loyaltyResponse.ok) setLoyalty(await loyaltyResponse.json());
+    if (loyaltyResponse.ok) {
+      const data = await loyaltyResponse.json();
+      setLoyalty({ members: data.members ?? [], transactions: data.transactions ?? [], offers: data.offers ?? [] });
+    }
   }, []);
 
   useEffect(() => { load().catch(() => setMessage("Some admin data could not be loaded.")); }, [load]);
@@ -129,6 +133,7 @@ function LoyaltyManager({ data, message, setMessage, reload }: { data: LoyaltyDa
   const query = search.trim().toLowerCase();
   const members = data.members.filter((member) => !query || [member.displayName, member.email, member.phone].some((value) => value?.toLowerCase().includes(query)));
   const memberNames = new Map(data.members.map((member) => [member.userId, member.displayName]));
+  const offersByMember = new Map(data.offers.map((offer) => [offer.userId, offer]));
 
   async function adjust(member: LoyaltyMember) {
     const pointsChange = Number(changes[member.userId]);
@@ -151,27 +156,48 @@ function LoyaltyManager({ data, message, setMessage, reload }: { data: LoyaltyDa
     await reload();
   }
 
+  async function redeem(member: LoyaltyMember, offer: MemberOffer) {
+    if (!window.confirm(`Mark ${member.displayName}'s 50% off coffee offer as redeemed?`)) return;
+    setSaving(`offer:${offer.id}`);
+    setMessage("Redeeming in-store offer…");
+    const response = await fetch("/api/admin/loyalty", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ offerId: offer.id, action: "redeem" }),
+    });
+    const result = await response.json();
+    setSaving(null);
+    if (!response.ok) return setMessage(result.error || "Could not redeem this offer.");
+    setMessage(`${member.displayName}'s in-store offer was redeemed.`);
+    await reload();
+  }
+
   return (
-    <AdminSection eyebrow="Customer rewards" title="Loyalty members" description="Review member balances and make traceable corrections. Customers earn one point per dollar when a signed-in order is completed; every 100 points unlocks a $5 reward.">
+    <AdminSection eyebrow="Customer rewards" title="Loyalty members" description="Every new member receives 25 welcome points and one in-store half-off coffee offer. Review balances, redeem welcome offers, and make traceable corrections here.">
       {message && <AdminNotice>{message}</AdminNotice>}
-      <div className="record-summary"><span><strong>{data.members.length}</strong> members</span><span><strong>{data.members.reduce((total, member) => total + member.points, 0)}</strong> active points</span><span><strong>{data.transactions.length}</strong> recent point records</span></div>
+      <div className="record-summary"><span><strong>{data.members.length}</strong> members</span><span><strong>{data.members.reduce((total, member) => total + member.points, 0)}</strong> active points</span><span><strong>{data.offers.filter((offer) => offer.status === "active").length}</strong> active welcome offers</span></div>
       <label className="loyalty-search">Find a member<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name, email, or phone" /></label>
       <div className="loyalty-member-grid">
-        {members.map((member) => (
-          <article className="loyalty-member-card" key={member.userId}>
+        {members.map((member) => {
+          const offer = offersByMember.get(member.userId);
+          return <article className="loyalty-member-card" key={member.userId}>
             <header><div><strong>{member.displayName}</strong><small>{member.email}{member.phone ? ` · ${member.phone}` : ""}</small></div><span>{member.points} pts</span></header>
             <div className="loyalty-progress"><i style={{ width: `${Math.min(100, member.points % 100 || (member.points > 0 ? 100 : 0))}%` }} /></div>
-            <p>{member.points >= 100 ? `${Math.floor(member.points / 100)} reward${Math.floor(member.points / 100) === 1 ? "" : "s"} available` : `${100 - member.points} points to a $5 reward`} · {member.lifetimePoints} earned from orders</p>
+            <p>{member.points >= 100 ? `${Math.floor(member.points / 100)} reward${Math.floor(member.points / 100) === 1 ? "" : "s"} available` : `${100 - member.points} points to a $5 reward`} · {member.lifetimePoints} lifetime points</p>
+            {offer && <div className={`member-offer member-offer-${offer.status}`}>
+              <div><strong>50% off one coffee</strong><code>{offer.code}</code><small>{offer.status === "active" ? "In-store offer ready" : `Redeemed ${when(offer.redeemedAt)}`}</small></div>
+              {offer.status === "active" && <button className="admin-save" disabled={saving === `offer:${offer.id}`} onClick={() => redeem(member, offer)}>{saving === `offer:${offer.id}` ? "Saving…" : "Mark redeemed"}</button>}
+            </div>}
             <div className="loyalty-adjustment">
               <label>Points<input type="number" step="1" value={changes[member.userId] ?? ""} onChange={(event) => setChanges((current) => ({ ...current, [member.userId]: event.target.value }))} placeholder="+25 or -25" /></label>
               <label>Reason<input value={reasons[member.userId] ?? ""} onChange={(event) => setReasons((current) => ({ ...current, [member.userId]: event.target.value }))} maxLength={120} placeholder="Customer service correction" /></label>
               <button className="admin-save" disabled={saving === member.userId} onClick={() => adjust(member)}>{saving === member.userId ? "Saving…" : "Apply"}</button>
             </div>
-          </article>
-        ))}
+          </article>;
+        })}
         {members.length === 0 && <p className="empty-records">No matching loyalty members.</p>}
       </div>
-      <section className="records-block"><h2>Recent points activity</h2><div className="admin-table-wrap"><table className="admin-table loyalty-ledger"><thead><tr><th>Date</th><th>Customer</th><th>Change</th><th>Balance</th><th>Reason</th></tr></thead><tbody>{data.transactions.map((entry) => <tr key={entry.id}><td>{when(entry.createdAt)}</td><td>{memberNames.get(entry.userId) || "Customer"}</td><td><strong className={entry.pointsChange >= 0 ? "points-positive" : "points-negative"}>{entry.pointsChange >= 0 ? "+" : ""}{entry.pointsChange}</strong></td><td>{entry.balanceAfter}</td><td>{entry.reason === "completed_order" ? `Completed order${entry.orderId ? ` #${entry.orderId}` : ""}` : entry.reason.replace(/^staff_adjustment:/, "Staff: ")}</td></tr>)}</tbody></table></div></section>
+      <section className="records-block"><h2>Recent points activity</h2><div className="admin-table-wrap"><table className="admin-table loyalty-ledger"><thead><tr><th>Date</th><th>Customer</th><th>Change</th><th>Balance</th><th>Reason</th></tr></thead><tbody>{data.transactions.map((entry) => <tr key={entry.id}><td>{when(entry.createdAt)}</td><td>{memberNames.get(entry.userId) || "Customer"}</td><td><strong className={entry.pointsChange >= 0 ? "points-positive" : "points-negative"}>{entry.pointsChange >= 0 ? "+" : ""}{entry.pointsChange}</strong></td><td>{entry.balanceAfter}</td><td>{entry.reason === "completed_order" ? `Completed order${entry.orderId ? ` #${entry.orderId}` : ""}` : entry.reason === "signup_bonus" ? "New member bonus" : entry.reason.replace(/^staff_adjustment:/, "Staff: ")}</td></tr>)}</tbody></table></div></section>
     </AdminSection>
   );
 }

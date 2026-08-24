@@ -53,6 +53,7 @@ export function ensureSchema() {
           lifetime_points integer DEFAULT 0 NOT NULL,
           birthday_month integer,
           birthday_day integer,
+          signup_bonus_awarded integer DEFAULT false NOT NULL,
           created_at integer NOT NULL,
           updated_at integer NOT NULL
         )`),
@@ -60,10 +61,21 @@ export function ensureSchema() {
           id integer PRIMARY KEY AUTOINCREMENT,
           user_id text NOT NULL,
           order_id integer,
+          reference text,
           points_change integer NOT NULL,
           balance_after integer NOT NULL,
           reason text NOT NULL,
           created_at integer NOT NULL
+        )`),
+        d1.prepare(`CREATE TABLE IF NOT EXISTS member_offers (
+          id integer PRIMARY KEY AUTOINCREMENT,
+          user_id text NOT NULL,
+          offer_type text NOT NULL,
+          code text NOT NULL,
+          status text DEFAULT 'active' NOT NULL,
+          issued_at integer NOT NULL,
+          redeemed_at integer,
+          redeemed_by text
         )`),
         d1.prepare(`CREATE TABLE IF NOT EXISTS store_settings (
           id integer PRIMARY KEY DEFAULT 1 NOT NULL,
@@ -154,6 +166,9 @@ export function ensureSchema() {
         d1.prepare("CREATE INDEX IF NOT EXISTS idx_orders_status_created_at ON orders (status, created_at)"),
         d1.prepare("CREATE INDEX IF NOT EXISTS idx_loyalty_user_created_at ON loyalty_transactions (user_id, created_at)"),
         d1.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_loyalty_order_unique ON loyalty_transactions (order_id)"),
+        d1.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_member_offer_user_type_unique ON member_offers (user_id, offer_type)"),
+        d1.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_member_offer_code_unique ON member_offers (code)"),
+        d1.prepare("CREATE INDEX IF NOT EXISTS idx_member_offer_status_issued_at ON member_offers (status, issued_at)"),
         d1.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_newsletter_email_unique ON newsletter_subscriptions (email)"),
         d1.prepare("CREATE INDEX IF NOT EXISTS idx_contact_status_created_at ON contact_inquiries (status, created_at)"),
         d1.prepare("CREATE INDEX IF NOT EXISTS idx_employment_status_created_at ON employment_applications (status, created_at)"),
@@ -204,6 +219,8 @@ export function ensureSchema() {
         "ALTER TABLE customer_profiles ADD COLUMN lifetime_points integer DEFAULT 0 NOT NULL",
         "ALTER TABLE customer_profiles ADD COLUMN birthday_month integer",
         "ALTER TABLE customer_profiles ADD COLUMN birthday_day integer",
+        "ALTER TABLE customer_profiles ADD COLUMN signup_bonus_awarded integer DEFAULT false NOT NULL",
+        "ALTER TABLE loyalty_transactions ADD COLUMN reference text",
       ]) {
         try {
           await d1.prepare(statement).run();
@@ -211,6 +228,8 @@ export function ensureSchema() {
           // column already exists
         }
       }
+
+      await d1.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_loyalty_reference_unique ON loyalty_transactions (reference)").run();
 
       await d1.prepare("PRAGMA optimize").run();
     })();

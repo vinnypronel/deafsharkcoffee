@@ -14,7 +14,7 @@ type HeaderOrder = {
 
 const STORAGE_KEY = "deaf-shark-customer-orders";
 const statusLabels: Record<string, string> = { new: "Received", preparing: "Preparing", ready: "Ready for pickup", complete: "Completed", cancelled: "Cancelled" };
-type ProfileResponse = { authenticated: boolean; profile?: { displayName: string; email: string; phone?: string | null; points: number; lifetimePoints: number; activity?: Array<{ id: number; pointsChange: number; balanceAfter: number; reason: string; createdAt: string }> } };
+type ProfileResponse = { authenticated: boolean; profile?: { displayName: string; email: string; phone?: string | null; points: number; lifetimePoints: number; activity?: Array<{ id: number; pointsChange: number; balanceAfter: number; reason: string; createdAt: string }>; welcomeOffer?: { id: number; code: string; status: string; issuedAt: string; redeemedAt?: string | null } | null } };
 type AuthConfig = { googleEnabled: boolean; emailEnabled: boolean; emailVerificationEnabled: boolean };
 
 async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit, timeoutMs = 6000) {
@@ -48,6 +48,11 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
   const [profileOpen, setProfileOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
+  const [authConfig, setAuthConfig] = useState<AuthConfig>({
+    googleEnabled: false,
+    emailEnabled: true,
+    emailVerificationEnabled: false,
+  });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const links = [["/", "Home"], ["/menu", "Menu"], ["/about", "Our Story"], ["/events", "Events"], ["/contact", "Visit Us"], ["/employment", "Apply now"]];
   const loadReference = useCallback(() => setReference(latestSavedOrder()), []);
@@ -77,14 +82,15 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
 
   useEffect(() => {
     if (!reference) { setOrder(null); return; }
+    const savedReference = reference;
     let activeRequest = true;
     async function refresh() {
       try {
-        const response = await fetch("/api/customer-orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(reference), cache: "no-store" });
+        const response = await fetch("/api/customer-orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(savedReference), cache: "no-store" });
         if (response.status === 404 || response.status === 400) {
           try {
             const currentList = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "[]") as SavedOrder[];
-            const remaining = currentList.filter((item) => item.orderNumber !== reference.orderNumber);
+            const remaining = currentList.filter((item) => item.orderNumber !== savedReference.orderNumber);
             window.localStorage.setItem(STORAGE_KEY, JSON.stringify(remaining));
             window.dispatchEvent(new Event("deaf-shark-orders-updated"));
           } catch {}
@@ -99,7 +105,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
           if (!ord || ord.status === "complete" || ord.status === "completed" || ord.status === "cancelled" || ord.status === "picked_up") {
             try {
               const currentList = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "[]") as SavedOrder[];
-              const remaining = currentList.filter((item) => item.orderNumber !== reference.orderNumber);
+              const remaining = currentList.filter((item) => item.orderNumber !== savedReference.orderNumber);
               window.localStorage.setItem(STORAGE_KEY, JSON.stringify(remaining));
               window.dispatchEvent(new Event("deaf-shark-orders-updated"));
             } catch {}
@@ -498,7 +504,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
             {profile && !profile.authenticated && (
               <>
                 <h2>Sign in or create your account</h2>
-                <p>Use one secure account to order faster, follow pickups, and earn Deaf Shark loyalty points.</p>
+                <p>Create your free account to receive 25 welcome points and a one-time 50% off coffee offer for your next in-store visit.</p>
 
                 <div className="social-auth-buttons">
                   <button
@@ -574,11 +580,20 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                   <div><i style={{ width: `${Math.min(100, profile.profile.points)}%` }} /></div>
                   <small>{Math.max(0, 100 - profile.profile.points)} points until your next $5 reward</small>
                 </div>
-                <p className="loyalty-note">Earn one point for every dollar spent on signed-in orders.</p>
+                <p className="loyalty-note">Your 25-point welcome bonus is ready. Purchase-point earning will begin when the store connection is enabled.</p>
+                {profile.profile.welcomeOffer && (
+                  <div className={`welcome-offer welcome-offer-${profile.profile.welcomeOffer.status}`}>
+                    <span>{profile.profile.welcomeOffer.status === "active" ? "New member offer" : "Offer used"}</span>
+                    <strong>50% off one coffee</strong>
+                    <p>{profile.profile.welcomeOffer.status === "active" ? "Show this code to a team member when ordering in store." : "This one-time welcome offer has been redeemed."}</p>
+                    <code>{profile.profile.welcomeOffer.code}</code>
+                    <small>In store only · One prepared coffee drink · Base drink only · Cannot be combined with another offer</small>
+                  </div>
+                )}
                 {profile.profile.activity && profile.profile.activity.length > 0 && (
                   <div className="account-points-activity">
                     <strong>Recent points</strong>
-                    {profile.profile.activity.slice(0, 3).map((entry) => <div key={entry.id}><span>{entry.reason === "completed_order" ? "Completed order" : entry.reason.replace(/^staff_adjustment:/, "Staff adjustment: ")}</span><b className={entry.pointsChange >= 0 ? "points-positive" : "points-negative"}>{entry.pointsChange >= 0 ? "+" : ""}{entry.pointsChange}</b></div>)}
+                    {profile.profile.activity.slice(0, 3).map((entry) => <div key={entry.id}><span>{entry.reason === "completed_order" ? "Completed order" : entry.reason === "signup_bonus" ? "Welcome bonus" : entry.reason.replace(/^staff_adjustment:/, "Staff adjustment: ")}</span><b className={entry.pointsChange >= 0 ? "points-positive" : "points-negative"}>{entry.pointsChange >= 0 ? "+" : ""}{entry.pointsChange}</b></div>)}
                   </div>
                 )}
                 <form className="account-profile-form" onSubmit={saveProfile} noValidate>
