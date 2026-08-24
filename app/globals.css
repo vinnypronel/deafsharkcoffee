@@ -454,7 +454,12 @@ h1, h2, h3, p { margin-top: 0; }
 .welcome-offer > span { color: #8b572d; font-size: 10px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; }
 .welcome-offer > strong { font-family: Georgia, serif; font-size: 24px; }
 .welcome-offer > p { margin: 0; color: #67544a; font-size: 13px; line-height: 1.45; }
-.welcome-offer > code { width: fit-content; border-radius: 8px; padding: 7px 10px; background: var(--espresso); color: #fffaf3; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 14px; font-weight: 800; letter-spacing: .06em; }
+.offer-barcode { display: grid; gap: 6px; width: 100%; border: 1px solid rgba(34,18,12,.16); border-radius: 12px; padding: 10px 10px 8px; background: #fff; text-align: center; }
+.offer-barcode svg { display: block; width: 100%; height: 62px; }
+.offer-barcode code { color: var(--espresso); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 13px; font-weight: 900; letter-spacing: .08em; overflow-wrap: anywhere; }
+.offer-barcode-compact { width: min(250px, 100%); padding: 6px 7px 5px; }
+.offer-barcode-compact svg { height: 42px; }
+.offer-barcode-compact code { font-size: 10px; }
 .welcome-offer > small { color: #78645a; font-size: 10.5px; line-height: 1.45; }
 .welcome-offer-redeemed { border-style: solid; background: #eee9e2; filter: saturate(.3); }
 .account-points-activity { display: grid; gap: 8px; margin: 0 0 20px; border: 1px solid rgba(34,18,12,.12); border-radius: 14px; padding: 14px 16px; text-align: left; }
@@ -505,7 +510,7 @@ h1, h2, h3, p { margin-top: 0; }
   background: linear-gradient(90deg, rgba(20, 10, 6, 0.78) 0%, rgba(20, 10, 6, 0.38) 36%, transparent 52%, transparent 100%);
   pointer-events: none;
 }
-.hero-copy { position: relative; z-index: 2; display: flex; flex-direction: column; justify-content: center; padding: 8vw 5vw 7vw max(5vw, calc((100vw - 1440px) / 2)); }
+.hero-copy { position: relative; z-index: 2; display: flex; flex-direction: column; justify-content: center; padding: 8vw 5vw 7vw clamp(20px, 2.8vw, 48px); }
 .eyebrow { display: block; margin-bottom: 18px; color: var(--gold); font-size: 12px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; }
 .hero-copy > .eyebrow,
 .order-intro > .eyebrow,
@@ -1313,6 +1318,40 @@ h1, h2, h3, p { margin-top: 0; }
   flex-direction: column;
   gap: 2px;
   padding-top: 10px;
+}
+.menu-subsection-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.menu-subsection-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+  margin-bottom: 4px;
+  padding: 4px 14px 2px;
+}
+.menu-subsection-group:first-child .menu-subsection-header {
+  margin-top: 4px;
+}
+.menu-subsection-title {
+  margin: 0;
+  font-family: Georgia, serif;
+  font-size: 16.5px;
+  font-weight: 700;
+  color: var(--espresso);
+  letter-spacing: -0.01em;
+}
+.menu-subsection-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(45, 26, 18, 0.2) 0%, rgba(45, 26, 18, 0.04) 85%, transparent 100%);
+}
+.menu-subsection-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 .menu-item-row {
   width: 100%;
@@ -2749,7 +2788,7 @@ body.modal-open { overflow: hidden !important; touch-action: none; }
 .member-offer { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 0 0 17px; border: 1px solid #e6c88f; border-radius: 13px; padding: 12px; background: #fff8e9; }
 .member-offer > div { min-width: 0; display: grid; gap: 3px; }
 .member-offer strong { font-size: 13px; }
-.member-offer code { color: #6e421d; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; font-weight: 800; overflow-wrap: anywhere; }
+.member-offer .offer-barcode { margin: 3px 0; }
 .member-offer small { color: var(--muted); font-size: 10px; }
 .member-offer .admin-save { flex: 0 0 auto; min-height: 38px; }
 .member-offer-redeemed { border-color: var(--line); background: #f2efea; opacity: .76; }
@@ -3156,6 +3195,7 @@ body.modal-open { overflow: hidden !important; touch-action: none; }
     min-height: 0;
     padding-top: clamp(20px, 4.5vh, 68px);
     padding-bottom: clamp(20px, 4.5vh, 68px);
+    padding-left: clamp(20px, 2.8vw, 48px);
   }
   .hero-copy .eyebrow { margin-bottom: clamp(8px, 1.8vh, 18px); }
   .hero h1 {
@@ -3168,6 +3208,7 @@ body.modal-open { overflow: hidden !important; touch-action: none; }
   }
   .hero-actions {
     margin-top: clamp(10px, 2.4vh, 22px);
+    gap: 18px;
   }
   .hero-actions .primary-button { min-height: clamp(44px, 6vh, 54px); }
   .hero-details {

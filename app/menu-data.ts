@@ -59,6 +59,7 @@ export type Product = {
   id: string;
   name: string;
   category: Exclude<MenuCategory, "Popular">;
+  section?: string;
   /* Explicit for exceptions; otherwise derived from the category. */
   prepStation?: PrepStation;
   /* Lowest price across sizes. The configurator charges by the chosen size. */
@@ -501,6 +502,7 @@ export const menuProducts: Product[] = [
     id: "strawberry-matcha",
     name: "Strawberry Matcha",
     category: "Non-Coffee",
+    section: "Matcha",
     price: 7.75,
     description: "Layered strawberry purée, creamy milk, and ceremonial Japanese emerald matcha over ice.",
     popular: true,
@@ -514,6 +516,7 @@ export const menuProducts: Product[] = [
     id: "matcha-latte",
     name: "Matcha Latte",
     category: "Non-Coffee",
+    section: "Matcha",
     price: 6.75,
     description: "Ceremonial Japanese emerald matcha whisked with silky milk, served hot or iced.",
     popular: true,
@@ -526,6 +529,7 @@ export const menuProducts: Product[] = [
     id: "mango-matcha",
     name: "Mango Matcha",
     category: "Non-Coffee",
+    section: "Matcha",
     price: 7.75,
     description: "Ceremonial matcha layered with mango over ice.",
     configurable: true,
@@ -538,6 +542,7 @@ export const menuProducts: Product[] = [
     id: "chai-tea-latte",
     name: "Chai Tea Latte",
     category: "Non-Coffee",
+    section: "Tea",
     price: 4.5,
     description: "Spiced chai with steamed milk, hot or over ice.",
     configurable: true,
@@ -552,6 +557,7 @@ export const menuProducts: Product[] = [
     id: "hot-tea",
     name: "Hot Tea",
     category: "Non-Coffee",
+    section: "Tea",
     price: 2.75,
     description: "Loose leaf tea brewed to order.",
     configurable: true,
@@ -566,6 +572,7 @@ export const menuProducts: Product[] = [
     id: "smoothie-strawberry",
     name: "Strawberry Smoothie",
     category: "Non-Coffee",
+    section: "Smoothies",
     price: 6.95,
     description: "Blended strawberry, 16 oz.",
     configurable: true,
@@ -578,6 +585,7 @@ export const menuProducts: Product[] = [
     id: "smoothie-strawberry-banana",
     name: "Strawberry Banana Smoothie",
     category: "Non-Coffee",
+    section: "Smoothies",
     price: 6.95,
     description: "Blended strawberry and banana, 16 oz.",
     configurable: true,
@@ -590,6 +598,7 @@ export const menuProducts: Product[] = [
     id: "smoothie-berry-blend",
     name: "Berry Blend Smoothie",
     category: "Non-Coffee",
+    section: "Smoothies",
     price: 6.95,
     description: "Mixed berries blended smooth, 16 oz.",
     configurable: true,
@@ -602,6 +611,7 @@ export const menuProducts: Product[] = [
     id: "smoothie-tropical-sunrise",
     name: "Tropical Sunrise Smoothie",
     category: "Non-Coffee",
+    section: "Smoothies",
     price: 6.95,
     description: "Peach, pineapple, mango, and strawberry, 16 oz.",
     configurable: true,
@@ -614,6 +624,7 @@ export const menuProducts: Product[] = [
     id: "chicha",
     name: "Chicha",
     category: "Non-Coffee",
+    section: "Specialties",
     price: 4.75,
     description: "Rice-based coconut drink with condensed milk and vanilla.",
     popular: true,
@@ -636,7 +647,6 @@ export const menuProducts: Product[] = [
     }],
     visual: "sandwich",
     photo: "/food-croissant-bagel.jpg",
-    photo: "/food-croissant-bagel.jpg",
   },
   {
     id: "bagel-with-spread",
@@ -650,7 +660,6 @@ export const menuProducts: Product[] = [
       { label: "Spread", type: "single", required: true, options: ["Cream cheese", "Jelly"].map((label) => ({ label })) },
     ],
     visual: "sandwich",
-    photo: "/food-bagel-cream-cheese.jpg",
     photo: "/food-bagel-cream-cheese.jpg",
   },
   {
@@ -685,7 +694,6 @@ export const menuProducts: Product[] = [
     modifierGroups: [BREAKFAST_BREAD_MODIFIER, CHEESE_UPGRADES, ADD_BACON, FOOD_ADD_ONS],
     visual: "sandwich",
     photo: "/food-ham-cheese-breakfast.jpg",
-    photo: "/food-ham-cheese-breakfast.jpg",
   },
   {
     id: "egg-and-cheese-breakfast",
@@ -696,7 +704,6 @@ export const menuProducts: Product[] = [
     configurable: true,
     modifierGroups: [BREAKFAST_BREAD_MODIFIER, CHEESE_UPGRADES, ADD_BACON, FOOD_ADD_ONS],
     visual: "sandwich",
-    photo: "/food-egg-cheese-breakfast.jpg",
     photo: "/food-egg-cheese-breakfast.jpg",
   },
   {
@@ -727,7 +734,6 @@ export const menuProducts: Product[] = [
     ],
     visual: "sandwich",
     photo: "/food-classic-breakfast.jpg",
-    photo: "/food-classic-breakfast.jpg",
   },
   {
     id: "breakfast-wrap",
@@ -739,7 +745,6 @@ export const menuProducts: Product[] = [
     modifierGroups: [CHEESE_UPGRADES, EXTRA_BACON, FOOD_ADD_ONS],
     visual: "sandwich",
     photo: "/food-breakfast-wrap.jpg",
-    photo: "/food-breakfast-wrap.jpg",
   },
   {
     id: "taylor-ham-egg-cheese",
@@ -750,7 +755,6 @@ export const menuProducts: Product[] = [
     configurable: true,
     modifierGroups: [BREAKFAST_BREAD_MODIFIER, CHEESE_UPGRADES, ADD_BACON, FOOD_ADD_ONS],
     visual: "sandwich",
-    photo: "/food-taylor-ham-egg-cheese.jpg",
     photo: "/food-taylor-ham-egg-cheese.jpg",
   },
   {
@@ -767,7 +771,6 @@ export const menuProducts: Product[] = [
       "Small Chicken Sandwich - chicken, lettuce, ham, swiss, pickles, mustard",
     ],
     visual: "sandwich",
-    photo: "/food-lunch-special.jpg",
     photo: "/food-lunch-special.jpg",
   },
   {
@@ -887,7 +890,6 @@ export const menuProducts: Product[] = [
     description: "Six golden mozzarella sticks.",
     visual: "bite",
     photo: "/food-mozzarella-sticks.jpg",
-    photo: "/food-mozzarella-sticks.jpg",
   },
   {
     id: "chicken-wings-fries",
@@ -897,7 +899,6 @@ export const menuProducts: Product[] = [
     description: "Chicken wings served with French fries.",
     configurable: true,
     visual: "bite",
-    photo: "/food-chicken-wings-fries.jpg",
     photo: "/food-chicken-wings-fries.jpg",
   },
   {

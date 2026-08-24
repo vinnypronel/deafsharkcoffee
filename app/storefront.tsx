@@ -747,6 +747,38 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
     );
   }
 
+  function renderItems(items: Product[]) {
+    const hasSections = items.some((item) => Boolean(item.section));
+    if (!hasSections) {
+      return items.map(renderRow);
+    }
+
+    const groups: { title?: string; items: Product[] }[] = [];
+    for (const item of items) {
+      const currentSection = item.section;
+      const lastGroup = groups[groups.length - 1];
+      if (lastGroup && lastGroup.title === currentSection) {
+        lastGroup.items.push(item);
+      } else {
+        groups.push({ title: currentSection, items: [item] });
+      }
+    }
+
+    return groups.map((group, idx) => (
+      <div key={group.title || `group-${idx}`} className="menu-subsection-group">
+        {group.title && (
+          <div className="menu-subsection-header">
+            <h4 className="menu-subsection-title">{group.title}</h4>
+            <span className="menu-subsection-line" aria-hidden="true" />
+          </div>
+        )}
+        <div className="menu-subsection-items">
+          {group.items.map(renderRow)}
+        </div>
+      </div>
+    ));
+  }
+
   useEffect(() => {
     if (!isMenuPage) return;
     const blocks = categories
@@ -939,7 +971,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
                         <span className="menu-milk-note">Whole, skim, oat, almond, or half and half · no extra charge</span>
                       )}
                     </div>
-                    <div className="menu-items-list">{items.map(renderRow)}</div>
+                    <div className="menu-items-list">{renderItems(items)}</div>
                   </section>
                 );
               })
@@ -952,7 +984,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
                   <span className="menu-milk-note">Whole, skim, oat, almond, or half and half · no extra charge</span>
                 </div>
                 <div className="menu-items-list">
-                  {products.filter((p) => p.category === "Coffee" || p.category === "Non-Coffee").map(renderRow)}
+                  {renderItems(products.filter((p) => p.category === "Coffee" || p.category === "Non-Coffee"))}
                 </div>
                 <div className="menu-bottom-actions">
                   <a href="/menu" className="primary-button hero-cta-btn menu-full-button">

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { menuProducts } from "./menu-data";
+import { OfferBarcode } from "./offer-barcode";
 
 type SavedOrder = { orderNumber: string; phone: string };
 type HeaderOrder = {
@@ -637,8 +638,8 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                   <div className={`welcome-offer welcome-offer-${profile.profile.welcomeOffer.status}`}>
                     <span>{profile.profile.welcomeOffer.status === "active" ? "New member offer" : "Offer used"}</span>
                     <strong>50% off one coffee</strong>
-                    <p>{profile.profile.welcomeOffer.status === "active" ? "Show this code to a team member when ordering in store." : "This one-time welcome offer has been redeemed."}</p>
-                    <code>{profile.profile.welcomeOffer.code}</code>
+                    <p>{profile.profile.welcomeOffer.status === "active" ? "Show this barcode to a team member when ordering in store." : "This one-time welcome offer has been redeemed."}</p>
+                    <OfferBarcode value={profile.profile.welcomeOffer.code} />
                     <small>In store only · One prepared coffee drink · Base drink only · Cannot be combined with another offer</small>
                   </div>
                 )}

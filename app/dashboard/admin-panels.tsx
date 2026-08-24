@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { menuProducts } from "../menu-data";
+import { OfferBarcode } from "../offer-barcode";
 
 type View = "menu" | "website" | "events" | "forms" | "history" | "loyalty";
 type Featured = { slot: number; productId: string; categoryLabel: string; title: string; buttonLabel: string; priceCents: number; mediaUrl: string };
@@ -183,9 +184,13 @@ function LoyaltyManager({ data, message, setMessage, reload }: { data: LoyaltyDa
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<string | null>(null);
   const query = search.trim().toLowerCase();
-  const members = data.members.filter((member) => !query || [member.displayName, member.email, member.phone].some((value) => value?.toLowerCase().includes(query)));
   const memberNames = new Map(data.members.map((member) => [member.userId, member.displayName]));
   const offersByMember = new Map(data.offers.map((offer) => [offer.userId, offer]));
+  const members = data.members.filter((member) => {
+    if (!query) return true;
+    const offerCode = offersByMember.get(member.userId)?.code;
+    return [member.displayName, member.email, member.phone, offerCode].some((value) => value?.toLowerCase().includes(query));
+  });
 
   async function adjust(member: LoyaltyMember) {
     const pointsChange = Number(changes[member.userId]);
@@ -228,7 +233,7 @@ function LoyaltyManager({ data, message, setMessage, reload }: { data: LoyaltyDa
     <AdminSection eyebrow="Customer rewards" title="Loyalty members" description="Every new member receives 25 welcome points and one in-store half-off coffee offer. Review balances, redeem welcome offers, and make traceable corrections here.">
       {message && <AdminNotice>{message}</AdminNotice>}
       <div className="record-summary"><span><strong>{data.members.length}</strong> members</span><span><strong>{data.members.reduce((total, member) => total + member.points, 0)}</strong> active points</span><span><strong>{data.offers.filter((offer) => offer.status === "active").length}</strong> active welcome offers</span></div>
-      <label className="loyalty-search">Find a member<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name, email, or phone" /></label>
+      <label className="loyalty-search">Scan a coupon or find a member<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Scan barcode or search name, email, or phone" /></label>
       <div className="loyalty-member-grid">
         {members.map((member) => {
           const offer = offersByMember.get(member.userId);
@@ -237,7 +242,7 @@ function LoyaltyManager({ data, message, setMessage, reload }: { data: LoyaltyDa
             <div className="loyalty-progress"><i style={{ width: `${Math.min(100, member.points % 100 || (member.points > 0 ? 100 : 0))}%` }} /></div>
             <p>{member.points >= 100 ? `${Math.floor(member.points / 100)} reward${Math.floor(member.points / 100) === 1 ? "" : "s"} available` : `${100 - member.points} points to a $5 reward`} · {member.lifetimePoints} lifetime points</p>
             {offer && <div className={`member-offer member-offer-${offer.status}`}>
-              <div><strong>50% off one coffee</strong><code>{offer.code}</code><small>{offer.status === "active" ? "In-store offer ready" : `Redeemed ${when(offer.redeemedAt)}`}</small></div>
+              <div><strong>50% off one coffee</strong><OfferBarcode value={offer.code} compact /><small>{offer.status === "active" ? "In-store offer ready" : `Redeemed ${when(offer.redeemedAt)}`}</small></div>
               {offer.status === "active" && <button className="admin-save" disabled={saving === `offer:${offer.id}`} onClick={() => redeem(member, offer)}>{saving === `offer:${offer.id}` ? "Saving…" : "Mark redeemed"}</button>}
             </div>}
             <div className="loyalty-adjustment">
