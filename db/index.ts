@@ -185,7 +185,7 @@ export function ensureSchema() {
       ]);
 
       await d1.batch([
-        d1.prepare(`INSERT OR IGNORE INTO featured_content (slot, product_id, category_label, title, button_label, price_cents, media_url, updated_at) VALUES (1, 'strawberry-matcha', 'Non-Coffee', 'Strawberry Matcha', 'Add to cart', 775, '/featured-strawberry-matcha.mp4', unixepoch())`),
+        d1.prepare(`INSERT OR IGNORE INTO featured_content (slot, product_id, category_label, title, button_label, price_cents, media_url, updated_at) VALUES (1, 'strawberry-matcha', 'Matcha', 'Strawberry Matcha', 'Add to cart', 775, '/featured-strawberry-matcha.mp4', unixepoch())`),
         d1.prepare(`INSERT OR IGNORE INTO featured_content (slot, product_id, category_label, title, button_label, price_cents, media_url, updated_at) VALUES (2, 'ocean-blend-bag', 'Coffee Beans', 'Ocean Blend', 'Add to cart', 1900, '/featured-ocean-blend.mp4', unixepoch())`),
         d1.prepare(`INSERT OR IGNORE INTO featured_content (slot, product_id, category_label, title, button_label, price_cents, media_url, updated_at) VALUES (3, 'chicken-pesto', 'Sandwiches', 'Chicken Pesto', 'Add to cart', 775, '/featured-chicken-pesto.mp4', unixepoch())`),
         d1.prepare(`INSERT INTO events (title, description, date_label, time_label, location, entry_label, details, button_label, button_href, image_left_url, image_right_url, image_caption, published, sort_order, created_at, updated_at)

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
-import { menuProducts } from "../menu-data";
+import { categories as menuCategories, menuProducts } from "../menu-data";
 import { OfferBarcode } from "../offer-barcode";
 
 type View = "menu" | "website" | "events" | "forms" | "history" | "loyalty";
@@ -154,7 +154,6 @@ function MenuContentManager({ menu, setMenu, message, save, upload }: {
   const [search, setSearch] = useState("");
   const query = search.trim().toLowerCase();
   const visible = menu.filter((item) => !query || `${item.name} ${item.category}`.toLowerCase().includes(query));
-  const categories = ["Coffee", "Non-Coffee", "Breakfast", "Sandwiches", "Bites", "Cold Drinks", "Coffee Beans"];
   const update = (productId: string, changes: Partial<MenuDraft>) => setMenu((items) => items.map((item) => item.productId === productId ? { ...item, ...changes } : item));
 
   return (
@@ -166,7 +165,7 @@ function MenuContentManager({ menu, setMenu, message, save, upload }: {
           <header><span>{item.category}</span><strong>{item.name}</strong></header>
           {item.photoUrl ? <img className="admin-menu-photo" src={item.photoUrl} alt="" /> : <div className="admin-menu-photo missing"><span>Photo needed</span></div>}
           <label>Item name<input value={item.name} onChange={(event) => update(item.productId, { name: event.target.value })} /></label>
-          <label>Category<select value={item.category} onChange={(event) => update(item.productId, { category: event.target.value })}>{categories.map((category) => <option value={category} key={category}>{category}</option>)}</select></label>
+          <label>Category<select value={item.category} onChange={(event) => update(item.productId, { category: event.target.value })}>{menuCategories.map((category) => <option value={category} key={category}>{category}</option>)}</select></label>
           <label>Description<textarea rows={3} value={item.description} onChange={(event) => update(item.productId, { description: event.target.value })} /></label>
           <label>Base price ($)<input type="number" min="0" step="0.01" value={(item.priceCents / 100).toFixed(2)} onChange={(event) => update(item.productId, { priceCents: Math.round(Number(event.target.value) * 100) })} /></label>
           <label>Image URL<input value={item.photoUrl} onChange={(event) => update(item.productId, { photoUrl: event.target.value })} placeholder="Upload an image or paste its URL" /></label>

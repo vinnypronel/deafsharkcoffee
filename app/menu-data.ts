@@ -1,10 +1,12 @@
 export type MenuCategory =
   | "Coffee"
-  | "Non-Coffee"
+  | "Matcha"
+  | "Tea"
+  | "Smoothies"
   | "Breakfast"
   | "Sandwiches"
   | "Bites"
-  | "Cold Drinks"
+  | "From the Fridge"
   | "Coffee Beans";
 
 export type PrepStation = "COFFEE" | "KITCHEN" | "RETAIL";
@@ -98,10 +100,12 @@ export function applyMenuContentOverride(product: Product, override?: MenuConten
   const nextPrice = Math.max(0, Number(override.priceCents) / 100);
   const delta = nextPrice - product.price;
   const adjust = (sizes?: SizeOption[]) => sizes?.map((size) => ({ ...size, price: Math.max(0, Number((size.price + delta).toFixed(2))) }));
+  const overrideCategory = (override.category || product.category) as Product["category"];
+  const category = (overrideCategory as string) === "Non-Coffee" ? product.category : overrideCategory;
   return {
     ...product,
     name: override.name || product.name,
-    category: (override.category || product.category) as Product["category"],
+    category,
     description: override.description || product.description,
     price: nextPrice,
     photo: override.photoUrl || product.photo,
@@ -186,18 +190,22 @@ export const EXTRA_BACON: ModifierGroup = {
 
 export const categories: MenuCategory[] = [
   "Coffee",
-  "Non-Coffee",
+  "Matcha",
+  "Tea",
+  "Smoothies",
   "Breakfast",
   "Sandwiches",
   "Bites",
-  "Cold Drinks",
+  "From the Fridge",
   "Coffee Beans",
 ];
 
+export const DRINK_CATEGORIES: MenuCategory[] = ["Coffee", "Matcha", "Tea", "Smoothies"];
+
 export const prepStationFor = (product: Pick<Product, "category" | "prepStation">): PrepStation => {
   if (product.prepStation) return product.prepStation;
-  if (product.category === "Coffee" || product.category === "Non-Coffee") return "COFFEE";
-  if (product.category === "Cold Drinks" || product.category === "Coffee Beans") return "RETAIL";
+  if (DRINK_CATEGORIES.includes(product.category)) return "COFFEE";
+  if (product.category === "From the Fridge" || product.category === "Coffee Beans") return "RETAIL";
   return "KITCHEN";
 };
 
@@ -212,7 +220,7 @@ export const temperaturesForProduct = (product: Product): ("Hot" | "Iced")[] => 
 };
 
 export const modifierGroupsForProduct = (product: Product): ModifierGroup[] => {
-  const isDrink = product.category === "Coffee" || product.category === "Non-Coffee";
+  const isDrink = DRINK_CATEGORIES.includes(product.category);
   const isSmoothie = Boolean(product.bases?.length);
   return [
     ...(product.modifierGroups ?? []),
@@ -225,7 +233,7 @@ export const modifierGroupsForProduct = (product: Product): ModifierGroup[] => {
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
 
 export function priceProductSelection(product: Product, input: ProductSelection = {}): PricedSelection {
-  const isDrink = product.category === "Coffee" || product.category === "Non-Coffee";
+  const isDrink = DRINK_CATEGORIES.includes(product.category);
   const isSmoothie = Boolean(product.bases?.length);
   const availableTemperatures = temperaturesForProduct(product);
   const temperature = input.temperature ?? (availableTemperatures.includes("Iced") ? "Iced" : availableTemperatures[0]);
@@ -501,7 +509,7 @@ export const menuProducts: Product[] = [
   {
     id: "strawberry-matcha",
     name: "Strawberry Matcha",
-    category: "Non-Coffee",
+    category: "Matcha",
     section: "Matcha",
     price: 7.75,
     description: "Layered strawberry purée, creamy milk, and ceremonial Japanese emerald matcha over ice.",
@@ -515,7 +523,7 @@ export const menuProducts: Product[] = [
   {
     id: "matcha-latte",
     name: "Matcha Latte",
-    category: "Non-Coffee",
+    category: "Matcha",
     section: "Matcha",
     price: 6.75,
     description: "Ceremonial Japanese emerald matcha whisked with silky milk, served hot or iced.",
@@ -528,7 +536,7 @@ export const menuProducts: Product[] = [
   {
     id: "mango-matcha",
     name: "Mango Matcha",
-    category: "Non-Coffee",
+    category: "Matcha",
     section: "Matcha",
     price: 7.75,
     description: "Ceremonial matcha layered with mango over ice.",
@@ -541,7 +549,7 @@ export const menuProducts: Product[] = [
   {
     id: "chai-tea-latte",
     name: "Chai Tea Latte",
-    category: "Non-Coffee",
+    category: "Tea",
     section: "Tea",
     price: 4.5,
     description: "Spiced chai with steamed milk, hot or over ice.",
@@ -556,7 +564,7 @@ export const menuProducts: Product[] = [
   {
     id: "hot-tea",
     name: "Hot Tea",
-    category: "Non-Coffee",
+    category: "Tea",
     section: "Tea",
     price: 2.75,
     description: "Loose leaf tea brewed to order.",
@@ -571,7 +579,7 @@ export const menuProducts: Product[] = [
   {
     id: "smoothie-strawberry",
     name: "Strawberry Smoothie",
-    category: "Non-Coffee",
+    category: "Smoothies",
     section: "Smoothies",
     price: 6.95,
     description: "Blended strawberry, 16 oz.",
@@ -584,7 +592,7 @@ export const menuProducts: Product[] = [
   {
     id: "smoothie-strawberry-banana",
     name: "Strawberry Banana Smoothie",
-    category: "Non-Coffee",
+    category: "Smoothies",
     section: "Smoothies",
     price: 6.95,
     description: "Blended strawberry and banana, 16 oz.",
@@ -597,7 +605,7 @@ export const menuProducts: Product[] = [
   {
     id: "smoothie-berry-blend",
     name: "Berry Blend Smoothie",
-    category: "Non-Coffee",
+    category: "Smoothies",
     section: "Smoothies",
     price: 6.95,
     description: "Mixed berries blended smooth, 16 oz.",
@@ -610,7 +618,7 @@ export const menuProducts: Product[] = [
   {
     id: "smoothie-tropical-sunrise",
     name: "Tropical Sunrise Smoothie",
-    category: "Non-Coffee",
+    category: "Smoothies",
     section: "Smoothies",
     price: 6.95,
     description: "Peach, pineapple, mango, and strawberry, 16 oz.",
@@ -619,18 +627,6 @@ export const menuProducts: Product[] = [
     bases: ["Water", "Milk"],
     visual: "iced",
     photo: "/drink-smoothie-tropical-sunrise.webp",
-  },
-  {
-    id: "chicha",
-    name: "Chicha",
-    category: "Non-Coffee",
-    section: "Specialties",
-    price: 4.75,
-    description: "Rice-based coconut drink with condensed milk and vanilla.",
-    popular: true,
-    visual: "iced",
-    photo: "/drink-chicha.webp",
-    drink: "chicha",
   },
   {
     id: "plain-croissant-or-bagel",
@@ -646,7 +642,7 @@ export const menuProducts: Product[] = [
       options: ["Croissant", "Plain bagel", "Everything bagel"].map((label) => ({ label })),
     }],
     visual: "sandwich",
-    photo: "/food-croissant-bagel.jpg",
+    photo: "/food-croissant-bagel-real.png",
   },
   {
     id: "bagel-with-spread",
@@ -660,7 +656,7 @@ export const menuProducts: Product[] = [
       { label: "Spread", type: "single", required: true, options: ["Cream cheese", "Jelly"].map((label) => ({ label })) },
     ],
     visual: "sandwich",
-    photo: "/food-bagel-cream-cheese.jpg",
+    photo: "/food-bagel-cream-cheese-real.png",
   },
   {
     id: "maple-waffle-sandwich",
@@ -671,7 +667,7 @@ export const menuProducts: Product[] = [
     configurable: true,
     modifierGroups: [ADD_BACON, FOOD_ADD_ONS],
     visual: "bite",
-    photo: "/food-maple-waffle.jpg",
+    photo: "/food-maple-waffle-real.png",
   },
   {
     id: "jalapeno-biscuit",
@@ -682,7 +678,7 @@ export const menuProducts: Product[] = [
     configurable: true,
     modifierGroups: [CHEESE_UPGRADES, ADD_BACON, FOOD_ADD_ONS],
     visual: "sandwich",
-    photo: "/food-artisan-breakfast.jpg",
+    photo: "/food-jalapeno-biscuit-real-v2.png",
   },
   {
     id: "ham-and-cheese-breakfast",
@@ -716,7 +712,7 @@ export const menuProducts: Product[] = [
     configurable: true,
     modifierGroups: [CHEESE_UPGRADES, ADD_BACON, FOOD_ADD_ONS],
     visual: "sandwich",
-    photo: "/food-breakfast-croissant.jpg",
+    photo: "/food-breakfast-croissant-real.png",
   },
   {
     id: "classic-breakfast",
@@ -733,7 +729,7 @@ export const menuProducts: Product[] = [
       FOOD_ADD_ONS,
     ],
     visual: "sandwich",
-    photo: "/food-classic-breakfast.jpg",
+    photo: "/food-classic-breakfast-real.png",
   },
   {
     id: "breakfast-wrap",
@@ -771,7 +767,7 @@ export const menuProducts: Product[] = [
       "Small Chicken Sandwich - chicken, lettuce, ham, swiss, pickles, mustard",
     ],
     visual: "sandwich",
-    photo: "/food-lunch-special.jpg",
+    photo: "/food-lunch-special-coke-positioned.png",
   },
   {
     id: "shark-cubano",
@@ -856,13 +852,13 @@ export const menuProducts: Product[] = [
   },
   {
     id: "tequenos",
-    name: "Four Tequeños",
+    name: "Tequeños",
     category: "Bites",
     price: 5.99,
-    description: "Golden pastry sticks filled with cheese.",
+    description: "Four golden pastry sticks filled with cheese.",
     popular: true,
     visual: "bite",
-    photo: "/food-tequenos.jpg",
+    photo: "/food-tequenos-real.png",
   },
   {
     id: "cachitos",
@@ -880,16 +876,16 @@ export const menuProducts: Product[] = [
     price: 3.99,
     description: "Crisp, golden, and ready to share.",
     visual: "bite",
-    photo: "/food-fries.jpg",
+    photo: "/food-fries-real.png",
   },
   {
     id: "mozzarella-sticks",
-    name: "Six Mozzarella Sticks",
+    name: "Mozzarella Sticks",
     category: "Bites",
     price: 5.99,
     description: "Six golden mozzarella sticks.",
     visual: "bite",
-    photo: "/food-mozzarella-sticks.jpg",
+    photo: "/food-mozzarella-sticks-real-v3.png",
   },
   {
     id: "chicken-wings-fries",
@@ -899,22 +895,22 @@ export const menuProducts: Product[] = [
     description: "Chicken wings served with French fries.",
     configurable: true,
     visual: "bite",
-    photo: "/food-chicken-wings-fries.jpg",
+    photo: "/food-chicken-wings-fries-real.png",
   },
   {
     id: "poland-spring",
     name: "Poland Spring Water",
-    category: "Cold Drinks",
+    category: "From the Fridge",
     prepStation: "RETAIL",
     price: 2,
-    description: "Chilled bottled spring water.",
+    description: "Chilled 16.9 oz bottled spring water.",
     visual: "iced",
     photo: "/drink-poland-spring.jpg",
   },
   {
     id: "smartwater",
     name: "Smartwater",
-    category: "Cold Drinks",
+    category: "From the Fridge",
     prepStation: "RETAIL",
     price: 3,
     description: "Chilled vapor-distilled water.",
@@ -924,7 +920,7 @@ export const menuProducts: Product[] = [
   {
     id: "san-pellegrino",
     name: "S. Pellegrino",
-    category: "Cold Drinks",
+    category: "From the Fridge",
     prepStation: "RETAIL",
     price: 3.5,
     description: "Sparkling natural mineral water, 16.9 oz.",
@@ -934,10 +930,10 @@ export const menuProducts: Product[] = [
   {
     id: "canned-soda",
     name: "Canned Soda",
-    category: "Cold Drinks",
+    category: "From the Fridge",
     prepStation: "RETAIL",
     price: 2,
-    description: "A chilled 12 oz can.",
+    description: "Chilled 12 oz can.",
     configurable: true,
     flavorLabel: "Choose a soda",
     flavors: ["Coca-Cola", "Sprite", "Diet Coke", "Canada Dry Ginger Ale"],
@@ -947,17 +943,17 @@ export const menuProducts: Product[] = [
   {
     id: "vita-coco",
     name: "Vita Coco Coconut Water",
-    category: "Cold Drinks",
+    category: "From the Fridge",
     prepStation: "RETAIL",
     price: 2.95,
-    description: "Original coconut water.",
+    description: "The Original coconut water. PLACEHOLDER: confirm size.",
     visual: "iced",
     photo: "/drink-vita-coco.jpg",
   },
   {
     id: "tropicana-refreshers",
     name: "Tropicana Refreshers",
-    category: "Cold Drinks",
+    category: "From the Fridge",
     prepStation: "RETAIL",
     price: 2.75,
     description: "Chilled Tropicana bottled drink.",
@@ -969,11 +965,11 @@ export const menuProducts: Product[] = [
   },
   {
     id: "tropicana-juice",
-    name: "Tropicana Juice",
-    category: "Cold Drinks",
+    name: "Tropicana Juice (11 oz)",
+    category: "From the Fridge",
     prepStation: "RETAIL",
     price: 3.25,
-    description: "Chilled 100% juice bottle.",
+    description: "Chilled 11 oz bottle of 100% juice.",
     configurable: true,
     flavorLabel: "Choose a flavor",
     flavors: ["Orange Juice", "Apple Juice"],
@@ -982,8 +978,8 @@ export const menuProducts: Product[] = [
   },
   {
     id: "snapple",
-    name: "Snapple",
-    category: "Cold Drinks",
+    name: "Snapple (20 oz)",
+    category: "From the Fridge",
     prepStation: "RETAIL",
     price: 3,
     description: "Chilled 20 oz Snapple.",
@@ -994,12 +990,37 @@ export const menuProducts: Product[] = [
     photo: "/drink-snapple.jpg",
   },
   {
+    /* PLACEHOLDER image: no photo supplied yet for the 16 oz Snapple. */
+    id: "snapple-16",
+    name: "Snapple (16 oz)",
+    category: "From the Fridge",
+    prepStation: "RETAIL",
+    price: 2.5,
+    description: "Chilled 16 oz Snapple.",
+    visual: "iced",
+    photo: "/drink-snapple.jpg",
+  },
+  {
+    /* PLACEHOLDER image: no photo supplied yet for the 15 oz Tropicana. */
+    id: "tropicana-juice-15",
+    name: "Tropicana Juice (15 oz)",
+    category: "From the Fridge",
+    prepStation: "RETAIL",
+    price: 3.5,
+    description: "Chilled 15 oz bottle of juice.",
+    configurable: true,
+    flavorLabel: "Choose a flavor",
+    flavors: ["Cranberry", "Apple Juice"],
+    visual: "iced",
+    photo: "/drink-tropicana-juice.jpg",
+  },
+  {
     id: "arnold-palmer",
     name: "Arnold Palmer",
-    category: "Cold Drinks",
+    category: "From the Fridge",
     prepStation: "RETAIL",
     price: 3.25,
-    description: "Chilled 20 oz tea and lemonade.",
+    description: "Chilled 20 oz Arnold Palmer, sweet tea and lemonade.",
     configurable: true,
     flavorLabel: "Choose one",
     flavors: ["Half & Half", "Sweet Tea & Lemonade"],
@@ -1009,7 +1030,7 @@ export const menuProducts: Product[] = [
   {
     id: "gatorade",
     name: "Gatorade",
-    category: "Cold Drinks",
+    category: "From the Fridge",
     prepStation: "RETAIL",
     price: 2.75,
     description: "Chilled 20 oz sports drink.",
@@ -1022,7 +1043,7 @@ export const menuProducts: Product[] = [
   {
     id: "red-bull",
     name: "Red Bull",
-    category: "Cold Drinks",
+    category: "From the Fridge",
     prepStation: "RETAIL",
     price: 4,
     description: "Chilled 8.4 oz energy drink.",
@@ -1032,10 +1053,10 @@ export const menuProducts: Product[] = [
   {
     id: "bottled-soda",
     name: "Bottled Soda",
-    category: "Cold Drinks",
+    category: "From the Fridge",
     prepStation: "RETAIL",
     price: 3.5,
-    description: "Chilled bottled soda.",
+    description: "Chilled 20 oz bottle.",
     configurable: true,
     flavorLabel: "Choose a soda",
     flavors: ["Inca Kola", "Coca-Cola", "Canada Dry Ginger Ale"],
@@ -1044,21 +1065,21 @@ export const menuProducts: Product[] = [
   },
   {
     id: "malta-bottle",
-    name: "Malta",
-    category: "Cold Drinks",
+    name: "Maltín Polar",
+    category: "From the Fridge",
     prepStation: "RETAIL",
     price: 2.5,
-    description: "A chilled non-alcoholic malt beverage in a can.",
+    description: "Chilled 12 oz can of real brewed non-alcoholic malt.",
     visual: "iced",
     photo: "/drink-malta-can.jpg",
   },
   {
     id: "el-chichero",
     name: "El Chichero Chicha",
-    category: "Cold Drinks",
+    category: "From the Fridge",
     prepStation: "RETAIL",
     price: 4.25,
-    description: "Chilled traditional chicha drink.",
+    description: "Chilled traditional chicha. PLACEHOLDER: confirm size.",
     visual: "iced",
     photo: "/drink-chicha.webp",
   },

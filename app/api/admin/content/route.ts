@@ -2,7 +2,7 @@ import { asc, eq } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../../db";
 import { events, featuredContent, menuContent } from "../../../../db/schema";
 import { requireStaff } from "../../../../lib/staff-auth";
-import { menuProducts } from "../../../menu-data";
+import { categories, menuProducts } from "../../../menu-data";
 
 const text = (value: unknown, max = 500) => typeof value === "string" ? value.trim().slice(0, max) : "";
 const safeHref = (value: unknown) => {
@@ -58,7 +58,6 @@ export async function PATCH(request: Request) {
     const productId = text(payload.productId, 100);
     const product = menuProducts.find((item) => item.id === productId);
     if (!product) return Response.json({ error: "Choose a valid menu item." }, { status: 400 });
-    const categories = ["Coffee", "Non-Coffee", "Breakfast", "Sandwiches", "Bites", "Cold Drinks", "Coffee Beans"];
     const category = text(payload.category, 40);
     const values = {
       productId,

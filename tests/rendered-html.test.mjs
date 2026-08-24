@@ -48,10 +48,13 @@ test("server-renders the expanded photographed menu", async () => {
   const response = await render("/menu");
   assert.equal(response.status, 200);
   const html = await response.text();
-  assert.match(html, /Cold Drinks/i);
+  assert.match(html, /From the Fridge/i);
   assert.match(html, /Poland Spring Water/i);
   assert.match(html, /Snapple/i);
   assert.match(html, /Maple Waffle Sandwich/i);
   assert.match(html, /Chicken Wings with French Fries/i);
   assert.match(html, /Taylor Ham, Egg and Cheese/i);
+  assert.match(html, /role="tab"[^>]*>Matcha<\/button>/i);
+  assert.match(html, /role="tab"[^>]*>Tea<\/button>/i);
+  assert.match(html, /role="tab"[^>]*>Smoothies<\/button>/i);
 });

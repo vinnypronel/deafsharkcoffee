@@ -5,6 +5,7 @@ import ScrollHero from "./scroll-hero";
 import {
   categories,
   applyMenuContentOverride,
+  DRINK_CATEGORIES,
   EXTRA_SHOT_PRICE,
   featuredProducts,
   menuProducts,
@@ -77,7 +78,6 @@ const temperaturesFor = (product: Product): ("Hot" | "Iced")[] => {
 const sizesFor = (product: Product, temperature: "Hot" | "Iced") =>
   (temperature === "Hot" ? product.sizing?.hot : product.sizing?.iced) ?? [];
 
-const DRINK_CATEGORIES: MenuCategory[] = ["Coffee", "Non-Coffee"];
 const categoryId = (category: string) => "menu-cat-" + category.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
 const money = (value: number) => `$${value.toFixed(2)}`;
@@ -153,7 +153,7 @@ function ProductConfigurator({
   onClose: () => void;
   onAdd: (item: CartItem) => void;
 }) {
-  const isDrink = product.category === "Coffee" || product.category === "Non-Coffee";
+  const isDrink = DRINK_CATEGORIES.includes(product.category);
   const isSmoothie = !!product.bases?.length;
   const hasMilkOptions =
     isDrink && !isSmoothie && !["chicha", "malta", "hot-tea"].includes(product.id);
@@ -747,7 +747,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
     );
   }
 
-  function renderItems(items: Product[]) {
+  function renderItems(items: Product[], parentCategory?: MenuCategory) {
     const hasSections = items.some((item) => Boolean(item.section));
     if (!hasSections) {
       return items.map(renderRow);
@@ -766,7 +766,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
 
     return groups.map((group, idx) => (
       <div key={group.title || `group-${idx}`} className="menu-subsection-group">
-        {group.title && (
+        {group.title && group.title !== parentCategory && (
           <div className="menu-subsection-header">
             <h4 className="menu-subsection-title">{group.title}</h4>
             <span className="menu-subsection-line" aria-hidden="true" />
@@ -971,7 +971,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
                         <span className="menu-milk-note">Whole, skim, oat, almond, or half and half · no extra charge</span>
                       )}
                     </div>
-                    <div className="menu-items-list">{renderItems(items)}</div>
+                    <div className="menu-items-list">{renderItems(items, category)}</div>
                   </section>
                 );
               })
@@ -984,7 +984,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
                   <span className="menu-milk-note">Whole, skim, oat, almond, or half and half · no extra charge</span>
                 </div>
                 <div className="menu-items-list">
-                  {renderItems(products.filter((p) => p.category === "Coffee" || p.category === "Non-Coffee"))}
+                  {renderItems(products.filter((p) => DRINK_CATEGORIES.includes(p.category)))}
                 </div>
                 <div className="menu-bottom-actions">
                   <a href="/menu" className="primary-button hero-cta-btn menu-full-button">
