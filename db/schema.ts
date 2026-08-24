@@ -161,6 +161,16 @@ export const menuAvailability = sqliteTable("menu_availability", {
     .$defaultFn(() => new Date()),
 });
 
+export const menuContent = sqliteTable("menu_content", {
+  productId: text("product_id").primaryKey(),
+  name: text("name").notNull(),
+  category: text("category").notNull(),
+  description: text("description").notNull(),
+  priceCents: integer("price_cents").notNull(),
+  photoUrl: text("photo_url"),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+});
+
 export const storeSettings = sqliteTable("store_settings", {
   id: integer("id").primaryKey().default(1),
   prepTimeMinutes: integer("prep_time_minutes").notNull().default(15),

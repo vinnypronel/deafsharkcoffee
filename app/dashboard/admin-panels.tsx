@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { ReactNode } from "react";
+import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { menuProducts } from "../menu-data";
 
-type View = "website" | "events" | "forms" | "history" | "loyalty";
+type View = "menu" | "website" | "events" | "forms" | "history" | "loyalty";
 type Featured = { slot: number; productId: string; categoryLabel: string; title: string; buttonLabel: string; priceCents: number; mediaUrl: string };
+type MenuDraft = { productId: string; name: string; category: string; description: string; priceCents: number; photoUrl: string };
 type EventDraft = { id?: number; title: string; description: string; dateLabel: string; timeLabel: string; location: string; entryLabel: string; details: string; buttonLabel: string; buttonHref: string; imageLeftUrl: string; imageRightUrl: string; imageCaption: string | null; published: boolean; sortOrder: number; createdAt?: string };
 type Records = { orders: any[]; contacts: any[]; applications: any[]; subscribers: any[] };
 type LoyaltyMember = { userId: string; email: string; displayName: string; phone?: string | null; points: number; lifetimePoints: number; updatedAt: string };
@@ -28,6 +29,7 @@ const dollars = (cents: number) => `$${(Number(cents || 0) / 100).toFixed(2)}`;
 
 export function AdminPanels({ view }: { view: View }) {
   const [featured, setFeatured] = useState<Featured[]>([]);
+  const [menu, setMenu] = useState<MenuDraft[]>([]);
   const [events, setEvents] = useState<EventDraft[]>([]);
   const [records, setRecords] = useState<Records>({ orders: [], contacts: [], applications: [], subscribers: [] });
   const [loyalty, setLoyalty] = useState<LoyaltyData>({ members: [], transactions: [], offers: [] });
@@ -44,6 +46,18 @@ export function AdminPanels({ view }: { view: View }) {
       const data = await contentResponse.json();
       setFeatured(data.featured ?? []);
       setEvents(data.events ?? []);
+      const overrides = new Map<string, MenuDraft>((data.menu ?? []).map((item: MenuDraft) => [item.productId, item]));
+      setMenu(menuProducts.map((product) => {
+        const override = overrides.get(product.id);
+        return {
+          productId: product.id,
+          name: override?.name || product.name,
+          category: override?.category || product.category,
+          description: override?.description || product.description,
+          priceCents: override?.priceCents ?? Math.round(product.price * 100),
+          photoUrl: override?.photoUrl ?? product.photo ?? "",
+        };
+      }));
     }
     if (recordsResponse.ok) setRecords(await recordsResponse.json());
     if (loyaltyResponse.ok) {
@@ -74,6 +88,10 @@ export function AdminPanels({ view }: { view: View }) {
     onDone(data.url);
     setMessage("Upload ready. Save the item to publish it.");
   }
+
+  if (view === "menu") return (
+    <MenuContentManager menu={menu} setMenu={setMenu} message={message} save={save} upload={upload} />
+  );
 
   if (view === "website") return (
     <AdminSection eyebrow="Homepage editor" title="Featured carousel" description="Edit the video or image, category, item name, button wording, and displayed price. Saving publishes the change to the homepage.">
@@ -121,6 +139,40 @@ export function AdminPanels({ view }: { view: View }) {
       <RecordsBlock title="Contact messages" rows={records.contacts.map((row) => ({ id: row.id, date: row.createdAt, heading: row.name, meta: `${row.email}${row.phone ? ` · ${row.phone}` : ""} · ${row.topic}`, body: row.message }))} />
       <RecordsBlock title="Employment applications" rows={records.applications.map((row) => ({ id: row.id, date: row.createdAt, heading: row.fullName, meta: `${row.email} · ${row.phone} · ${row.position} · ${row.employmentType}`, body: [row.experience, row.why].filter(Boolean).join("\n\n") || "No additional notes." }))} />
       <RecordsBlock title="Newsletter subscriptions" rows={records.subscribers.map((row) => ({ id: row.id, date: row.consentedAt, heading: row.email, meta: row.status, body: row.consentText }))} />
+    </AdminSection>
+  );
+}
+
+function MenuContentManager({ menu, setMenu, message, save, upload }: {
+  menu: MenuDraft[];
+  setMenu: Dispatch<SetStateAction<MenuDraft[]>>;
+  message: string;
+  save: (body: Record<string, unknown>, success: string) => Promise<boolean>;
+  upload: (file: File, onDone: (url: string) => void) => Promise<void>;
+}) {
+  const [search, setSearch] = useState("");
+  const query = search.trim().toLowerCase();
+  const visible = menu.filter((item) => !query || `${item.name} ${item.category}`.toLowerCase().includes(query));
+  const categories = ["Coffee", "Non-Coffee", "Breakfast", "Sandwiches", "Bites", "Cold Drinks", "Coffee Beans"];
+  const update = (productId: string, changes: Partial<MenuDraft>) => setMenu((items) => items.map((item) => item.productId === productId ? { ...item, ...changes } : item));
+
+  return (
+    <AdminSection eyebrow="Menu editor" title="Names, descriptions, prices, and photos" description="These edits publish to the customer menu and are also used for secure server-side order pricing.">
+      {message && <AdminNotice>{message}</AdminNotice>}
+      <label className="loyalty-search">Find a menu item<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search item or category" /></label>
+      <div className="admin-menu-editor-grid">
+        {visible.map((item) => <article className="admin-editor-card admin-menu-editor" key={item.productId}>
+          <header><span>{item.category}</span><strong>{item.name}</strong></header>
+          {item.photoUrl ? <img className="admin-menu-photo" src={item.photoUrl} alt="" /> : <div className="admin-menu-photo missing"><span>Photo needed</span></div>}
+          <label>Item name<input value={item.name} onChange={(event) => update(item.productId, { name: event.target.value })} /></label>
+          <label>Category<select value={item.category} onChange={(event) => update(item.productId, { category: event.target.value })}>{categories.map((category) => <option value={category} key={category}>{category}</option>)}</select></label>
+          <label>Description<textarea rows={3} value={item.description} onChange={(event) => update(item.productId, { description: event.target.value })} /></label>
+          <label>Base price ($)<input type="number" min="0" step="0.01" value={(item.priceCents / 100).toFixed(2)} onChange={(event) => update(item.productId, { priceCents: Math.round(Number(event.target.value) * 100) })} /></label>
+          <label>Image URL<input value={item.photoUrl} onChange={(event) => update(item.productId, { photoUrl: event.target.value })} placeholder="Upload an image or paste its URL" /></label>
+          <label className="admin-upload">Upload replacement<input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (file) upload(file, (url) => update(item.productId, { photoUrl: url })); }} /></label>
+          <button className="admin-save" onClick={() => save({ kind: "menu", ...item }, `${item.name} published.`)}>Save item</button>
+        </article>)}
+      </div>
     </AdminSection>
   );
 }

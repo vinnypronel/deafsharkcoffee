@@ -1,10 +1,10 @@
 import { desc } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../db";
-import { customerProfiles, menuAvailability, orders, storeSettings } from "../../../db/schema";
+import { customerProfiles, menuAvailability, menuContent, orders, storeSettings } from "../../../db/schema";
 import { getCustomerSession } from "../../../lib/auth";
 import { requireStaff } from "../../../lib/staff-auth";
 import { effectiveOrderingHours } from "../../../lib/store-hours";
-import { menuProducts, prepStationFor, priceProductSelection, type ProductSelection } from "../../menu-data";
+import { applyMenuContentOverride, menuProducts, prepStationFor, priceProductSelection, type ProductSelection } from "../../menu-data";
 
 type CartPayload = {
   id: string;
@@ -102,9 +102,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const [settingsRow, availabilityRows] = await Promise.all([
+    const [settingsRow, availabilityRows, menuRows] = await Promise.all([
       getDb().select().from(storeSettings).limit(1),
       getDb().select().from(menuAvailability),
+      getDb().select().from(menuContent),
     ]);
     const settings = settingsRow[0];
     if (!settings) throw new Error("Store settings are unavailable.");
@@ -113,9 +114,11 @@ export async function POST(request: Request) {
     }
 
     const availability = new Map(availabilityRows.map((item) => [item.productId, item.available]));
+    const menuOverrides = new Map(menuRows.map((item) => [item.productId, item]));
     const orderItems = items.map((item) => {
-      const product = menuProducts.find((candidate) => candidate.id === item.id);
-      if (!product) throw new Error(`Unknown menu item: ${item.id}`);
+      const baseProduct = menuProducts.find((candidate) => candidate.id === item.id);
+      if (!baseProduct) throw new Error(`Unknown menu item: ${item.id}`);
+      const product = applyMenuContentOverride(baseProduct, menuOverrides.get(baseProduct.id));
       if (availability.get(product.id) === false) throw new Error(`${product.name} is currently sold out.`);
       if (!Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 20) {
         throw new Error(`Choose a valid quantity for ${product.name}.`);

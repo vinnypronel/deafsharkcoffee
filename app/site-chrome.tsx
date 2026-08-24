@@ -382,15 +382,14 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
           {links.map(([href, label], idx) => {
             const isActive = active === href;
             return (
-              <li key={href} style={{ "--delay": `${0.06 + idx * 0.05}s` } as React.CSSProperties}>
+              <li key={href} style={{ "--delay": `${0.05 + idx * 0.045}s` } as React.CSSProperties}>
                 <a
                   href={href}
                   className={`nav-fs-link ${isActive ? "active" : ""}`}
                   tabIndex={mobileMenuOpen ? 0 : -1}
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  {isActive && <span className="nav-fs-glyph" aria-hidden="true">✦</span>}
-                  <span>{label}</span>
+                  <span className="nav-fs-text">{label}</span>
                 </a>
               </li>
             );
@@ -398,15 +397,68 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
         </ul>
 
         <div className="nav-fs-footer">
-          <a className="nav-fs-cta" href="/menu" tabIndex={mobileMenuOpen ? 0 : -1} onClick={() => setMobileMenuOpen(false)}>
+          <a
+            className="primary-button hero-cta-btn nav-fs-cta"
+            href="/menu"
+            tabIndex={mobileMenuOpen ? 0 : -1}
+            onClick={() => setMobileMenuOpen(false)}
+          >
             <span>Order pickup</span>
-            <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="15" height="15">
+            <svg className="btn-arrow" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               <path d="M2.5 8h11M9.5 3.5l4.5 4.5-4.5 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </a>
+
+          {/* Social Icons */}
+          <div className="nav-fs-socials">
+            <a
+              href="https://www.instagram.com/deafsharkcoffee/"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Deaf Shark Coffee on Instagram"
+              className="nav-fs-social-btn"
+              tabIndex={mobileMenuOpen ? 0 : -1}
+            >
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+                <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+              </svg>
+            </a>
+            <a
+              href="http://facebook.com/p/Deaf-Shark-Fishing-and-Coffee-100087250954811/"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Deaf Shark Coffee on Facebook"
+              className="nav-fs-social-btn"
+              tabIndex={mobileMenuOpen ? 0 : -1}
+            >
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+              </svg>
+            </a>
+            <a
+              href="https://www.tiktok.com/@deafsharkcoffee"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Deaf Shark Coffee on TikTok"
+              className="nav-fs-social-btn"
+              tabIndex={mobileMenuOpen ? 0 : -1}
+            >
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1.04-.1z"/>
+              </svg>
+            </a>
+          </div>
+
+          {/* Contact: Address, Phone & Email */}
           <div className="nav-fs-contact-info">
-            <span>900 Green Lane, Union NJ 07083</span>
-            <a href="tel:+19084818884" tabIndex={mobileMenuOpen ? 0 : -1}>(908) 481-8884</a>
+            <span className="nav-fs-address">900 Green Lane, Union NJ 07083</span>
+            <div className="nav-fs-contact-links">
+              <a href="tel:+19084818884" tabIndex={mobileMenuOpen ? 0 : -1}>(908) 481-8884</a>
+              <span className="nav-fs-dot" aria-hidden="true">•</span>
+              <a href="mailto:deafsharkcoffee@gmail.com" tabIndex={mobileMenuOpen ? 0 : -1}>deafsharkcoffee@gmail.com</a>
+            </div>
           </div>
         </div>
       </div>

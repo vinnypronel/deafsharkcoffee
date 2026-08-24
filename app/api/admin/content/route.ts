@@ -1,6 +1,6 @@
 import { asc, eq } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../../db";
-import { events, featuredContent } from "../../../../db/schema";
+import { events, featuredContent, menuContent } from "../../../../db/schema";
 import { requireStaff } from "../../../../lib/staff-auth";
 import { menuProducts } from "../../../menu-data";
 
@@ -18,11 +18,12 @@ export async function GET(request: Request) {
   const staff = await requireStaff(request);
   if (staff.response) return staff.response;
   await ensureSchema();
-  const [featured, allEvents] = await Promise.all([
+  const [featured, allEvents, menu] = await Promise.all([
     getDb().select().from(featuredContent).orderBy(asc(featuredContent.slot)),
     getDb().select().from(events).orderBy(asc(events.sortOrder), asc(events.id)),
+    getDb().select().from(menuContent).orderBy(asc(menuContent.productId)),
   ]);
-  return Response.json({ featured, events: allEvents });
+  return Response.json({ featured, events: allEvents, menu });
 }
 
 export async function PATCH(request: Request) {
@@ -51,6 +52,25 @@ export async function PATCH(request: Request) {
     };
     await getDb().insert(featuredContent).values(values).onConflictDoUpdate({ target: featuredContent.slot, set: values });
     return Response.json({ success: true });
+  }
+
+  if (kind === "menu") {
+    const productId = text(payload.productId, 100);
+    const product = menuProducts.find((item) => item.id === productId);
+    if (!product) return Response.json({ error: "Choose a valid menu item." }, { status: 400 });
+    const categories = ["Coffee", "Non-Coffee", "Breakfast", "Sandwiches", "Bites", "Cold Drinks", "Coffee Beans"];
+    const category = text(payload.category, 40);
+    const values = {
+      productId,
+      name: text(payload.name, 120) || product.name,
+      category: categories.includes(category) ? category : product.category,
+      description: text(payload.description, 500) || product.description,
+      priceCents: Math.max(0, Math.min(100000, Math.round(Number(payload.priceCents) || product.price * 100))),
+      photoUrl: safeMedia(payload.photoUrl, product.photo || "") || null,
+      updatedAt: new Date(),
+    };
+    await getDb().insert(menuContent).values(values).onConflictDoUpdate({ target: menuContent.productId, set: values });
+    return Response.json({ success: true, menu: values });
   }
 
   if (kind === "event") {

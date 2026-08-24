@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import ScrollHero from "./scroll-hero";
 import {
   categories,
+  applyMenuContentOverride,
   EXTRA_SHOT_PRICE,
   featuredProducts,
   menuProducts,
@@ -15,6 +16,7 @@ import {
   SYRUP_PRICE,
   type ModifierGroup,
   type MenuCategory,
+  type MenuContentOverride,
   type PrepStation,
   type Product,
   type ProductSelection,
@@ -517,6 +519,7 @@ function PriceTicker({ targetPrice }: { targetPrice: number }) {
 
 export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   const [activeCategory, setActiveCategory] = useState<MenuCategory>("Coffee");
+  const [products, setProducts] = useState<Product[]>(menuProducts);
   const [featuredSlides, setFeaturedSlides] = useState<FeaturedProduct[]>(featuredProducts);
   const [heroProduct, setHeroProduct] = useState<FeaturedProduct>(featuredProducts[0]);
   const [menuShowcaseProduct, setMenuShowcaseProduct] = useState<Product>(
@@ -536,7 +539,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   const [confirmation, setConfirmation] = useState<{ number: string; eta: string } | null>(null);
   const [activeVideoModal, setActiveVideoModal] = useState<Product | null>(null);
   const isMenuPage = page === "menu";
-  const oceanBlend = menuProducts.find((product) => product.id === "ocean-blend-bag")!;
+  const oceanBlend = products.find((product) => product.id === "ocean-blend-bag") ?? menuProducts.find((product) => product.id === "ocean-blend-bag")!;
 
   useEffect(() => {
     if (!activeVideoModal) return;
@@ -607,6 +610,10 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
         if (response.ok) {
           const data = await response.json();
           setAvailability(data.availability ?? {});
+          if (Array.isArray(data.menu)) {
+            const overrides = new Map<string, MenuContentOverride>(data.menu.map((item: MenuContentOverride) => [item.productId, item]));
+            setProducts(menuProducts.map((product) => applyMenuContentOverride(product, overrides.get(product.id))));
+          }
           if (typeof data.prepTime === "number") setPrepTime(data.prepTime);
           if (typeof data.paused === "boolean") setOrdersPaused(data.paused);
           if (data.scheduling) setScheduling(data.scheduling);
@@ -621,8 +628,8 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   }, []);
 
   const visibleProducts = useMemo(
-    () => menuProducts.filter((product) => product.category === activeCategory),
-    [activeCategory],
+    () => products.filter((product) => product.category === activeCategory),
+    [activeCategory, products],
   );
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -669,7 +676,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   }
 
   function handleEditCartItem(item: CartItem) {
-    const prod = menuProducts.find((p) => p.id === item.id);
+    const prod = products.find((p) => p.id === item.id);
     if (prod) {
       setEditingCartItem(item);
       setSelectedProduct(prod);
@@ -698,7 +705,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
     const y = window.scrollY + target.getBoundingClientRect().top - (84 + navHeight + 8);
     window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
     setActiveCategory(category);
-    const first = menuProducts.find((p) => p.category === category);
+    const first = products.find((p) => p.category === category);
     if (first) setMenuShowcaseProduct(first);
   }
 
@@ -920,7 +927,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
             */}
             {isMenuPage ? (
               categories.map((category) => {
-                const items = menuProducts.filter((p) => p.category === category);
+                const items = products.filter((p) => p.category === category);
                 if (!items.length) return null;
                 return (
                   <section className="menu-category-block" key={category} id={categoryId(category)}>
@@ -945,7 +952,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
                   <span className="menu-milk-note">Whole, skim, oat, almond, or half and half · no extra charge</span>
                 </div>
                 <div className="menu-items-list">
-                  {menuProducts.filter((p) => p.category === "Coffee" || p.category === "Non-Coffee").map(renderRow)}
+                  {products.filter((p) => p.category === "Coffee" || p.category === "Non-Coffee").map(renderRow)}
                 </div>
                 <div className="menu-bottom-actions">
                   <a href="/menu" className="primary-button hero-cta-btn menu-full-button">

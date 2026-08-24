@@ -83,6 +83,31 @@ export type Product = {
   modifierGroups?: ModifierGroup[];
 };
 
+export type MenuContentOverride = {
+  productId: string;
+  name: string;
+  category: string;
+  description: string;
+  priceCents: number;
+  photoUrl?: string | null;
+};
+
+export function applyMenuContentOverride(product: Product, override?: MenuContentOverride | null): Product {
+  if (!override) return product;
+  const nextPrice = Math.max(0, Number(override.priceCents) / 100);
+  const delta = nextPrice - product.price;
+  const adjust = (sizes?: SizeOption[]) => sizes?.map((size) => ({ ...size, price: Math.max(0, Number((size.price + delta).toFixed(2))) }));
+  return {
+    ...product,
+    name: override.name || product.name,
+    category: (override.category || product.category) as Product["category"],
+    description: override.description || product.description,
+    price: nextPrice,
+    photo: override.photoUrl || product.photo,
+    sizing: product.sizing ? { hot: adjust(product.sizing.hot), iced: adjust(product.sizing.iced) } : product.sizing,
+  };
+}
+
 export const SYRUP_PRICE = 0.5;
 export const SYRUP_OPTIONS = [
   "Caramel",
@@ -344,8 +369,8 @@ export const menuProducts: Product[] = [
     popular: true,
     configurable: true,
     decafAvailable: true,
-    visual: "iced",
-    photo: "/drink-iced-cortado.webp",
+    visual: "hot",
+    photo: "/cup-hot.png",
     drink: "cortado",
   },
   {
@@ -373,8 +398,8 @@ export const menuProducts: Product[] = [
     description: "Espresso, steamed milk, and a generous cap of foam.",
     configurable: true,
     decafAvailable: true,
-    visual: "iced",
-    photo: "/drink-iced-cappuccino.webp",
+    visual: "hot",
+    photo: "/cup-hot.png",
     drink: "cappuccino",
   },
   {
@@ -387,8 +412,8 @@ export const menuProducts: Product[] = [
     description: "A concentrated shot of Deaf Shark coffee.",
     configurable: true,
     decafAvailable: true,
-    visual: "iced",
-    photo: "/drink-iced-espresso.webp",
+    visual: "hot",
+    photo: "/cup-hot.png",
     drink: "espresso",
   },
   {
@@ -610,6 +635,8 @@ export const menuProducts: Product[] = [
       options: ["Croissant", "Plain bagel", "Everything bagel"].map((label) => ({ label })),
     }],
     visual: "sandwich",
+    photo: "/food-croissant-bagel.jpg",
+    photo: "/food-croissant-bagel.jpg",
   },
   {
     id: "bagel-with-spread",
@@ -623,6 +650,8 @@ export const menuProducts: Product[] = [
       { label: "Spread", type: "single", required: true, options: ["Cream cheese", "Jelly"].map((label) => ({ label })) },
     ],
     visual: "sandwich",
+    photo: "/food-bagel-cream-cheese.jpg",
+    photo: "/food-bagel-cream-cheese.jpg",
   },
   {
     id: "maple-waffle-sandwich",
@@ -655,6 +684,8 @@ export const menuProducts: Product[] = [
     configurable: true,
     modifierGroups: [BREAKFAST_BREAD_MODIFIER, CHEESE_UPGRADES, ADD_BACON, FOOD_ADD_ONS],
     visual: "sandwich",
+    photo: "/food-ham-cheese-breakfast.jpg",
+    photo: "/food-ham-cheese-breakfast.jpg",
   },
   {
     id: "egg-and-cheese-breakfast",
@@ -665,6 +696,8 @@ export const menuProducts: Product[] = [
     configurable: true,
     modifierGroups: [BREAKFAST_BREAD_MODIFIER, CHEESE_UPGRADES, ADD_BACON, FOOD_ADD_ONS],
     visual: "sandwich",
+    photo: "/food-egg-cheese-breakfast.jpg",
+    photo: "/food-egg-cheese-breakfast.jpg",
   },
   {
     id: "sausage-egg-cheese-croissant",
@@ -693,6 +726,8 @@ export const menuProducts: Product[] = [
       FOOD_ADD_ONS,
     ],
     visual: "sandwich",
+    photo: "/food-classic-breakfast.jpg",
+    photo: "/food-classic-breakfast.jpg",
   },
   {
     id: "breakfast-wrap",
@@ -703,6 +738,8 @@ export const menuProducts: Product[] = [
     configurable: true,
     modifierGroups: [CHEESE_UPGRADES, EXTRA_BACON, FOOD_ADD_ONS],
     visual: "sandwich",
+    photo: "/food-breakfast-wrap.jpg",
+    photo: "/food-breakfast-wrap.jpg",
   },
   {
     id: "taylor-ham-egg-cheese",
@@ -713,9 +750,10 @@ export const menuProducts: Product[] = [
     configurable: true,
     modifierGroups: [BREAKFAST_BREAD_MODIFIER, CHEESE_UPGRADES, ADD_BACON, FOOD_ADD_ONS],
     visual: "sandwich",
+    photo: "/food-taylor-ham-egg-cheese.jpg",
+    photo: "/food-taylor-ham-egg-cheese.jpg",
   },
   {
-    /* PLACEHOLDER image: falls back to the generic cup art until a photo is added. */
     id: "lunch-special",
     name: "Lunch Special",
     category: "Sandwiches",
@@ -729,6 +767,8 @@ export const menuProducts: Product[] = [
       "Small Chicken Sandwich - chicken, lettuce, ham, swiss, pickles, mustard",
     ],
     visual: "sandwich",
+    photo: "/food-lunch-special.jpg",
+    photo: "/food-lunch-special.jpg",
   },
   {
     id: "shark-cubano",
@@ -846,6 +886,8 @@ export const menuProducts: Product[] = [
     price: 5.99,
     description: "Six golden mozzarella sticks.",
     visual: "bite",
+    photo: "/food-mozzarella-sticks.jpg",
+    photo: "/food-mozzarella-sticks.jpg",
   },
   {
     id: "chicken-wings-fries",
@@ -855,6 +897,8 @@ export const menuProducts: Product[] = [
     description: "Chicken wings served with French fries.",
     configurable: true,
     visual: "bite",
+    photo: "/food-chicken-wings-fries.jpg",
+    photo: "/food-chicken-wings-fries.jpg",
   },
   {
     id: "poland-spring",
@@ -864,6 +908,7 @@ export const menuProducts: Product[] = [
     price: 2,
     description: "Chilled bottled spring water.",
     visual: "iced",
+    photo: "/drink-poland-spring.jpg",
   },
   {
     id: "smartwater",
@@ -873,6 +918,7 @@ export const menuProducts: Product[] = [
     price: 3,
     description: "Chilled vapor-distilled water.",
     visual: "iced",
+    photo: "/drink-smartwater.jpg",
   },
   {
     id: "san-pellegrino",
@@ -895,6 +941,7 @@ export const menuProducts: Product[] = [
     flavorLabel: "Choose a soda",
     flavors: ["Coca-Cola", "Sprite", "Diet Coke", "Canada Dry Ginger Ale"],
     visual: "iced",
+    photo: "/drink-canned-soda.jpg",
   },
   {
     id: "vita-coco",
@@ -904,6 +951,7 @@ export const menuProducts: Product[] = [
     price: 2.95,
     description: "Original coconut water.",
     visual: "iced",
+    photo: "/drink-vita-coco.jpg",
   },
   {
     id: "tropicana-refreshers",
@@ -916,6 +964,7 @@ export const menuProducts: Product[] = [
     flavorLabel: "Choose a flavor",
     flavors: ["Lemonade", "Cranberry Cocktail", "Fruit Punch"],
     visual: "iced",
+    photo: "/drink-tropicana-refreshers.jpg",
   },
   {
     id: "tropicana-juice",
@@ -928,6 +977,7 @@ export const menuProducts: Product[] = [
     flavorLabel: "Choose a flavor",
     flavors: ["Orange Juice", "Apple Juice"],
     visual: "iced",
+    photo: "/drink-tropicana-juice.jpg",
   },
   {
     id: "snapple",
@@ -940,6 +990,7 @@ export const menuProducts: Product[] = [
     flavorLabel: "Choose a flavor",
     flavors: ["Peach Tea", "Raspberry Tea", "Lemon Tea", "Kiwi Strawberry"],
     visual: "iced",
+    photo: "/drink-snapple.jpg",
   },
   {
     id: "arnold-palmer",
@@ -952,6 +1003,7 @@ export const menuProducts: Product[] = [
     flavorLabel: "Choose one",
     flavors: ["Half & Half", "Sweet Tea & Lemonade"],
     visual: "iced",
+    photo: "/drink-arnold-palmer.jpg",
   },
   {
     id: "gatorade",
@@ -964,6 +1016,7 @@ export const menuProducts: Product[] = [
     flavorLabel: "Choose a flavor",
     flavors: ["Cool Blue", "Lemon-Lime", "Fruit Punch"],
     visual: "iced",
+    photo: "/drink-gatorade.jpg",
   },
   {
     id: "red-bull",
@@ -973,6 +1026,7 @@ export const menuProducts: Product[] = [
     price: 4,
     description: "Chilled 8.4 oz energy drink.",
     visual: "iced",
+    photo: "/drink-red-bull.jpg",
   },
   {
     id: "bottled-soda",
@@ -985,6 +1039,7 @@ export const menuProducts: Product[] = [
     flavorLabel: "Choose a soda",
     flavors: ["Inca Kola", "Coca-Cola", "Canada Dry Ginger Ale"],
     visual: "iced",
+    photo: "/drink-bottled-soda.jpg",
   },
   {
     id: "malta-bottle",
@@ -992,9 +1047,9 @@ export const menuProducts: Product[] = [
     category: "Cold Drinks",
     prepStation: "RETAIL",
     price: 2.5,
-    description: "A chilled non-alcoholic malt beverage.",
+    description: "A chilled non-alcoholic malt beverage in a can.",
     visual: "iced",
-    photo: "/drink-malta.webp",
+    photo: "/drink-malta-can.jpg",
   },
   {
     id: "el-chichero",

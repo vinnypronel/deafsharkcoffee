@@ -24,6 +24,15 @@ export function ensureSchema() {
           available integer DEFAULT true NOT NULL,
           updated_at integer NOT NULL
         )`),
+        d1.prepare(`CREATE TABLE IF NOT EXISTS menu_content (
+          product_id text PRIMARY KEY NOT NULL,
+          name text NOT NULL,
+          category text NOT NULL,
+          description text NOT NULL,
+          price_cents integer NOT NULL,
+          photo_url text,
+          updated_at integer NOT NULL
+        )`),
         d1.prepare(`CREATE TABLE IF NOT EXISTS orders (
           id integer PRIMARY KEY AUTOINCREMENT,
           order_number text NOT NULL UNIQUE,

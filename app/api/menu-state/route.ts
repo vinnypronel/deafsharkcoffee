@@ -1,6 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../db";
-import { menuAvailability, storeSettings } from "../../../db/schema";
+import { menuAvailability, menuContent, storeSettings } from "../../../db/schema";
 import { requireStaff } from "../../../lib/staff-auth";
 import { effectiveOrderingHours } from "../../../lib/store-hours";
 
@@ -24,13 +24,15 @@ async function readSettings() {
 export async function GET() {
   try {
     await ensureSchema();
-    const [items, settings] = await Promise.all([
+    const [items, content, settings] = await Promise.all([
       getDb().select().from(menuAvailability).orderBy(desc(menuAvailability.updatedAt)),
+      getDb().select().from(menuContent).orderBy(desc(menuContent.updatedAt)),
       readSettings(),
     ]);
     const hours = effectiveOrderingHours(settings);
     return Response.json({
       availability: Object.fromEntries(items.map((item) => [item.productId, item.available])),
+      menu: content,
       prepTime: settings.prepTimeMinutes,
       paused: settings.paused,
       hours: {

@@ -217,6 +217,7 @@ export function Dashboard() {
               );
             })}
           </div>
+          <AdminPanels view="menu" />
         </section>
       ) : <AdminPanels view={activeView} />}
     </main>
