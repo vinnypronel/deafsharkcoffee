@@ -71,6 +71,9 @@ export type Product = {
   configurable?: boolean;
   visual: "hot" | "iced" | "sandwich" | "bite" | "bag";
   photo?: string;
+  /* Optional package photo for each retail flavor. The storefront swaps these
+     in the configurator while preserving `photo` as the menu-card default. */
+  flavorPhotos?: Record<string, string>;
   video?: string;
   drink?: DrinkKey;
   sizing?: DrinkSizing;
@@ -97,6 +100,7 @@ export type MenuContentOverride = {
 
 export function applyMenuContentOverride(product: Product, override?: MenuContentOverride | null): Product {
   if (!override) return product;
+  const hasCuratedCatalogPhoto = product.photo?.startsWith("/menu/");
   const nextPrice = Math.max(0, Number(override.priceCents) / 100);
   const delta = nextPrice - product.price;
   const adjust = (sizes?: SizeOption[]) => sizes?.map((size) => ({ ...size, price: Math.max(0, Number((size.price + delta).toFixed(2))) }));
@@ -106,9 +110,9 @@ export function applyMenuContentOverride(product: Product, override?: MenuConten
     ...product,
     name: override.name || product.name,
     category,
-    description: override.description || product.description,
+    description: override.description?.includes("PLACEHOLDER") ? product.description : (override.description || product.description),
     price: nextPrice,
-    photo: override.photoUrl || product.photo,
+    photo: hasCuratedCatalogPhoto ? product.photo : (override.photoUrl || product.photo),
     sizing: product.sizing ? { hot: adjust(product.sizing.hot), iced: adjust(product.sizing.iced) } : product.sizing,
   };
 }
@@ -349,6 +353,7 @@ export const menuProducts: Product[] = [
     flavorLabel: "Grind",
     flavors: ["Whole bean", "Ground"],
     visual: "bag",
+    photo: "/menu/coffee/ocean-blend-single-bag-catalog-v1.png",
     video: "/featured-ocean-blend.mp4",
   },
   {
@@ -567,7 +572,7 @@ export const menuProducts: Product[] = [
     category: "Tea",
     section: "Tea",
     price: 2.75,
-    description: "Loose leaf tea brewed to order.",
+    description: "Brewed to order. Green tea, honey lemon, ginseng, chamomile, or mandarin orange spice.",
     configurable: true,
     temps: ["Hot"],
     sizing: { hot: [{ label: "12 oz", price: 2.75 }] },
@@ -630,7 +635,7 @@ export const menuProducts: Product[] = [
   },
   {
     id: "plain-croissant-or-bagel",
-    name: "Plain Croissant or Bagel",
+    name: "Croissant or Bagel (Plain)",
     category: "Breakfast",
     price: 3.2,
     description: "Choose a plain croissant, plain bagel, or everything bagel.",
@@ -678,7 +683,7 @@ export const menuProducts: Product[] = [
     configurable: true,
     modifierGroups: [CHEESE_UPGRADES, ADD_BACON, FOOD_ADD_ONS],
     visual: "sandwich",
-    photo: "/food-jalapeno-biscuit-real-v2.png",
+    photo: "/food-jalapeno-biscuit-real-v3.png",
   },
   {
     id: "ham-and-cheese-breakfast",
@@ -689,7 +694,7 @@ export const menuProducts: Product[] = [
     configurable: true,
     modifierGroups: [BREAKFAST_BREAD_MODIFIER, CHEESE_UPGRADES, ADD_BACON, FOOD_ADD_ONS],
     visual: "sandwich",
-    photo: "/food-ham-cheese-breakfast.jpg",
+    photo: "/food-ham-cheese-breakfast-original-style.png",
   },
   {
     id: "egg-and-cheese-breakfast",
@@ -700,7 +705,7 @@ export const menuProducts: Product[] = [
     configurable: true,
     modifierGroups: [BREAKFAST_BREAD_MODIFIER, CHEESE_UPGRADES, ADD_BACON, FOOD_ADD_ONS],
     visual: "sandwich",
-    photo: "/food-egg-cheese-breakfast.jpg",
+    photo: "/food-egg-cheese-breakfast-original-style.png",
   },
   {
     id: "sausage-egg-cheese-croissant",
@@ -740,7 +745,7 @@ export const menuProducts: Product[] = [
     configurable: true,
     modifierGroups: [CHEESE_UPGRADES, EXTRA_BACON, FOOD_ADD_ONS],
     visual: "sandwich",
-    photo: "/food-breakfast-wrap.jpg",
+    photo: "/food-breakfast-wrap-original-style.png",
   },
   {
     id: "taylor-ham-egg-cheese",
@@ -751,7 +756,7 @@ export const menuProducts: Product[] = [
     configurable: true,
     modifierGroups: [BREAKFAST_BREAD_MODIFIER, CHEESE_UPGRADES, ADD_BACON, FOOD_ADD_ONS],
     visual: "sandwich",
-    photo: "/food-taylor-ham-egg-cheese.jpg",
+    photo: "/food-taylor-ham-egg-cheese-real.png",
   },
   {
     id: "lunch-special",
@@ -801,7 +806,7 @@ export const menuProducts: Product[] = [
     configurable: true,
     modifierGroups: [FOOD_ADD_ONS],
     visual: "sandwich",
-    photo: "/food-emilia.jpg",
+    photo: "/food-emilia-real-v2.png",
   },
   {
     id: "turkey-pesto",
@@ -837,7 +842,7 @@ export const menuProducts: Product[] = [
     configurable: true,
     modifierGroups: [FOOD_ADD_ONS],
     visual: "sandwich",
-    photo: "/food-la-toscana.jpg",
+    photo: "/food-la-toscana-real-v2.png",
   },
   {
     id: "cachapa",
@@ -867,7 +872,7 @@ export const menuProducts: Product[] = [
     price: 6.99,
     description: "Soft pastry stuffed with ham, cheese, and bacon.",
     visual: "bite",
-    photo: "/food-cachitos.jpg",
+    photo: "/food-cachitos-croissant-style-v2.png",
   },
   {
     id: "fries",
@@ -895,7 +900,7 @@ export const menuProducts: Product[] = [
     description: "Chicken wings served with French fries.",
     configurable: true,
     visual: "bite",
-    photo: "/food-chicken-wings-fries-real.png",
+    photo: "/food-chicken-wings-fries-breaded-v2.png",
   },
   {
     id: "poland-spring",
@@ -905,7 +910,7 @@ export const menuProducts: Product[] = [
     price: 2,
     description: "Chilled 16.9 oz bottled spring water.",
     visual: "iced",
-    photo: "/drink-poland-spring.jpg",
+    photo: "/menu/fridge/poland-spring-16-9oz-catalog-v1.png",
   },
   {
     id: "smartwater",
@@ -913,9 +918,9 @@ export const menuProducts: Product[] = [
     category: "From the Fridge",
     prepStation: "RETAIL",
     price: 3,
-    description: "Chilled vapor-distilled water.",
+    description: "Chilled 20 oz vapor-distilled water.",
     visual: "iced",
-    photo: "/drink-smartwater.jpg",
+    photo: "/menu/fridge/smartwater-20oz-catalog-v1.png",
   },
   {
     id: "san-pellegrino",
@@ -925,7 +930,7 @@ export const menuProducts: Product[] = [
     price: 3.5,
     description: "Sparkling natural mineral water, 16.9 oz.",
     visual: "iced",
-    photo: "/drink-san-pellegrino.webp",
+    photo: "/menu/fridge/s-pellegrino-16-9oz-catalog-v1.png",
   },
   {
     id: "canned-soda",
@@ -933,12 +938,18 @@ export const menuProducts: Product[] = [
     category: "From the Fridge",
     prepStation: "RETAIL",
     price: 2,
-    description: "Chilled 12 oz can.",
+    description: "Chilled 12 oz can. Coca-Cola, Sprite, Diet Coke, or Canada Dry Ginger Ale.",
     configurable: true,
     flavorLabel: "Choose a soda",
     flavors: ["Coca-Cola", "Sprite", "Diet Coke", "Canada Dry Ginger Ale"],
     visual: "iced",
-    photo: "/drink-canned-soda.jpg",
+    photo: "/menu/fridge/canned-soda-all-options-group-catalog-v1.png",
+    flavorPhotos: {
+      "Coca-Cola": "/menu/fridge/coca-cola-can-12oz-catalog-v1.png",
+      Sprite: "/menu/fridge/sprite-can-12oz-catalog-v1.png",
+      "Diet Coke": "/menu/fridge/diet-coke-can-12oz-catalog-v1.png",
+      "Canada Dry Ginger Ale": "/menu/fridge/canada-dry-can-12oz-catalog-v1.png",
+    },
   },
   {
     id: "vita-coco",
@@ -946,9 +957,9 @@ export const menuProducts: Product[] = [
     category: "From the Fridge",
     prepStation: "RETAIL",
     price: 2.95,
-    description: "The Original coconut water. PLACEHOLDER: confirm size.",
+    description: "The Original coconut water, 16.9 oz.",
     visual: "iced",
-    photo: "/drink-vita-coco.jpg",
+    photo: "/menu/fridge/vita-coco-original-16-9oz-catalog-v1.png",
   },
   {
     id: "tropicana-refreshers",
@@ -956,12 +967,16 @@ export const menuProducts: Product[] = [
     category: "From the Fridge",
     prepStation: "RETAIL",
     price: 2.75,
-    description: "Chilled Tropicana bottled drink.",
+    description: "Chilled Tropicana bottled drink. Lemonade or Fruit Punch.",
     configurable: true,
     flavorLabel: "Choose a flavor",
-    flavors: ["Lemonade", "Cranberry Cocktail", "Fruit Punch"],
+    flavors: ["Lemonade", "Fruit Punch"],
     visual: "iced",
-    photo: "/drink-tropicana-refreshers.jpg",
+    photo: "/menu/fridge/tropicana-refreshers-all-flavors-group-catalog-v1.png",
+    flavorPhotos: {
+      Lemonade: "/menu/fridge/tropicana-refreshers-lemonade-catalog-v1.png",
+      "Fruit Punch": "/menu/fridge/tropicana-refreshers-fruit-punch-catalog-v1.png",
+    },
   },
   {
     id: "tropicana-juice",
@@ -969,50 +984,53 @@ export const menuProducts: Product[] = [
     category: "From the Fridge",
     prepStation: "RETAIL",
     price: 3.25,
-    description: "Chilled 11 oz bottle of 100% juice.",
+    description: "Chilled 11 oz bottle. Orange Juice, Apple Juice, or Cranberry Cocktail.",
     configurable: true,
     flavorLabel: "Choose a flavor",
-    flavors: ["Orange Juice", "Apple Juice"],
+    flavors: ["Orange Juice", "Apple Juice", "Cranberry Cocktail"],
     visual: "iced",
-    photo: "/drink-tropicana-juice.jpg",
+    photo: "/menu/fridge/tropicana-juice-11oz-all-flavors-group-catalog-v2.png",
+    flavorPhotos: {
+      "Orange Juice": "/menu/fridge/tropicana-orange-juice-11oz-catalog-v1.png",
+      "Apple Juice": "/menu/fridge/tropicana-apple-juice-11oz-catalog-v1.png",
+      "Cranberry Cocktail": "/menu/fridge/tropicana-cranberry-cocktail-11oz-catalog-v1.png",
+    },
   },
   {
     id: "snapple",
-    name: "Snapple (20 oz)",
+    name: "Snapple",
     category: "From the Fridge",
     prepStation: "RETAIL",
     price: 3,
-    description: "Chilled 20 oz Snapple.",
+    description: "Chilled 20 oz Snapple. Peach Tea, Raspberry Tea, Lemon Tea, or Kiwi Strawberry.",
     configurable: true,
     flavorLabel: "Choose a flavor",
     flavors: ["Peach Tea", "Raspberry Tea", "Lemon Tea", "Kiwi Strawberry"],
     visual: "iced",
-    photo: "/drink-snapple.jpg",
+    photo: "/menu/fridge/snapple-20oz-all-flavors-group-catalog-v1.png",
+    flavorPhotos: {
+      "Peach Tea": "/menu/fridge/snapple-peach-tea-20oz-catalog-v1.png",
+      "Raspberry Tea": "/menu/fridge/snapple-raspberry-tea-20oz-catalog-v1.png",
+      "Lemon Tea": "/menu/fridge/snapple-lemon-tea-20oz-catalog-v1.png",
+      "Kiwi Strawberry": "/menu/fridge/snapple-kiwi-strawberry-20oz-catalog-v1.png",
+    },
   },
   {
-    /* PLACEHOLDER image: no photo supplied yet for the 16 oz Snapple. */
-    id: "snapple-16",
-    name: "Snapple (16 oz)",
-    category: "From the Fridge",
-    prepStation: "RETAIL",
-    price: 2.5,
-    description: "Chilled 16 oz Snapple.",
-    visual: "iced",
-    photo: "/drink-snapple.jpg",
-  },
-  {
-    /* PLACEHOLDER image: no photo supplied yet for the 15 oz Tropicana. */
     id: "tropicana-juice-15",
     name: "Tropicana Juice (15 oz)",
     category: "From the Fridge",
     prepStation: "RETAIL",
     price: 3.5,
-    description: "Chilled 15 oz bottle of juice.",
+    description: "Chilled 15 oz bottle of juice. Cranberry or Apple Juice.",
     configurable: true,
     flavorLabel: "Choose a flavor",
     flavors: ["Cranberry", "Apple Juice"],
     visual: "iced",
-    photo: "/drink-tropicana-juice.jpg",
+    photo: "/menu/fridge/tropicana-juice-15oz-all-flavors-group-catalog-v1.png",
+    flavorPhotos: {
+      Cranberry: "/menu/fridge/tropicana-cranberry-juice-15oz-catalog-v1.png",
+      "Apple Juice": "/menu/fridge/tropicana-apple-juice-15oz-catalog-v1.png",
+    },
   },
   {
     id: "arnold-palmer",
@@ -1020,12 +1038,9 @@ export const menuProducts: Product[] = [
     category: "From the Fridge",
     prepStation: "RETAIL",
     price: 3.25,
-    description: "Chilled 20 oz Arnold Palmer, sweet tea and lemonade.",
-    configurable: true,
-    flavorLabel: "Choose one",
-    flavors: ["Half & Half", "Sweet Tea & Lemonade"],
+    description: "Southern Style Half & Half Sweet Tea & Lemonade, 20 oz.",
     visual: "iced",
-    photo: "/drink-arnold-palmer.jpg",
+    photo: "/menu/fridge/arnold-palmer-half-and-half-20oz-catalog-v1.png",
   },
   {
     id: "gatorade",
@@ -1033,12 +1048,17 @@ export const menuProducts: Product[] = [
     category: "From the Fridge",
     prepStation: "RETAIL",
     price: 2.75,
-    description: "Chilled 20 oz sports drink.",
+    description: "Chilled 20 oz sports drink. Cool Blue, Lemon-Lime, or Fruit Punch.",
     configurable: true,
     flavorLabel: "Choose a flavor",
     flavors: ["Cool Blue", "Lemon-Lime", "Fruit Punch"],
     visual: "iced",
-    photo: "/drink-gatorade.jpg",
+    photo: "/menu/fridge/gatorade-all-flavors-group-catalog-v1.png",
+    flavorPhotos: {
+      "Cool Blue": "/menu/fridge/gatorade-cool-blue-20oz-catalog-v1.png",
+      "Lemon-Lime": "/menu/fridge/gatorade-lemon-lime-20oz-catalog-v1.png",
+      "Fruit Punch": "/menu/fridge/gatorade-fruit-punch-20oz-catalog-v1.png",
+    },
   },
   {
     id: "red-bull",
@@ -1048,7 +1068,7 @@ export const menuProducts: Product[] = [
     price: 4,
     description: "Chilled 8.4 oz energy drink.",
     visual: "iced",
-    photo: "/drink-red-bull.jpg",
+    photo: "/menu/fridge/red-bull-original-8-4oz-catalog-v1.png",
   },
   {
     id: "bottled-soda",
@@ -1056,12 +1076,17 @@ export const menuProducts: Product[] = [
     category: "From the Fridge",
     prepStation: "RETAIL",
     price: 3.5,
-    description: "Chilled 20 oz bottle.",
+    description: "Chilled 20 oz bottle. Inca Kola, Coca-Cola, or Canada Dry Ginger Ale.",
     configurable: true,
     flavorLabel: "Choose a soda",
     flavors: ["Inca Kola", "Coca-Cola", "Canada Dry Ginger Ale"],
     visual: "iced",
-    photo: "/drink-bottled-soda.jpg",
+    photo: "/menu/fridge/bottled-soda-all-options-group-catalog-v1.png",
+    flavorPhotos: {
+      "Inca Kola": "/menu/fridge/inca-kola-bottle-20oz-catalog-v1.png",
+      "Coca-Cola": "/menu/fridge/coca-cola-bottle-20oz-catalog-v1.png",
+      "Canada Dry Ginger Ale": "/menu/fridge/canada-dry-bottle-20oz-catalog-v1.png",
+    },
   },
   {
     id: "malta-bottle",
@@ -1071,7 +1096,7 @@ export const menuProducts: Product[] = [
     price: 2.5,
     description: "Chilled 12 oz can of real brewed non-alcoholic malt.",
     visual: "iced",
-    photo: "/drink-malta-can.jpg",
+    photo: "/menu/fridge/maltin-polar-12oz-catalog-v1.png",
   },
   {
     id: "el-chichero",
@@ -1079,9 +1104,9 @@ export const menuProducts: Product[] = [
     category: "From the Fridge",
     prepStation: "RETAIL",
     price: 4.25,
-    description: "Chilled traditional chicha. PLACEHOLDER: confirm size.",
+    description: "Chilled traditional chicha, 330 ml (11.2 oz).",
     visual: "iced",
-    photo: "/drink-chicha.webp",
+    photo: "/menu/fridge/el-chichero-chicha-330ml-catalog-v1.png",
   },
 ];
 

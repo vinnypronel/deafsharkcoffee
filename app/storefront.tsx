@@ -105,10 +105,12 @@ function CupMark() {
 
 function ProductVisual({ product, compact = false }: { product: Product; compact?: boolean }) {
   const isCup = product.visual === "hot" || product.visual === "iced";
+  const isPackagedProduct = product.category === "From the Fridge" || product.category === "Coffee Beans";
+  const isFoodProduct = product.category === "Breakfast" || product.category === "Sandwiches" || product.category === "Bites";
   const photo = product.photo || (isCup ? CUP_PHOTOS[product.visual as "hot" | "iced"] : (product.visual === "sandwich" || product.category === "Sandwiches" || product.category === "Breakfast" ? "/chicken-pesto-centered.jpg" : undefined));
   if (photo) {
     return (
-      <div className={`product-visual product-${product.visual} ${compact ? "product-visual-compact" : ""}`}>
+      <div className={`product-visual product-${product.visual} ${isPackagedProduct ? "product-packaged" : ""} ${isFoodProduct ? "product-food" : ""} ${compact ? "product-visual-compact" : ""}`}>
         <div className="visual-glow" />
         <img className="product-photo" src={photo} alt={product.name} />
         <span className="visual-shadow" />
@@ -116,7 +118,7 @@ function ProductVisual({ product, compact = false }: { product: Product; compact
     );
   }
   return (
-    <div className={`product-visual product-${product.visual} ${compact ? "product-visual-compact" : ""}`}>
+    <div className={`product-visual product-${product.visual} ${isFoodProduct ? "product-food" : ""} ${compact ? "product-visual-compact" : ""}`}>
       <div className="visual-glow" />
       {isCup && (
         <div className={`cup ${product.visual === "iced" ? "iced-cup" : "hot-cup"}`}>
@@ -256,11 +258,11 @@ function ProductConfigurator({
       quantity: initialItem.quantity || 1,
     };
   });
-
   const hasTwoSizes = ["shark-cubano", "chicken-sandwich", "emilia"].includes(product.id);
   const drinkSizes = sizesFor(product, config.temperature);
   const pricedSelection = priceProductSelection(product, config);
   const unitPrice = pricedSelection.unitPrice;
+  const selectedProductPhoto = product.flavorPhotos?.[config.flavor] ?? product.photo;
 
   /* Iced pours are 16 oz only, so switching temperature re-picks the size. */
   const setTemperature = (value: "Hot" | "Iced") => {
@@ -297,8 +299,8 @@ function ProductConfigurator({
               ...product,
               visual: isDrink ? (config.temperature === "Hot" ? "hot" : "iced") : product.visual,
               photo: isDrink
-                ? (config.temperature === "Hot" ? "/cup-hot.png" : (product.photo || "/drink-iced-latte.webp"))
-                : (product.photo || (product.visual === "sandwich" || product.category === "Breakfast" || product.category === "Sandwiches" ? "/chicken-pesto-centered.jpg" : undefined)),
+                ? (config.temperature === "Hot" ? "/cup-hot.png" : (selectedProductPhoto || "/drink-iced-latte.webp"))
+                : (selectedProductPhoto || (product.visual === "sandwich" || product.category === "Breakfast" || product.category === "Sandwiches" ? "/chicken-pesto-centered.jpg" : undefined)),
             }}
           />
           <div className="config-product-info">
@@ -747,8 +749,8 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
     );
   }
 
-  function renderItems(items: Product[], parentCategory?: MenuCategory) {
-    const hasSections = items.some((item) => Boolean(item.section));
+  function renderItems(items: Product[], parentCategory?: MenuCategory, showSections = true) {
+    const hasSections = showSections && items.some((item) => Boolean(item.section));
     if (!hasSections) {
       return items.map(renderRow);
     }
@@ -909,7 +911,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
           {/* Left Column: Title + Clean Product Card + Brand Tag (Sticky) */}
           <aside className="menu-product-card-wrap">
             <div className="menu-sidebar-heading">
-              <h2>{isMenuPage ? "The Full Deaf Shark Menu" : "Salvadoran roasts, poured ice-cold."}</h2>
+              <h2>{isMenuPage ? "The Full Deaf Shark Menu" : "Salvadoran roasts, poured fresh."}</h2>
             </div>
             <div className="menu-product-card">
               <ProductVisual product={menuShowcaseProduct} />
@@ -979,12 +981,20 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
               <section className="menu-category-block">
                 <div className="menu-panel-header">
                   <div>
-                    <h3>Our Refreshments</h3>
+                    <h3>Some of Our Refreshments</h3>
                   </div>
                   <span className="menu-milk-note">Whole, skim, oat, almond, or half and half · no extra charge</span>
                 </div>
                 <div className="menu-items-list">
-                  {renderItems(products.filter((p) => DRINK_CATEGORIES.includes(p.category)))}
+                  {renderItems(
+                    products.filter((p) => {
+                      if (!DRINK_CATEGORIES.includes(p.category)) return false;
+                      const temps = temperaturesFor(p);
+                      return !(temps.length === 1 && temps[0] === "Hot");
+                    }),
+                    undefined,
+                    false,
+                  )}
                 </div>
                 <div className="menu-bottom-actions">
                   <a href="/menu" className="primary-button hero-cta-btn menu-full-button">
