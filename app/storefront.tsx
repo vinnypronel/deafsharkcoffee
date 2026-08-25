@@ -36,6 +36,22 @@ type CartItem = {
   selection?: ProductSelection;
 };
 
+/* Shape returned by /api/site-content for the home page featured carousel. */
+type FeaturedSlideResponse = {
+  productId: string;
+  categoryLabel: string;
+  title: string;
+  buttonLabel: string;
+  priceCents: number;
+  mediaUrl: string;
+};
+
+/* Shape returned by /api/profile. */
+type ProfilePayload = {
+  authenticated: boolean;
+  profile?: { displayName?: string; phone?: string | null };
+};
+
 type SchedulingSettings = {
   enabled: boolean;
   horizonMinutes: number;
@@ -571,15 +587,17 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   useEffect(() => {
     if (isMenuPage) return;
     fetch("/api/site-content", { cache: "no-store" })
-      .then((response) => response.ok ? response.json() : null)
+      .then((response) => response.ok
+        ? response.json() as Promise<{ featured?: FeaturedSlideResponse[] } | null>
+        : null)
       .then((data) => {
         if (!data?.featured?.length) return;
-        const slides = data.featured.flatMap((entry: { productId: string; categoryLabel: string; title: string; buttonLabel: string; priceCents: number; mediaUrl: string }) => {
+        const slides = data.featured.flatMap((entry) => {
           const product = menuProducts.find((candidate) => candidate.id === entry.productId);
           if (!product) return [];
           return [{
             ...product,
-            category: entry.categoryLabel || product.category,
+            category: entry.categoryLabel === "Non-Coffee" ? product.category : entry.categoryLabel || product.category,
             name: entry.title || product.name,
             price: Number(entry.priceCents) / 100,
             video: entry.mediaUrl || product.video,
@@ -610,7 +628,13 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
       try {
         const response = await fetch("/api/menu-state", { cache: "no-store" });
         if (response.ok) {
-          const data = await response.json();
+          const data = await response.json() as {
+            availability?: Record<string, boolean>;
+            menu?: MenuContentOverride[];
+            prepTime?: number;
+            paused?: boolean;
+            scheduling?: SchedulingSettings;
+          };
           setAvailability(data.availability ?? {});
           if (Array.isArray(data.menu)) {
             const overrides = new Map<string, MenuContentOverride>(data.menu.map((item: MenuContentOverride) => [item.productId, item]));
@@ -815,6 +839,62 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
     }
   }
 
+  const renderHeroProductPanel = (className = "") => (
+    <div className={`hero-product ${className}`.trim()} aria-live="polite">
+      <div key={heroProduct.id} className="hero-visual-container hero-visual-swipe">
+        {heroProduct.video ? (
+          <div className="hero-featured-video-wrap">
+            <video
+              src={heroProduct.video}
+              autoPlay
+              muted
+              loop
+              playsInline
+              className="hero-featured-video"
+            />
+            <button
+              className="hero-video-play-btn"
+              onClick={() => setActiveVideoModal(heroProduct)}
+              aria-label={`Play ${heroProduct.name} video with sound`}
+              title="Play video with sound"
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </button>
+          </div>
+        ) : (
+          <ProductVisual product={heroProduct} />
+        )}
+      </div>
+      <div className="hero-product-caption">
+        <div key={heroProduct.id} className="hero-product-text hero-text-swipe">
+          <span>{heroProduct.category}</span>
+          <strong>{heroProduct.name}</strong>
+        </div>
+        <button className="hero-add-btn" onClick={() => openProduct(heroProduct)}>
+          <span>{heroProduct.featuredButtonLabel || "Add to cart"} · <PriceTicker targetPrice={heroProduct.price} /></span>
+          <span className="btn-cart-glyph" />
+        </button>
+      </div>
+      <div className="product-dots" aria-label="Featured products">
+        {featuredSlides.map((product) => {
+          const isActive = product.id === heroProduct.id;
+          return (
+            <button
+              key={product.id}
+              className={isActive ? "active" : ""}
+              onClick={() => setHeroProduct(product)}
+              aria-label={`Show ${product.name}`}
+            >
+              {isActive && <span key={`${product.id}-timer`} className="dot-fill" />}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
   return (
     <main>
       <CustomerHeader
@@ -847,61 +927,11 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
               </a>
             </div>
           </div>
-          <div className="hero-product" aria-live="polite">
-            <div key={heroProduct.id} className="hero-visual-container hero-visual-swipe">
-              {heroProduct.video ? (
-                <div className="hero-featured-video-wrap">
-                  <video
-                    src={heroProduct.video}
-                    autoPlay
-                    muted
-                    loop
-                    playsInline
-                    className="hero-featured-video"
-                  />
-                  <button
-                    className="hero-video-play-btn"
-                    onClick={() => setActiveVideoModal(heroProduct)}
-                    aria-label={`Play ${heroProduct.name} video with sound`}
-                    title="Play video with sound"
-                  >
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true">
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
-                  </button>
-                </div>
-              ) : (
-                <ProductVisual product={heroProduct} />
-              )}
-            </div>
-            <div className="hero-product-caption">
-              <div key={heroProduct.id} className="hero-product-text hero-text-swipe">
-                <span>{heroProduct.category}</span>
-                <strong>{heroProduct.name}</strong>
-              </div>
-              <button className="hero-add-btn" onClick={() => openProduct(heroProduct)}>
-                <span>{heroProduct.featuredButtonLabel || "Add to cart"} · <PriceTicker targetPrice={heroProduct.price} /></span>
-                <span className="btn-cart-glyph" />
-              </button>
-            </div>
-            <div className="product-dots" aria-label="Featured products">
-              {featuredSlides.map((product) => {
-                const isActive = product.id === heroProduct.id;
-                return (
-                  <button
-                    key={product.id}
-                    className={isActive ? "active" : ""}
-                    onClick={() => setHeroProduct(product)}
-                    aria-label={`Show ${product.name}`}
-                  >
-                    {isActive && <span key={`${product.id}-timer`} className="dot-fill" />}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          {renderHeroProductPanel("hero-product-pinned")}
         </section>
       </ScrollHero>}
+
+      {!isMenuPage && renderHeroProductPanel("hero-product-mobile")}
 
       <section className={`order-section ${isMenuPage ? "standalone-order" : ""}`} id="menu">
         <div className="order-section-badge-wrap" aria-hidden="true">
@@ -956,8 +986,8 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
             {/*
               The menu page shows every category at once. The buttons jump to a
               section rather than filtering it, so nothing is hidden behind a click.
-              Each section header pins while its own items pass under it and is then
-              pushed off by the next header, which is plain sticky behaviour.
+              Section titles scroll with their items so selected rows never pass
+              behind a title and show as clipped dark strips.
             */}
             {isMenuPage ? (
               categories.map((category) => {
@@ -1011,6 +1041,9 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
       </section>
 
       {!isMenuPage && <section className="take-home-section">
+        {/* Mobile only: the copy panel sits below the video there, so the section
+            needs a heading up top to say what it is. */}
+        <div className="take-home-banner">Take Home Our Roast!</div>
         <div className="take-home-image">
           <img src="/ocean-blend-bags.jpg" alt="Deaf Shark Ocean Blend coffee bags displayed in the Union shop" />
         </div>
@@ -1443,13 +1476,14 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onC
   useEffect(() => {
     let active = true;
     fetch("/api/profile", { cache: "no-store" })
-      .then((response) => response.json())
+      .then((response) => response.json() as Promise<ProfilePayload>)
       .then((data) => {
         if (!active) return;
-        if (data.authenticated && data.profile) {
+        const profile = data.profile;
+        if (data.authenticated && profile) {
           setAccountState("member");
-          setName((current) => current || data.profile.displayName || "");
-          setPhone((current) => current || formatPhoneInput(data.profile.phone || ""));
+          setName((current) => current || profile.displayName || "");
+          setPhone((current) => current || formatPhoneInput(profile.phone || ""));
         } else {
           setAccountState("guest");
         }
@@ -1493,7 +1527,10 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onC
           items: cart,
         }),
       });
-      const data = await response.json();
+      const data = await response.json() as {
+        error?: string;
+        order: { orderNumber: string; pickupEta: string };
+      };
       if (!response.ok) throw new Error(data.error ?? "Unable to place order");
       onComplete(data.order.orderNumber, data.order.pickupEta, phone);
     } catch (caught) {

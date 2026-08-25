@@ -76,7 +76,9 @@ export default function ContactForm() {
         onSubmit={submit}
         noValidate
         onChange={(event) => {
-          const field = (event.target as HTMLInputElement).name as ContactField;
+          /* React types target as the form this handler sits on, but the change
+             event bubbles up from the field the user edited. */
+          const field = (event.target as unknown as { name?: string }).name as ContactField;
           if (fieldErrors[field]) setFieldErrors((current) => ({ ...current, [field]: undefined }));
         }}
       >

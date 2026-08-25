@@ -75,12 +75,16 @@ export function Dashboard() {
         fetch("/api/menu-state", { cache: "no-store" }),
       ]);
       if (ordersResponse.ok) {
-        const data = await ordersResponse.json();
+        const data = await ordersResponse.json() as { orders?: Order[] };
         setOrders(data.orders ?? []);
         setConnection("live");
       }
       if (menuResponse.ok) {
-        const data = await menuResponse.json();
+        const data = await menuResponse.json() as {
+          availability?: Record<string, boolean>;
+          prepTime?: number;
+          paused?: boolean;
+        };
         setAvailability(data.availability ?? {});
         if (typeof data.prepTime === "number") setPrepTime(data.prepTime);
         if (typeof data.paused === "boolean") setPaused(data.paused);

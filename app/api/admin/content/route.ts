@@ -62,7 +62,7 @@ export async function PATCH(request: Request) {
     const values = {
       productId,
       name: text(payload.name, 120) || product.name,
-      category: categories.includes(category) ? category : product.category,
+      category: (categories as string[]).includes(category) ? category : product.category,
       description: text(payload.description, 500) || product.description,
       priceCents: Math.max(0, Math.min(100000, Math.round(Number(payload.priceCents) || product.price * 100))),
       photoUrl: safeMedia(payload.photoUrl, product.photo || "") || null,

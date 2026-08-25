@@ -2,6 +2,7 @@ import { eq, sql } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../../db";
 import { customerProfiles, loyaltyTransactions, orders } from "../../../../db/schema";
 import { requireStaff } from "../../../../lib/staff-auth";
+import { notifyOrderReady } from "../../../../lib/sms";
 
 const validStatuses = new Set(["new", "preparing", "ready", "complete", "cancelled"]);
 const validStationStatuses = new Set(["new", "preparing", "ready"]);
@@ -93,6 +94,10 @@ export async function PATCH(
 
     if (!updated) {
       return Response.json({ error: "Order not found." }, { status: 404 });
+    }
+
+    if (existing.status !== "ready" && updated.status === "ready" && updated.phone) {
+      await notifyOrderReady(updated.phone, updated.orderNumber);
     }
 
     if (updated.status === "complete" && updated.customerUserId) {

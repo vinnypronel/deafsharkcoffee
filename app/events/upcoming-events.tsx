@@ -23,10 +23,12 @@ export function UpcomingEvents() {
 
   useEffect(() => {
     fetch("/api/site-content", { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : null))
+      .then((response) => (response.ok
+        ? response.json() as Promise<{ events?: EventRecord[] } | null>
+        : null))
       .then((data) => {
         if (data?.events?.length) {
-          const upcoming = data.events.filter((e: EventRecord) => e.title !== "Puppy Party");
+          const upcoming = data.events.filter((e) => e.title !== "Puppy Party");
           setItems(upcoming);
         }
       })

@@ -14,6 +14,9 @@ type ScrollHeroProps = {
 
 const SOURCE_FPS = 24;
 
+/* Matches .scroll-hero-pin so the canvas fill and the CSS background agree. */
+const BACKDROP = "#1a0f0a";
+
 // Module-level cached media elements so navigating back to the home page is instantaneous
 let cachedVideo: HTMLVideoElement | null = null;
 let cachedPoster: HTMLImageElement | null = null;
@@ -98,7 +101,9 @@ export default function ScrollHero({
     let zoom = 1;
     let focusX = 0.5;
     let focusY = 0.5;
+    let offsetY = 0;
     let fit = 0;
+    let mirrorEdges = true;
     let pinTop = 0;
 
     const refreshVars = () => {
@@ -110,7 +115,11 @@ export default function ScrollHero({
       zoom = Math.min(Math.max(readVar("--hero-zoom", 1), 0.2), 2);
       focusX = Math.min(Math.max(readVar("--hero-focus-x", 0.5), 0), 1);
       focusY = Math.min(Math.max(readVar("--hero-focus-y", 0.5), 0), 1);
+      offsetY = Math.min(Math.max(readVar("--hero-offset-y", 0), -0.5), 0.5);
       fit = Math.min(Math.max(readVar("--hero-fit", 0), 0), 1);
+      /* --hero-mirror: 0 fills empty space with the espresso backdrop instead of a
+         mirrored copy of the footage, so the frame can sit high with colour below. */
+      mirrorEdges = readVar("--hero-mirror", 1) > 0.5;
       pinTop = parseFloat(getComputedStyle(pin).top) || 0;
     };
     refreshVars();
@@ -127,7 +136,7 @@ export default function ScrollHero({
       const dw = sw * scale;
       const dh = sh * scale;
       const dx = (cw - dw) * focusX;
-      const dy = (ch - dh) * focusY;
+      const dy = (ch - dh) * focusY + ch * offsetY;
 
       ctx.clearRect(0, 0, cw, ch);
       ctx.imageSmoothingEnabled = true;
@@ -154,15 +163,31 @@ export default function ScrollHero({
       const srcT = Math.min(sh, dy / scale);
       const srcB = Math.min(sh, gapB / scale);
 
-      if (dx > 0) mirror(0, 0, srcL, sh, 0, dy, dx, dh, true, false);
-      if (gapR > 0) mirror(sw - srcR, 0, srcR, sh, dx + dw, dy, gapR, dh, true, false);
-      if (dy > 0) mirror(0, 0, sw, srcT, dx, 0, dw, dy, false, true);
-      if (gapB > 0) mirror(0, sh - srcB, sw, srcB, dx, dy + dh, dw, gapB, false, true);
+      if (mirrorEdges) {
+        if (dx > 0) mirror(0, 0, srcL, sh, 0, dy, dx, dh, true, false);
+        if (gapR > 0) mirror(sw - srcR, 0, srcR, sh, dx + dw, dy, gapR, dh, true, false);
+        if (dy > 0) mirror(0, 0, sw, srcT, dx, 0, dw, dy, false, true);
+        if (gapB > 0) mirror(0, sh - srcB, sw, srcB, dx, dy + dh, dw, gapB, false, true);
 
-      if (dx > 0 && dy > 0) mirror(0, 0, srcL, srcT, 0, 0, dx, dy, true, true);
-      if (gapR > 0 && dy > 0) mirror(sw - srcR, 0, srcR, srcT, dx + dw, 0, gapR, dy, true, true);
-      if (dx > 0 && gapB > 0) mirror(0, sh - srcB, srcL, srcB, 0, dy + dh, dx, gapB, true, true);
+        if (dx > 0 && dy > 0) mirror(0, 0, srcL, srcT, 0, 0, dx, dy, true, true);
+        if (gapR > 0 && dy > 0) mirror(sw - srcR, 0, srcR, srcT, dx + dw, 0, gapR, dy, true, true);
+        if (dx > 0 && gapB > 0) mirror(0, sh - srcB, srcL, srcB, 0, dy + dh, dx, gapB, true, true);
+      } else {
+        ctx.fillStyle = BACKDROP;
+        ctx.fillRect(0, 0, cw, ch);
+      }
       ctx.drawImage(source, dx, dy, dw, dh);
+
+      /* Fade the bottom edge of the footage into the backdrop so the frame does
+         not end on a hard line when the espresso fills the space below it. */
+      if (!mirrorEdges && gapB > 0) {
+        const fade = Math.min(dh * 0.35, 160);
+        const blend = ctx.createLinearGradient(0, dy + dh - fade, 0, dy + dh);
+        blend.addColorStop(0, "rgba(26, 15, 10, 0)");
+        blend.addColorStop(1, BACKDROP);
+        ctx.fillStyle = blend;
+        ctx.fillRect(dx, dy + dh - fade, dw, fade + 1);
+      }
 
       if (gapB > 0) {
         const armStartX = Math.max(0, dx + dw * 0.65);

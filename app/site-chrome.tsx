@@ -100,7 +100,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
           setOpen(false);
           return;
         }
-        const data = await response.json();
+        const data = await response.json() as { order?: HeaderOrder | null };
         if (response.ok && activeRequest) {
           const ord = data.order;
           if (!ord || ord.status === "complete" || ord.status === "completed" || ord.status === "cancelled" || ord.status === "picked_up") {
@@ -128,6 +128,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
 
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [authName, setAuthName] = useState("");
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
   const [authBusy, setAuthBusy] = useState(false);
@@ -601,16 +602,41 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                     autoComplete="email"
                     className="auth-email-input"
                   />
-                  <input
-                    type="password"
-                    minLength={8}
-                    maxLength={128}
-                    value={authPassword}
-                    onChange={(e) => setAuthPassword(e.target.value)}
-                    placeholder="Password (8 characters minimum)"
-                    autoComplete={authMode === "signup" ? "new-password" : "current-password"}
-                    className="auth-email-input"
-                  />
+                  <div className="auth-password-field">
+                    <input
+                      type={passwordVisible ? "text" : "password"}
+                      minLength={8}
+                      maxLength={128}
+                      value={authPassword}
+                      onChange={(e) => setAuthPassword(e.target.value)}
+                      placeholder="Password (8 characters minimum)"
+                      autoComplete={authMode === "signup" ? "new-password" : "current-password"}
+                      className="auth-email-input"
+                    />
+                    <button
+                      type="button"
+                      className="auth-password-toggle"
+                      onClick={() => setPasswordVisible((current) => !current)}
+                      aria-label={passwordVisible ? "Hide password" : "Show password"}
+                      aria-pressed={passwordVisible}
+                      title={passwordVisible ? "Hide password" : "Show password"}
+                    >
+                      {passwordVisible ? (
+                        /* eye with a slash through it */
+                        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M3 3l18 18" />
+                          <path d="M10.6 10.6a2 2 0 002.8 2.8" />
+                          <path d="M9.4 5.2A9.5 9.5 0 0112 5c5 0 9 4.5 9 7a11 11 0 01-2.4 3.3" />
+                          <path d="M6.2 6.9C3.9 8.4 3 10.6 3 12c0 2.5 4 7 9 7a9.6 9.6 0 003.6-.7" />
+                        </svg>
+                      ) : (
+                        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M3 12s3.6-7 9-7 9 7 9 7-3.6 7-9 7-9-7-9-7z" />
+                          <circle cx="12" cy="12" r="2.6" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
                   <button type="submit" className="primary-button auth-email-btn">
                     {authBusy ? "Please wait..." : authMode === "signup" ? "Create account" : "Sign in with email"}
                   </button>
@@ -712,9 +738,6 @@ export function SiteFooter() {
             <h2>Join the club.</h2>
             <p>A free upgrade on your birthday, early access to new roasts, and invites to coffee tastings in Union.</p>
           </div>
-          <div className="footer-newsletter-badge" aria-hidden="true">
-            <img src="/deafshark-logo.png" alt="Deaf Shark Coffee circular emblem" />
-          </div>
           <div className="newsletter-form-wrap">
             {subscribed ? (
               <p className="newsletter-success">✓ You&#39;re in! We&#39;ll send your welcome perks soon.</p>
@@ -763,10 +786,21 @@ export function SiteFooter() {
         {/* 4-Column Navigation Section */}
         <div className="footer-columns">
           <div className="footer-col footer-col-brand">
-            <div className="footer-logo">
+            <a
+              className="footer-logo"
+              href="/"
+              aria-label="Deaf Shark Coffee, back to the top of the home page"
+              onClick={(event) => {
+                if (window.location.pathname !== "/") return;
+                event.preventDefault();
+                const lenis = (window as unknown as { __lenis?: { scrollTo: (target: number, options?: Record<string, unknown>) => void } }).__lenis;
+                if (lenis) lenis.scrollTo(0, { duration: 1.1 });
+                else window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+            >
               <img src="/favicon.png" alt="" />
               <span>DEAF SHARK COFFEE</span>
-            </div>
+            </a>
             <p className="footer-tagline">One Farm. One Variety.<br />Roasted in Union, NJ.</p>
             <div className="footer-socials">
               <a
@@ -810,15 +844,15 @@ export function SiteFooter() {
           <div className="footer-col">
             <h4>MENU</h4>
             <ul>
-              <li><a href="/menu">Hot Classics</a></li>
-              <li><a href="/menu">Coffee Beans</a></li>
-              <li><a href="/menu">Cold Brew &amp; Iced</a></li>
-              <li><a href="/menu">Breakfast &amp; Sandwiches</a></li>
+              <li><a href="/menu#menu-cat-coffee">Our Coffee</a></li>
+              <li><a href="/menu#menu-cat-matcha">Matcha &amp; Tea</a></li>
+              <li><a href="/menu#menu-cat-breakfast">Sandwiches &amp; Breakfast</a></li>
+              <li><a href="/menu#menu-cat-coffee-beans">Our Own Roast</a></li>
             </ul>
           </div>
 
           <div className="footer-col">
-            <h4>CLUB &amp; STORY</h4>
+            <h4>SITEMAP</h4>
             <ul>
               <li><a href="/employment">Apply now</a></li>
               <li><a href="/about">Our Story</a></li>
@@ -843,6 +877,8 @@ export function SiteFooter() {
           <span>© {new Date().getFullYear()} Deaf Shark Coffee · Roasted in Union, New Jersey</span>
           <div className="footer-legal">
             <a href="/contact">Contact</a>
+            <a href="/privacy">Privacy</a>
+            <a href="/terms">Terms</a>
             <a href="/dashboard">Staff Dashboard</a>
           </div>
         </div>

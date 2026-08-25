@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import "./globals.css";
 import { SmoothScrollProvider } from "./smooth-scroll-provider";
 import { PageTransition } from "./page-transition";
+import { MobileScrollProgress } from "./mobile-scroll-progress";
 
 const geist = Geist({
   variable: "--font-geist",
@@ -51,6 +52,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       </head>
       <body className={geist.variable} suppressHydrationWarning>
         <PageTransition />
+        <MobileScrollProgress />
         <SmoothScrollProvider>{children}</SmoothScrollProvider>
       </body>
     </html>

@@ -4,15 +4,11 @@ import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { getDb } from "../db";
 import * as schema from "../db/schema";
 
-let authInstance: ReturnType<typeof betterAuth> | undefined;
-
-export function getAuth() {
-  if (authInstance) return authInstance;
-
+function createAuth() {
   const googleClientId = env.GOOGLE_CLIENT_ID?.trim();
   const googleClientSecret = env.GOOGLE_CLIENT_SECRET?.trim();
 
-  authInstance = betterAuth({
+  return betterAuth({
     appName: "Deaf Shark Coffee",
     baseURL: env.BETTER_AUTH_URL?.trim() || undefined,
     secret: env.BETTER_AUTH_SECRET?.trim() || undefined,
@@ -47,7 +43,12 @@ export function getAuth() {
       },
     },
   });
+}
 
+let authInstance: ReturnType<typeof createAuth> | undefined;
+
+export function getAuth() {
+  authInstance ??= createAuth();
   return authInstance;
 }
 

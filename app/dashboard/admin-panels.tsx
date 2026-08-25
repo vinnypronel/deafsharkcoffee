@@ -44,10 +44,14 @@ export function AdminPanels({ view }: { view: View }) {
       fetch("/api/admin/loyalty", { cache: "no-store" }),
     ]);
     if (contentResponse.ok) {
-      const data = await contentResponse.json();
+      const data = await contentResponse.json() as {
+        featured?: Featured[];
+        events?: EventDraft[];
+        menu?: MenuDraft[];
+      };
       setFeatured(data.featured ?? []);
       setEvents(data.events ?? []);
-      const overrides = new Map<string, MenuDraft>((data.menu ?? []).map((item: MenuDraft) => [item.productId, item]));
+      const overrides = new Map<string, MenuDraft>((data.menu ?? []).map((item) => [item.productId, item]));
       setMenu(menuProducts.map((product) => {
         const override = overrides.get(product.id);
         return {
@@ -60,9 +64,9 @@ export function AdminPanels({ view }: { view: View }) {
         };
       }));
     }
-    if (recordsResponse.ok) setRecords(await recordsResponse.json());
+    if (recordsResponse.ok) setRecords(await recordsResponse.json() as Records);
     if (loyaltyResponse.ok) {
-      const data = await loyaltyResponse.json();
+      const data = await loyaltyResponse.json() as Partial<LoyaltyData>;
       setLoyalty({ members: data.members ?? [], transactions: data.transactions ?? [], offers: data.offers ?? [] });
     }
   }, []);
@@ -72,7 +76,7 @@ export function AdminPanels({ view }: { view: View }) {
   async function save(body: Record<string, unknown>, success: string) {
     setMessage("Saving…");
     const response = await fetch("/api/admin/content", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    const data = await response.json();
+    const data = await response.json() as { error?: string };
     if (!response.ok) { setMessage(data.error || "Could not save changes."); return false; }
     setMessage(success);
     await load();
@@ -84,7 +88,7 @@ export function AdminPanels({ view }: { view: View }) {
     const form = new FormData();
     form.set("file", file);
     const response = await fetch("/api/admin/upload", { method: "POST", body: form });
-    const data = await response.json();
+    const data = await response.json() as { error?: string; url: string };
     if (!response.ok) return setMessage(data.error || "Upload failed.");
     onDone(data.url);
     setMessage("Upload ready. Save the item to publish it.");
@@ -203,7 +207,7 @@ function LoyaltyManager({ data, message, setMessage, reload }: { data: LoyaltyDa
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId: member.userId, pointsChange, reason }),
     });
-    const result = await response.json();
+    const result = await response.json() as { error?: string; balanceAfter?: number };
     setSaving(null);
     if (!response.ok) return setMessage(result.error || "Could not update points.");
     setChanges((current) => ({ ...current, [member.userId]: "" }));
@@ -221,7 +225,7 @@ function LoyaltyManager({ data, message, setMessage, reload }: { data: LoyaltyDa
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ offerId: offer.id, action: "redeem" }),
     });
-    const result = await response.json();
+    const result = await response.json() as { error?: string };
     setSaving(null);
     if (!response.ok) return setMessage(result.error || "Could not redeem this offer.");
     setMessage(`${member.displayName}'s in-store offer was redeemed.`);
