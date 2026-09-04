@@ -1,0 +1,20 @@
+# Cache content-hashed build assets immutably (mirrors what vinext generates).
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Media in public/ only changes on deploy, but filenames are not content-hashed,
+# so this stays short enough that a replaced asset is picked up within a week.
+/*.webp
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+/*.png
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+/*.jpg
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+/*.jpeg
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+/*.svg
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+/*.mp4
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+/*.vtt
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400

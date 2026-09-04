@@ -17,7 +17,10 @@ export function isStaffEmail(email: string) {
 export async function getStaffSession(request: Request) {
   const session = await getCustomerSession(request);
   if (!session) return null;
-  return isStaffEmail(session.user.email) ? session : null;
+  // An allowlisted address is authorization only after the identity provider
+  // has proved that the visitor owns that address. This prevents somebody from
+  // registering with a staff address before its real owner does.
+  return session.user.emailVerified === true && isStaffEmail(session.user.email) ? session : null;
 }
 
 export async function requireStaff(request: Request) {

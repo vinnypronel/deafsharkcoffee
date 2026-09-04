@@ -108,7 +108,7 @@ export function PageTransition() {
       <div className="curtain-glow" />
       <div className="curtain-content">
         <div className="curtain-stamp-wrap">
-          <img src="/deafshark-logo.png" alt="" className="curtain-stamp-logo" />
+          <img src="/deafshark-logo-640.webp" alt="" className="curtain-stamp-logo" decoding="async" />
         </div>
         <div className="curtain-brand-line">
           <img src="/favicon.png" alt="" className="curtain-fin-icon" />

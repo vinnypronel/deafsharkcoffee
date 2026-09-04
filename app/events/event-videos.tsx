@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useSyncExternalStore } from "react";
 
 interface VideoItem {
   id: string;
@@ -37,18 +37,25 @@ function formatTime(seconds: number): string {
   return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
 }
 
+function captionsTrack(caption: string): string {
+  const vtt = `WEBVTT\n\n00:00:00.000 --> 00:59:59.000\n${caption}\n`;
+  return `data:text/vtt;charset=utf-8,${encodeURIComponent(vtt)}`;
+}
+
+const subscribeToMount = () => () => {};
+
+function useMounted(): boolean {
+  return useSyncExternalStore(subscribeToMount, () => true, () => false);
+}
+
 export function EventVideos() {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMounted();
   const [popoutIndex, setPopoutIndex] = useState<number | null>(null);
   const [popoutTime, setPopoutTime] = useState<number>(0);
   const [popoutAutoPlay, setPopoutAutoPlay] = useState<boolean>(true);
 
   // References for inline videos to sync timestamps
   const inlineRefs = useRef<(HTMLVideoElement | null)[]>([]);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const openPopout = useCallback((index: number) => {
     const inlineEl = inlineRefs.current[index];
@@ -65,10 +72,12 @@ export function EventVideos() {
   }, []);
 
   const closePopout = useCallback((lastTime?: number) => {
-    if (popoutIndex !== null && typeof lastTime === "number") {
+    if (popoutIndex !== null) {
       const inlineEl = inlineRefs.current[popoutIndex];
       if (inlineEl) {
-        inlineEl.currentTime = lastTime;
+        if (typeof lastTime === "number") inlineEl.currentTime = lastTime;
+        inlineEl.muted = true;
+        inlineEl.play().catch(() => {});
       }
     }
     setPopoutIndex(null);
@@ -81,7 +90,6 @@ export function EventVideos() {
           <InlineVideoCard
             key={item.id}
             item={item}
-            index={idx}
             mounted={mounted}
             videoRef={(el) => { inlineRefs.current[idx] = el; }}
             onExpand={() => openPopout(idx)}
@@ -89,7 +97,7 @@ export function EventVideos() {
         ))}
       </div>
 
-      {popoutIndex !== null && mounted && (
+      {popoutIndex !== null && (
         <PopoutVideoModal
           videos={EVENT_VIDEOS}
           currentIndex={popoutIndex}
@@ -105,18 +113,17 @@ export function EventVideos() {
 
 interface InlineVideoCardProps {
   item: VideoItem;
-  index: number;
   mounted: boolean;
   videoRef: (el: HTMLVideoElement | null) => void;
   onExpand: () => void;
 }
 
-function InlineVideoCard({ item, index, mounted, videoRef, onExpand }: InlineVideoCardProps) {
+function InlineVideoCard({ item, mounted, videoRef, onExpand }: InlineVideoCardProps) {
   const localRef = useRef<HTMLVideoElement | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
   const [isHovered, setIsHovered] = useState(false);
 
   const handleVideoRef = (el: HTMLVideoElement | null) => {
@@ -160,6 +167,9 @@ function InlineVideoCard({ item, index, mounted, videoRef, onExpand }: InlineVid
         >
           <video
             ref={handleVideoRef}
+            autoPlay
+            muted
+            loop
             playsInline
             preload="metadata"
             onClick={togglePlay}
@@ -178,6 +188,7 @@ function InlineVideoCard({ item, index, mounted, videoRef, onExpand }: InlineVid
             aria-label={item.caption}
           >
             <source src={item.src} type="video/mp4" />
+            <track kind="captions" srcLang="en" label="English" src={captionsTrack(item.caption)} />
           </video>
 
           {/* Big Center Play Button when Paused */}
@@ -199,7 +210,7 @@ function InlineVideoCard({ item, index, mounted, videoRef, onExpand }: InlineVid
           </button>
 
           {/* Bottom Controls Bar on the video */}
-          <div className="ev-video-controls-overlay" onClick={(e) => e.stopPropagation()}>
+          <div className="ev-video-controls-overlay">
             <div className="ev-scrubber-row">
               <input
                 type="range"
@@ -305,6 +316,35 @@ function PopoutVideoModal({
 
   const currentVideo = videos[currentIndex];
 
+  const togglePlay = useCallback(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (v.paused) {
+      v.play().then(() => setIsPlaying(true)).catch(() => {});
+    } else {
+      v.pause();
+      setIsPlaying(false);
+      setShowControls(true);
+    }
+  }, []);
+
+  const toggleMute = useCallback(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.muted = !v.muted;
+    setIsMuted(v.muted);
+  }, []);
+
+  const goToNext = useCallback(() => {
+    const nextIdx = (currentIndex + 1) % videos.length;
+    onIndexChange(nextIdx);
+  }, [currentIndex, onIndexChange, videos.length]);
+
+  const goToPrev = useCallback(() => {
+    const prevIdx = (currentIndex - 1 + videos.length) % videos.length;
+    onIndexChange(prevIdx);
+  }, [currentIndex, onIndexChange, videos.length]);
+
   // Lock body scroll while popout modal is open
   useEffect(() => {
     const prevOverflow = document.body.style.overflow;
@@ -319,10 +359,12 @@ function PopoutVideoModal({
     const v = videoRef.current;
     if (!v) return;
     v.currentTime = initialTime;
+    v.muted = false;
+    setIsMuted(false);
     if (initialPlay) {
       v.play().catch(() => {});
     }
-  }, [currentIndex]);
+  }, [currentIndex, initialPlay, initialTime]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -358,7 +400,7 @@ function PopoutVideoModal({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentIndex, isPlaying, isMuted]);
+  }, [goToNext, goToPrev, onClose, toggleMute, togglePlay]);
 
   const resetControlsTimer = () => {
     setShowControls(true);
@@ -370,25 +412,6 @@ function PopoutVideoModal({
     }
   };
 
-  const togglePlay = () => {
-    const v = videoRef.current;
-    if (!v) return;
-    if (v.paused) {
-      v.play().then(() => setIsPlaying(true)).catch(() => {});
-    } else {
-      v.pause();
-      setIsPlaying(false);
-      setShowControls(true);
-    }
-  };
-
-  const toggleMute = () => {
-    const v = videoRef.current;
-    if (!v) return;
-    v.muted = !v.muted;
-    setIsMuted(v.muted);
-  };
-
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = videoRef.current;
     if (!v) return;
@@ -397,30 +420,19 @@ function PopoutVideoModal({
     setCurrentTime(val);
   };
 
-  const goToNext = () => {
-    const nextIdx = (currentIndex + 1) % videos.length;
-    onIndexChange(nextIdx);
-  };
-
-  const goToPrev = () => {
-    const prevIdx = (currentIndex - 1 + videos.length) % videos.length;
-    onIndexChange(prevIdx);
-  };
-
   return (
-    <div
-      className="ev-popout-overlay"
-      onClick={() => onClose(videoRef.current?.currentTime)}
-      onMouseMove={resetControlsTimer}
-    >
+    <div className="ev-popout-overlay" onMouseMove={resetControlsTimer}>
       {/* Blurred Backdrop - website remains visible on left and right behind the blur */}
-      <div className="ev-popout-backdrop" aria-hidden="true" />
+      <button
+        type="button"
+        className="ev-popout-backdrop"
+        onClick={() => onClose(videoRef.current?.currentTime)}
+        aria-label="Close video popout"
+        style={{ border: 0, padding: 0 }}
+      />
 
       {/* Main Popout Content Frame */}
-      <div
-        className="ev-popout-stage"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="ev-popout-stage">
         {/* Navigation Arrows for Previous / Next video */}
         {videos.length > 1 && (
           <>
@@ -454,13 +466,15 @@ function PopoutVideoModal({
           className={`ev-popout-card ${showControls ? "controls-visible" : "controls-hidden"} ${
             isPlaying ? "is-playing" : "is-paused"
           }`}
-          onClick={togglePlay}
         >
           <video
             ref={videoRef}
             src={currentVideo.src}
+            autoPlay
+            muted={isMuted}
             playsInline
             preload="metadata"
+            onClick={togglePlay}
             onPlay={() => setIsPlaying(true)}
             onPause={() => setIsPlaying(false)}
             onTimeUpdate={() => {
@@ -474,7 +488,9 @@ function PopoutVideoModal({
               }
             }}
             aria-label={currentVideo.caption}
-          />
+          >
+            <track kind="captions" srcLang="en" label="English" src={captionsTrack(currentVideo.caption)} />
+          </video>
 
           {/* Center Play/Pause Ripple Indicator */}
           {!isPlaying && (
@@ -494,10 +510,7 @@ function PopoutVideoModal({
           )}
 
           {/* Top Bar on the video itself */}
-          <div
-            className="ev-popout-top-bar"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="ev-popout-top-bar">
             <div className="ev-popout-title-box">
               <h3 className="ev-popout-title">{currentVideo.title}</h3>
             </div>
@@ -521,10 +534,7 @@ function PopoutVideoModal({
           </div>
 
           {/* Bottom Controls Bar on the video itself */}
-          <div
-            className="ev-popout-bottom-bar"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="ev-popout-bottom-bar">
             {/* Timeline Scrubber */}
             <div className="ev-scrubber-row">
               <input

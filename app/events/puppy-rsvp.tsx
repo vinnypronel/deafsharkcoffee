@@ -39,7 +39,9 @@ export function PuppyRsvp() {
       const existing = JSON.parse(localStorage.getItem("deafshark_puppy_rsvps") || "[]");
       existing.push(rsvpData);
       localStorage.setItem("deafshark_puppy_rsvps", JSON.stringify(existing));
-    } catch {}
+    } catch {
+      // Private browsing or a storage policy may make localStorage unavailable.
+    }
 
     setSubmitted(true);
   }

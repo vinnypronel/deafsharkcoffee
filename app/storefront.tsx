@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import ScrollHero from "./scroll-hero";
 import {
   categories,
   applyMenuContentOverride,
+  defaultSizeForProduct,
+  defaultTemperatureForProduct,
   DRINK_CATEGORIES,
   EXTRA_SHOT_PRICE,
   featuredProducts,
@@ -23,6 +25,10 @@ import {
   type ProductSelection,
 } from "./menu-data";
 import { CustomerHeader, SiteFooter } from "./site-chrome";
+import { OrderOnlineLink } from "./order-online-link";
+import { CUSTOM_CHECKOUT_ENABLED } from "./ordering";
+import TurnstileWidget from "./turnstile-widget";
+import { PHONE_INPUT_MAX_LENGTH, formatPhoneInput } from "../lib/phone-format";
 import "./drink-visuals.css";
 
 type CartItem = {
@@ -46,19 +52,68 @@ type FeaturedSlideResponse = {
   mediaUrl: string;
 };
 
-/* Shape returned by /api/profile. */
-type ProfilePayload = {
-  authenticated: boolean;
-  profile?: { displayName?: string; phone?: string | null };
-};
-
 type SchedulingSettings = {
   enabled: boolean;
   horizonMinutes: number;
   slotMinutes: number;
 };
 
-type FeaturedProduct = Product & { featuredButtonLabel?: string };
+type FeaturedProduct = Product & { featuredButtonLabel?: string; featuredCategoryLabel?: string };
+
+function LazyAutoplayVideo({
+  src,
+  poster,
+  ariaLabel,
+}: {
+  src: string;
+  poster: string;
+  ariaLabel: string;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [shouldLoad, setShouldLoad] = useState(false);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (!("IntersectionObserver" in window)) {
+      const fallbackTimer = globalThis.setTimeout(() => setShouldLoad(true), 0);
+      return () => globalThis.clearTimeout(fallbackTimer);
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        setShouldLoad(true);
+        observer.disconnect();
+      },
+      { rootMargin: "300px 0px" },
+    );
+    observer.observe(video);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !shouldLoad) return;
+    video.load();
+    video.play().catch(() => {});
+  }, [shouldLoad]);
+
+  return (
+    <video
+      ref={videoRef}
+      autoPlay={shouldLoad}
+      muted
+      loop
+      playsInline
+      preload={shouldLoad ? "metadata" : "none"}
+      poster={poster}
+      aria-label={ariaLabel}
+    >
+      {shouldLoad && <source src={src} type="video/mp4" />}
+    </video>
+  );
+}
 
 type Configuration = {
   temperature: "Hot" | "Iced";
@@ -96,6 +151,9 @@ const sizesFor = (product: Product, temperature: "Hot" | "Iced") =>
 
 const categoryId = (category: string) => "menu-cat-" + category.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
+const categoryLabel = (category: string) =>
+  category === "From the Fridge" ? "Grab & Go" : category;
+
 const money = (value: number) => `$${value.toFixed(2)}`;
 
 const priceLabel = (product: Product) => {
@@ -121,12 +179,13 @@ function CupMark() {
 
 function ProductVisual({ product, compact = false }: { product: Product; compact?: boolean }) {
   const isCup = product.visual === "hot" || product.visual === "iced";
+  const isDrinkProduct = DRINK_CATEGORIES.includes(product.category);
   const isPackagedProduct = product.category === "From the Fridge" || product.category === "Coffee Beans";
   const isFoodProduct = product.category === "Breakfast" || product.category === "Sandwiches" || product.category === "Bites";
   const photo = product.photo || (isCup ? CUP_PHOTOS[product.visual as "hot" | "iced"] : (product.visual === "sandwich" || product.category === "Sandwiches" || product.category === "Breakfast" ? "/chicken-pesto-centered.jpg" : undefined));
   if (photo) {
     return (
-      <div className={`product-visual product-${product.visual} ${isPackagedProduct ? "product-packaged" : ""} ${isFoodProduct ? "product-food" : ""} ${compact ? "product-visual-compact" : ""}`}>
+      <div className={`product-visual product-${product.visual} ${isDrinkProduct ? "product-drink" : ""} ${isPackagedProduct ? "product-packaged" : ""} ${isFoodProduct ? "product-food" : ""} ${compact ? "product-visual-compact" : ""}`}>
         <div className="visual-glow" />
         <img className="product-photo" src={photo} alt={product.name} />
         <span className="visual-shadow" />
@@ -134,7 +193,7 @@ function ProductVisual({ product, compact = false }: { product: Product; compact
     );
   }
   return (
-    <div className={`product-visual product-${product.visual} ${isFoodProduct ? "product-food" : ""} ${compact ? "product-visual-compact" : ""}`}>
+    <div className={`product-visual product-${product.visual} ${isDrinkProduct ? "product-drink" : ""} ${isFoodProduct ? "product-food" : ""} ${compact ? "product-visual-compact" : ""}`}>
       <div className="visual-glow" />
       {isCup && (
         <div className={`cup ${product.visual === "iced" ? "iced-cup" : "hot-cup"}`}>
@@ -153,7 +212,7 @@ function ProductVisual({ product, compact = false }: { product: Product; compact
         </div>
       )}
       {product.visual === "bag" && (
-        <img className="coffee-bag-photo" src="/ocean-blend-bags.jpg" alt="Deaf Shark Ocean Blend medium roast coffee bags" />
+        <img className="coffee-bag-photo" src="/ocean-blend-bags-900.webp" alt="Deaf Shark Ocean Blend medium roast coffee bags" decoding="async" />
       )}
       <span className="visual-shadow" />
     </div>
@@ -171,27 +230,31 @@ function ProductConfigurator({
   onClose: () => void;
   onAdd: (item: CartItem) => void;
 }) {
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const isDrink = DRINK_CATEGORIES.includes(product.category);
   const isSmoothie = !!product.bases?.length;
   const hasMilkOptions =
     isDrink && !isSmoothie && !["chicha", "malta", "hot-tea"].includes(product.id);
   const availableTemps = temperaturesFor(product);
   const hasTempOptions = isDrink && availableTemps.length > 1;
+  const isHotOnlyDrink = isDrink && availableTemps.length === 1 && availableTemps[0] === "Hot";
   const hasSyrupOptions = isDrink && !isSmoothie && product.id !== "hot-tea";
   const hasShotOptions =
     (product.category === "Coffee" || ["matcha-latte", "strawberry-matcha", "mango-matcha", "chai-tea-latte"].includes(product.id)) &&
     product.id !== "hot-tea";
   const hasFlavorOptions = !!product.flavors?.length;
+  /* Every group the product could ever have. Used to seed and to parse an
+     existing cart item, so a saved ice choice survives a temperature toggle. */
   const modifierGroups: ModifierGroup[] = modifierGroupsForProduct(product);
 
   const defaultMilk: MilkChoice = ["americano", "drip-coffee", "espresso", "cold-brew", "chicha", "malta", "red-eye", "decaf-coffee", "regular-coffee"].includes(product.id) ? "None" : "Whole";
-  const defaultTemp = availableTemps.includes("Iced") ? "Iced" : "Hot";
+  const defaultTemp = defaultTemperatureForProduct(product);
 
   const [config, setConfig] = useState<Configuration>(() => {
     if (!initialItem) {
       return {
         temperature: defaultTemp,
-        size: sizesFor(product, defaultTemp)[0]?.label ?? "Regular",
+        size: defaultSizeForProduct(product, defaultTemp) || "Regular",
         milk: defaultMilk,
         flavor: product.flavors?.[0] ?? "",
         base: product.bases?.[0] ?? "",
@@ -274,11 +337,25 @@ function ProductConfigurator({
       quantity: initialItem.quantity || 1,
     };
   });
-  const hasTwoSizes = ["shark-cubano", "chicken-sandwich", "emilia"].includes(product.id);
+  const hasTwoSizes = false;
   const drinkSizes = sizesFor(product, config.temperature);
+  /* Only the groups that apply to the temperature on screen. A hot drink has no
+     ice level, so the group is hidden rather than sent to the barista as noise.
+     `priceProductSelection` applies the same rule server-side. */
+  const visibleModifierGroups: ModifierGroup[] = modifierGroupsForProduct(product, config.temperature);
+
   const pricedSelection = priceProductSelection(product, config);
   const unitPrice = pricedSelection.unitPrice;
   const selectedProductPhoto = product.flavorPhotos?.[config.flavor] ?? product.photo;
+
+  useEffect(() => {
+    closeButtonRef.current?.focus();
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [onClose]);
 
   /* Iced pours are 16 oz only, so switching temperature re-picks the size. */
   const setTemperature = (value: "Hot" | "Iced") => {
@@ -306,9 +383,18 @@ function ProductConfigurator({
   }
 
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
-      <section className="configurator" data-lenis-prevent role="dialog" aria-modal="true" aria-label={`Customize ${product.name}`} onMouseDown={(event) => event.stopPropagation()}>
-        <button className="modal-close" onClick={onClose} aria-label="Close product configurator">×</button>
+    <div className="modal-backdrop">
+      <section
+        className="configurator"
+        data-layout={isHotOnlyDrink ? "hot-only-drink" : undefined}
+        data-lenis-prevent
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Customize ${product.name}`}
+      >
+        <button ref={closeButtonRef} className="modal-close" onClick={onClose} aria-label="Close product configurator">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8" /></svg>
+        </button>
         <div className="config-product">
           <ProductVisual
             product={{
@@ -362,9 +448,12 @@ function ProductConfigurator({
           {hasMilkOptions && (
             <OptionGroup
               label="Milk"
-              values={MILK_OPTIONS as unknown as string[]}
+              /* "No milk" leads so the choice is explicit. It was previously only
+                 reachable by clicking the selected option to deselect it, which
+                 left black coffees showing no selection at all. */
+              values={["None", ...MILK_OPTIONS] as unknown as string[]}
+              labels={{ None: "No milk" }}
               selected={config.milk}
-              allowDeselect
               onSelect={(value) => setConfig({ ...config, milk: value as MilkChoice })}
             />
           )}
@@ -411,7 +500,7 @@ function ProductConfigurator({
           {hasTwoSizes && (
             <OptionGroup label="Size" values={["Regular", "Large"]} selected={config.size} suffix={{ Large: "+$6.00" }} onSelect={(value) => setConfig({ ...config, size: value })} />
           )}
-          {modifierGroups.map((group) => {
+          {visibleModifierGroups.map((group) => {
             const selected = config.modifiers[group.label] ?? [];
             const suffix = Object.fromEntries(
               group.options
@@ -435,7 +524,7 @@ function ProductConfigurator({
               );
             }
             return (
-              <fieldset className="option-group" key={group.label}>
+              <fieldset className={`option-group ${group.label === "Remove ingredients" ? "removal-option-group" : ""}`} key={group.label}>
                 <legend>{group.label}</legend>
                 <div className="syrup-grid">
                   {group.options.map((option) => {
@@ -475,15 +564,22 @@ function ProductConfigurator({
               <strong>{config.quantity}</strong>
               <button onClick={() => setConfig({ ...config, quantity: config.quantity + 1 })} aria-label="Increase quantity">+</button>
             </div>
-            <button className="primary-button add-button" onClick={add}>{initialItem ? "Update item" : "Add to order"} · {money(unitPrice * config.quantity)}</button>
+            {CUSTOM_CHECKOUT_ENABLED ? (
+              <button className="primary-button add-button" onClick={add}>{initialItem ? "Update item" : "Add to order"} · {money(unitPrice * config.quantity)}</button>
+            ) : (
+              <OrderOnlineLink className="primary-button add-button" ariaLabel={`Order ${product.name} online`}>
+                Order online
+              </OrderOnlineLink>
+            )}
           </div>
+          {!CUSTOM_CHECKOUT_ENABLED && <p className="ordering-handoff-note">Online ordering is coming soon. Call the shop and we will be happy to take your order.</p>}
         </div>
       </section>
     </div>
   );
 }
 
-function OptionGroup({ label, values, selected, suffix, allowDeselect, onSelect }: { label: string; values: string[]; selected: string; suffix?: Record<string, string>; allowDeselect?: boolean; onSelect: (value: string) => void }) {
+function OptionGroup({ label, values, selected, suffix, labels, allowDeselect, onSelect }: { label: string; values: string[]; selected: string; suffix?: Record<string, string>; /* Display text for values whose stored form differs, e.g. "None" shown as "No milk". */ labels?: Record<string, string>; allowDeselect?: boolean; onSelect: (value: string) => void }) {
   return (
     <fieldset className="option-group">
       <legend>{label}</legend>
@@ -498,7 +594,7 @@ function OptionGroup({ label, values, selected, suffix, allowDeselect, onSelect 
               onClick={() => onSelect(allowDeselect && isSelected ? "None" : value)}
               aria-pressed={isSelected}
             >
-              {value} {suffix?.[value] && <small>{suffix[value]}</small>}
+              {labels?.[value] ?? value} {suffix?.[value] && <small>{suffix[value]}</small>}
             </button>
           );
         })}
@@ -535,8 +631,85 @@ function PriceTicker({ targetPrice }: { targetPrice: number }) {
   return <span className="price-ticker-num">{displayPrice}</span>;
 }
 
+function HeroFeaturedVideo({
+  product,
+  onOpenModal,
+}: {
+  product: FeaturedProduct;
+  onOpenModal: () => void;
+}) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  /* The element is keyed on the source, so it remounts and re-fires its own load
+     events whenever the video changes. The markup is server rendered, so the
+     first clip can finish buffering before React hydrates and the canplay /
+     loadeddata listeners attach: check readyState here instead of waiting on an
+     event that already fired, or the panel stays an empty brown box. */
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const reveal = () => setIsPlaying(true);
+    if (video.readyState >= 2) reveal();
+
+    video.play().then(reveal).catch(() => {
+      /* Autoplay can be refused (low power mode, a paused tab). Show the frame
+         anyway once there is one to show. */
+      if (video.readyState >= 1) reveal();
+    });
+
+    const onReady = () => reveal();
+    video.addEventListener("loadeddata", onReady);
+    video.addEventListener("canplay", onReady);
+    const fallback = window.setTimeout(() => {
+      if (video.readyState >= 1) reveal();
+    }, 1500);
+
+    return () => {
+      video.removeEventListener("loadeddata", onReady);
+      video.removeEventListener("canplay", onReady);
+      window.clearTimeout(fallback);
+    };
+  }, [product.video]);
+
+  return (
+    <div className="hero-featured-video-wrap">
+      <video
+        ref={videoRef}
+        key={product.video}
+        src={product.video}
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+        suppressHydrationWarning
+        className={`hero-featured-video ${isPlaying ? "is-playing" : "is-loading"}`}
+        onLoadStart={() => setIsPlaying(false)}
+        onPlaying={() => setIsPlaying(true)}
+        onLoadedData={() => setIsPlaying(true)}
+        onCanPlay={() => setIsPlaying(true)}
+      />
+      <button
+        type="button"
+        className="hero-video-play-btn"
+        onClick={onOpenModal}
+        aria-label={`Play ${product.name} video with sound`}
+        title="Play video with sound"
+      >
+        <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true">
+          <path d="M8 5v14l11-7z" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
 export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   const [activeCategory, setActiveCategory] = useState<MenuCategory>("Coffee");
+  const categoryNavRef = useRef<HTMLDivElement | null>(null);
+  const categoryIndicatorRef = useRef<HTMLSpanElement | null>(null);
   const [products, setProducts] = useState<Product[]>(menuProducts);
   const [featuredSlides, setFeaturedSlides] = useState<FeaturedProduct[]>(featuredProducts);
   const [heroProduct, setHeroProduct] = useState<FeaturedProduct>(featuredProducts[0]);
@@ -553,16 +726,20 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   const [prepTime, setPrepTime] = useState(15);
   const [ordersPaused, setOrdersPaused] = useState(false);
   const [scheduling, setScheduling] = useState<SchedulingSettings>({ enabled: true, horizonMinutes: 240, slotMinutes: 15 });
-  const [interactionStarted, setInteractionStarted] = useState(false);
   const [confirmation, setConfirmation] = useState<{ number: string; eta: string } | null>(null);
   const [activeVideoModal, setActiveVideoModal] = useState<Product | null>(null);
+  const [activeMenuImage, setActiveMenuImage] = useState<{ src: string; title: string } | null>(null);
+  const productDialogTrigger = useRef<HTMLElement | null>(null);
   const isMenuPage = page === "menu";
   const oceanBlend = products.find((product) => product.id === "ocean-blend-bag") ?? menuProducts.find((product) => product.id === "ocean-blend-bag")!;
 
   useEffect(() => {
-    if (!activeVideoModal) return;
+    if (!activeVideoModal && !activeMenuImage) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setActiveVideoModal(null);
+      if (e.key === "Escape") {
+        setActiveVideoModal(null);
+        setActiveMenuImage(null);
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     const originalOverflow = document.body.style.overflow;
@@ -571,18 +748,112 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
       window.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = originalOverflow;
     };
-  }, [activeVideoModal]);
+  }, [activeVideoModal, activeMenuImage]);
+
+  const [swipeDirection, setSwipeDirection] = useState<"next" | "prev">("next");
+  const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  const touchCurrentRef = useRef<{ x: number; y: number } | null>(null);
+  const pointerStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  const justSwipedRef = useRef(false);
+
+  const goToNextSlide = useCallback(() => {
+    setSwipeDirection("next");
+    setHeroProduct((current) => {
+      const index = featuredSlides.findIndex((item) => item.id === current.id);
+      return featuredSlides[(index + 1) % featuredSlides.length] ?? current;
+    });
+  }, [featuredSlides]);
+
+  const goToPrevSlide = useCallback(() => {
+    setSwipeDirection("prev");
+    setHeroProduct((current) => {
+      const index = featuredSlides.findIndex((item) => item.id === current.id);
+      return featuredSlides[(index - 1 + featuredSlides.length) % featuredSlides.length] ?? current;
+    });
+  }, [featuredSlides]);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    touchStartRef.current = { x: t.clientX, y: t.clientY, time: Date.now() };
+    touchCurrentRef.current = { x: t.clientX, y: t.clientY };
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    touchCurrentRef.current = { x: t.clientX, y: t.clientY };
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStartRef.current || !touchCurrentRef.current) return;
+    const deltaX = touchCurrentRef.current.x - touchStartRef.current.x;
+    const deltaY = touchCurrentRef.current.y - touchStartRef.current.y;
+    const deltaTime = Date.now() - touchStartRef.current.time;
+    touchStartRef.current = null;
+    touchCurrentRef.current = null;
+
+    if (Math.abs(deltaX) >= 35 && Math.abs(deltaX) > Math.abs(deltaY) * 1.1 && deltaTime < 1200) {
+      justSwipedRef.current = true;
+      window.setTimeout(() => {
+        justSwipedRef.current = false;
+      }, 250);
+
+      if (deltaX < 0) {
+        goToNextSlide();
+      } else {
+        goToPrevSlide();
+      }
+    }
+  };
+
+  const handleTouchCancel = () => {
+    touchStartRef.current = null;
+    touchCurrentRef.current = null;
+  };
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.pointerType === "touch" || e.button !== 0) return;
+    pointerStartRef.current = { x: e.clientX, y: e.clientY, time: Date.now() };
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (e.pointerType === "touch" || !pointerStartRef.current) return;
+    const deltaX = e.clientX - pointerStartRef.current.x;
+    const deltaY = e.clientY - pointerStartRef.current.y;
+    const deltaTime = Date.now() - pointerStartRef.current.time;
+    pointerStartRef.current = null;
+
+    if (Math.abs(deltaX) >= 40 && Math.abs(deltaX) > Math.abs(deltaY) * 1.1 && deltaTime < 1200) {
+      justSwipedRef.current = true;
+      window.setTimeout(() => {
+        justSwipedRef.current = false;
+      }, 250);
+
+      if (deltaX < 0) {
+        goToNextSlide();
+      } else {
+        goToPrevSlide();
+      }
+    }
+  };
+
+  const handlePointerCancel = () => {
+    pointerStartRef.current = null;
+  };
+
+  const handleClickCapture = (e: React.MouseEvent) => {
+    if (justSwipedRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
 
   useEffect(() => {
     if (activeVideoModal) return;
     const timer = window.setInterval(() => {
-      setHeroProduct((current) => {
-        const index = featuredSlides.findIndex((item) => item.id === current.id);
-        return featuredSlides[(index + 1) % featuredSlides.length] ?? current;
-      });
+      goToNextSlide();
     }, 5000);
     return () => window.clearInterval(timer);
-  }, [activeVideoModal, heroProduct.id, featuredSlides]);
+  }, [activeVideoModal, heroProduct.id, goToNextSlide]);
 
   useEffect(() => {
     if (isMenuPage) return;
@@ -595,13 +866,21 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
         const slides = data.featured.flatMap((entry) => {
           const product = menuProducts.find((candidate) => candidate.id === entry.productId);
           if (!product) return [];
+          /* Older rows carry a retired label ("Non-Coffee") or one that is just
+             the raw menu category, which is what made the matcha slide flip from
+             "Beverages" to "Matcha" once this fetch landed. Ignore both and keep
+             the slide's own label; a real custom label still wins. */
+          const staticLabel = featuredProducts.find((slide) => slide.id === product.id)?.featuredCategoryLabel;
+          const storedLabel = entry.categoryLabel?.trim() ?? "";
+          const isStaleLabel = storedLabel === "Non-Coffee" || (Boolean(staticLabel) && storedLabel === product.category);
+          const entryLabel = isStaleLabel ? "" : storedLabel;
           return [{
             ...product,
-            category: entry.categoryLabel === "Non-Coffee" ? product.category : entry.categoryLabel || product.category,
             name: entry.title || product.name,
             price: Number(entry.priceCents) / 100,
             video: entry.mediaUrl || product.video,
             featuredButtonLabel: entry.buttonLabel || "Add to cart",
+            featuredCategoryLabel: entryLabel || staticLabel || product.category,
           } as FeaturedProduct];
         });
         if (slides.length) {
@@ -617,11 +896,114 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
     if (!itemId) return;
     const product = menuProducts.find((candidate) => candidate.id === itemId);
     if (!product) return;
-    setInteractionStarted(true);
-    setMenuShowcaseProduct(product);
-    setActiveCategory(product.category);
-    setSelectedProduct(product);
+    const timer = window.setTimeout(() => {
+      setMenuShowcaseProduct(product);
+      setActiveCategory(product.category);
+      setSelectedProduct(product);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (!isMenuPage) return;
+
+    let frame = 0;
+    let settleTimer = 0;
+
+    const positionHashSection = () => {
+      const hashId = window.location.hash.slice(1);
+      if (!hashId.startsWith("menu-cat-")) return;
+
+      const category = categories.find((candidate) => categoryId(candidate) === hashId);
+      const target = document.getElementById(hashId);
+      if (!category || !target) return;
+
+      setActiveCategory(category);
+      const firstProduct = menuProducts.find((product) => product.category === category);
+      if (firstProduct) setMenuShowcaseProduct(firstProduct);
+
+      const scrollToTarget = () => {
+        const targetTop = window.scrollY + target.getBoundingClientRect().top;
+        const stickyNav = document.querySelector(".standalone-order .category-nav-wrap");
+        const stickyNavHeight = stickyNav?.getBoundingClientRect().height ?? 46;
+        const standardTop = 84 + stickyNavHeight + 8;
+        const desiredTop =
+          category === "Coffee Beans" && window.innerWidth > 780
+            ? Math.max(standardTop, window.innerHeight - 180)
+            : standardTop;
+        const destination = Math.max(0, targetTop - desiredTop);
+        const lenis = (window as unknown as {
+          __lenis?: { scrollTo: (target: number, options?: Record<string, unknown>) => void };
+        }).__lenis;
+
+        if (lenis) lenis.scrollTo(destination, { immediate: true, force: true });
+        else window.scrollTo({ top: destination, behavior: "auto" });
+
+        /* Keep the footer-selected category active even though the preceding
+           refrigerator rows intentionally remain visible above its heading. */
+        setActiveCategory(category);
+      };
+
+      frame = window.requestAnimationFrame(() => {
+        frame = window.requestAnimationFrame(scrollToTarget);
+      });
+      settleTimer = window.setTimeout(scrollToTarget, 180);
+    };
+
+    positionHashSection();
+    window.addEventListener("hashchange", positionHashSection);
+    return () => {
+      window.removeEventListener("hashchange", positionHashSection);
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(settleTimer);
+    };
+  }, [isMenuPage]);
+
+  useLayoutEffect(() => {
+    if (!isMenuPage) return;
+    const nav = categoryNavRef.current;
+    const indicator = categoryIndicatorRef.current;
+    if (!nav || !indicator) return;
+
+    let frame = 0;
+    const positionIndicator = () => {
+      const activeLabel = nav.querySelector<HTMLElement>("button.active .category-nav-label");
+      if (!activeLabel) return;
+      const navRect = nav.getBoundingClientRect();
+      const labelRect = activeLabel.getBoundingClientRect();
+      const left = labelRect.left - navRect.left + nav.scrollLeft;
+      indicator.style.width = `${labelRect.width}px`;
+      indicator.style.transform = `translate3d(${left}px, 0, 0)`;
+      indicator.style.opacity = "1";
+    };
+
+    const keepActiveCategoryVisible = () => {
+      const activeButton = nav.querySelector<HTMLElement>("button.active");
+      if (!activeButton) return;
+      const navRect = nav.getBoundingClientRect();
+      const buttonRect = activeButton.getBoundingClientRect();
+      const edgePadding = 14;
+      if (buttonRect.left >= navRect.left + edgePadding && buttonRect.right <= navRect.right - edgePadding) return;
+      const centeredLeft = activeButton.offsetLeft + activeButton.offsetWidth / 2 - nav.clientWidth / 2;
+      nav.scrollTo({ left: Math.max(0, centeredLeft), behavior: "smooth" });
+    };
+
+    positionIndicator();
+    frame = window.requestAnimationFrame(() => {
+      positionIndicator();
+      keepActiveCategoryVisible();
+    });
+    const resizeObserver = new ResizeObserver(positionIndicator);
+    resizeObserver.observe(nav);
+    window.addEventListener("resize", positionIndicator);
+    document.fonts?.ready.then(positionIndicator).catch(() => undefined);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", positionIndicator);
+    };
+  }, [activeCategory, isMenuPage]);
 
   useEffect(() => {
     async function loadAvailability() {
@@ -653,11 +1035,6 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
     return () => window.clearInterval(timer);
   }, []);
 
-  const visibleProducts = useMemo(
-    () => products.filter((product) => product.category === activeCategory),
-    [activeCategory, products],
-  );
-
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
 
@@ -668,22 +1045,34 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   useEffect(() => {
     if (isModalOpen) {
       document.body.classList.add("modal-open");
-      (window as any).__lenis?.stop();
+      (window as unknown as { __lenis?: { stop: () => void } }).__lenis?.stop();
     } else {
       document.body.classList.remove("modal-open");
-      (window as any).__lenis?.start();
+      (window as unknown as { __lenis?: { start: () => void } }).__lenis?.start();
     }
     return () => {
       document.body.classList.remove("modal-open");
-      (window as any).__lenis?.start();
+      (window as unknown as { __lenis?: { start: () => void } }).__lenis?.start();
     };
   }, [isModalOpen]);
 
   function openProduct(product: Product) {
     if (availability[product.id] === false) return;
-    setInteractionStarted(true);
+    productDialogTrigger.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
     setMenuShowcaseProduct(product);
     setSelectedProduct(product);
+  }
+
+  function closeProduct() {
+    setSelectedProduct(null);
+    if (editingCartItem) {
+      setEditingCartItem(null);
+      setCartOpen(true);
+      return;
+    }
+    window.requestAnimationFrame(() => productDialogTrigger.current?.focus());
   }
 
   function quickAdd(product: Product) {
@@ -699,6 +1088,27 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
     setJustAdded(product.id);
     window.clearTimeout(justAddedTimer.current);
     justAddedTimer.current = window.setTimeout(() => setJustAdded(null), 1100);
+  }
+
+  function activateMenuProduct(product: Product) {
+    const isCompactMenu = window.matchMedia("(max-width: 780px)").matches;
+
+    if (isCompactMenu && menuShowcaseProduct.id !== product.id) {
+      setMenuShowcaseProduct(product);
+      return;
+    }
+
+    if (isCompactMenu) {
+      quickAdd(product);
+      return;
+    }
+
+    openProduct(product);
+  }
+
+  function addHeroProduct() {
+    if (heroProduct.configurable) openProduct(heroProduct);
+    else quickAdd(heroProduct);
   }
 
   function handleEditCartItem(item: CartItem) {
@@ -728,7 +1138,13 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
     if (!target) return;
     const nav = document.querySelector(".standalone-order .category-nav-wrap");
     const navHeight = nav ? nav.getBoundingClientRect().height : 46;
-    const y = window.scrollY + target.getBoundingClientRect().top - (84 + navHeight + 8);
+    const standardTop = 84 + navHeight + 8;
+    /* Coffee Beans is a short final section. Keep the last refrigerator rows
+       in view above it instead of over-scrolling the heading to the top. */
+    const desiredTop = category === "Coffee Beans" && window.innerWidth > 780
+      ? Math.max(standardTop, window.innerHeight - 180)
+      : standardTop;
+    const y = window.scrollY + target.getBoundingClientRect().top - desiredTop;
     window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
     setActiveCategory(category);
     const first = products.find((p) => p.category === category);
@@ -741,9 +1157,11 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
     return (
       <div className="menu-item-row-wrap" key={product.id}>
         <button
-          className={`menu-item-row ${isSelected ? "selected" : ""} ${soldOut ? "sold-out" : ""}`}
-          onClick={() => openProduct(product)}
-          onMouseEnter={() => setMenuShowcaseProduct(product)}
+          className={`menu-item-row ${isSelected ? "selected has-mobile-actions" : ""} ${soldOut ? "sold-out" : ""}`}
+          onClick={() => activateMenuProduct(product)}
+          onMouseEnter={() => {
+            if (window.matchMedia("(hover: hover)").matches) setMenuShowcaseProduct(product);
+          }}
           disabled={soldOut}
         >
           <div className="item-info">
@@ -758,7 +1176,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
           </div>
         </button>
         {!soldOut && (
-          <button
+          CUSTOM_CHECKOUT_ENABLED ? <button
             type="button"
             className={`item-quick-add ${justAdded === product.id ? "added" : ""}`}
             onClick={() => product.configurable ? openProduct(product) : quickAdd(product)}
@@ -767,7 +1185,40 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
           >
             <span className="universal-cart-glyph" aria-hidden="true" />
             <span className="quick-add-plus" aria-hidden="true" />
-          </button>
+          </button> : <OrderOnlineLink
+            className="item-quick-add"
+            ariaLabel={`Order ${product.name} online`}
+          >
+            <span className="universal-cart-glyph" aria-hidden="true" />
+            <span className="quick-add-plus" aria-hidden="true" />
+          </OrderOnlineLink>
+        )}
+        {!soldOut && CUSTOM_CHECKOUT_ENABLED && isSelected && (
+          <div className="item-selected-actions" aria-label={`${product.name} actions`}>
+            {product.configurable && (
+              <button
+                type="button"
+                className="item-customize-button"
+                onClick={() => openProduct(product)}
+                aria-label={`Customize ${product.name}`}
+                title={`Customize ${product.name}`}
+              >
+                <svg className="item-pencil-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M14.7 5.3 18.7 9.3M4 20l1.1-4.6L16.8 3.7a2.1 2.1 0 0 1 3 3L8.1 18.4 4 20Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            )}
+            <button
+              type="button"
+              className={`item-selected-cart ${justAdded === product.id ? "added" : ""}`}
+              onClick={() => quickAdd(product)}
+              aria-label={`${justAdded === product.id ? "Added" : "Add"} ${product.name} to cart`}
+              title={`${justAdded === product.id ? "Added" : "Add to cart"}`}
+            >
+              <span className="universal-cart-glyph" aria-hidden="true" />
+              <span className="quick-add-plus" aria-hidden="true" />
+            </button>
+          </div>
         )}
       </div>
     );
@@ -814,10 +1265,17 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
     const onScroll = () => {
       /* the section whose header is closest to just under the sticky nav wins */
       let best = blocks[0];
-      let bestDist = Infinity;
-      for (const el of blocks) {
-        const d = Math.abs(el.getBoundingClientRect().top - 150);
-        if (d < bestDist) { bestDist = d; best = el; }
+      const finalSection = blocks[blocks.length - 1];
+      const coffeeBeansFramed = window.innerWidth > 780
+        && finalSection.getBoundingClientRect().top <= window.innerHeight - 170;
+      if (coffeeBeansFramed) {
+        best = finalSection;
+      } else {
+        let bestDist = Infinity;
+        for (const el of blocks) {
+          const d = Math.abs(el.getBoundingClientRect().top - 150);
+          if (d < bestDist) { bestDist = d; best = el; }
+        }
       }
       const match = categories.find((c) => categoryId(c) === best.id);
       if (match) setActiveCategory((prev) => (prev === match ? prev : match));
@@ -827,64 +1285,53 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
     return () => window.removeEventListener("scroll", onScroll);
   }, [isMenuPage]);
 
-  function rememberOrder(order: { orderNumber: string; phone: string }) {
-    try {
-      const key = "deaf-shark-customer-orders";
-      const current = JSON.parse(window.localStorage.getItem(key) ?? "[]") as { orderNumber: string; phone: string }[];
-      const next = [order, ...current.filter((item) => item.orderNumber !== order.orderNumber)].slice(0, 12);
-      window.localStorage.setItem(key, JSON.stringify(next));
-      window.dispatchEvent(new Event("deaf-shark-orders-updated"));
-    } catch {
-      // Order confirmation still works when browser storage is unavailable.
-    }
-  }
-
   const renderHeroProductPanel = (className = "") => (
-    <div className={`hero-product ${className}`.trim()} aria-live="polite">
-      <div key={heroProduct.id} className="hero-visual-container hero-visual-swipe">
+    <div
+      className={`hero-product ${className}`.trim()}
+      aria-live="polite"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchCancel}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
+      onClickCapture={handleClickCapture}
+    >
+      <div key={`${heroProduct.id}-category`} className={`hero-product-category hero-text-swipe hero-swipe-${swipeDirection}`}>
+        {heroProduct.featuredCategoryLabel || heroProduct.category}
+      </div>
+      <div key={heroProduct.id} className={`hero-visual-container hero-visual-swipe hero-swipe-${swipeDirection}`}>
         {heroProduct.video ? (
-          <div className="hero-featured-video-wrap">
-            <video
-              src={heroProduct.video}
-              autoPlay
-              muted
-              loop
-              playsInline
-              className="hero-featured-video"
-            />
-            <button
-              className="hero-video-play-btn"
-              onClick={() => setActiveVideoModal(heroProduct)}
-              aria-label={`Play ${heroProduct.name} video with sound`}
-              title="Play video with sound"
-            >
-              <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true">
-                <path d="M8 5v14l11-7z" />
-              </svg>
-            </button>
-          </div>
+          <HeroFeaturedVideo
+            product={heroProduct}
+            onOpenModal={() => setActiveVideoModal(heroProduct)}
+          />
         ) : (
           <ProductVisual product={heroProduct} />
         )}
       </div>
       <div className="hero-product-caption">
-        <div key={heroProduct.id} className="hero-product-text hero-text-swipe">
-          <span>{heroProduct.category}</span>
+        <div key={heroProduct.id} className={`hero-product-text hero-text-swipe hero-swipe-${swipeDirection}`}>
           <strong>{heroProduct.name}</strong>
         </div>
-        <button className="hero-add-btn" onClick={() => openProduct(heroProduct)}>
-          <span>{heroProduct.featuredButtonLabel || "Add to cart"} · <PriceTicker targetPrice={heroProduct.price} /></span>
+        <button type="button" className="hero-add-btn" aria-label={`Add ${heroProduct.name} to order`} onClick={addHeroProduct}>
+          <span>Add to order · <PriceTicker targetPrice={heroProduct.price} /></span>
           <span className="btn-cart-glyph" />
         </button>
       </div>
       <div className="product-dots" aria-label="Featured products">
-        {featuredSlides.map((product) => {
+        {featuredSlides.map((product, idx) => {
           const isActive = product.id === heroProduct.id;
           return (
             <button
               key={product.id}
               className={isActive ? "active" : ""}
-              onClick={() => setHeroProduct(product)}
+              onClick={() => {
+                const currentIdx = featuredSlides.findIndex((p) => p.id === heroProduct.id);
+                setSwipeDirection(idx >= currentIdx ? "next" : "prev");
+                setHeroProduct(product);
+              }}
               aria-label={`Show ${product.name}`}
             >
               {isActive && <span key={`${product.id}-timer`} className="dot-fill" />}
@@ -899,11 +1346,18 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
     <main>
       <CustomerHeader
         active={isMenuPage ? "/menu" : "/"}
-        action={
+        action={CUSTOM_CHECKOUT_ENABLED ?
           <button className="header-cart" onClick={() => setCartOpen(true)} aria-label={`Open cart with ${cartCount} items`}>
             <img src="/cart-icon-white.png" className="cart-glyph" alt="" aria-hidden="true" />
             <span>{cartCount}</span>
-          </button>
+          </button> : <OrderOnlineLink className="header-cart" ariaLabel="Order online">
+            <img src="/cart-icon-white.png" className="cart-glyph" alt="" aria-hidden="true" />
+            <span aria-hidden="true">
+              <svg className="header-order-arrow" viewBox="0 0 12 12" fill="none">
+                <path d="M3 9 9 3M4 3h5v5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+          </OrderOnlineLink>
         }
       />
 
@@ -914,7 +1368,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
             <h1><span>Coffee from</span><span>El Salvador,</span><em>Roasted in Union</em></h1>
             <div className="hero-actions">
               <a className="primary-button hero-cta-btn" href="/menu">
-                <span>Order pickup</span>
+                <span>Order online</span>
                 <svg className="btn-arrow" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                   <path d="M2.5 8h11M9.5 3.5l4.5 4.5-4.5 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
@@ -931,34 +1385,43 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
         </section>
       </ScrollHero>}
 
-      {!isMenuPage && renderHeroProductPanel("hero-product-mobile")}
+      <div className={`mobile-order-overlay-stage ${isMenuPage ? "is-standalone" : ""}`}>
+        {!isMenuPage && renderHeroProductPanel("hero-product-mobile")}
 
-      <section className={`order-section ${isMenuPage ? "standalone-order" : ""}`} id="menu">
+        <section className={`order-section ${isMenuPage ? "standalone-order" : ""}`} id="menu">
         <div className="order-section-badge-wrap" aria-hidden="true">
-          <img src="/deafshark-logo.png" alt="Deaf Shark Coffee" className="order-section-badge" />
+          <img src="/deafshark-logo-640.webp" alt="Deaf Shark Coffee" className="order-section-badge" decoding="async" />
         </div>
         <div className="menu-showcase-grid">
           {/* Left Column: Title + Clean Product Card + Brand Tag (Sticky) */}
           <aside className="menu-product-card-wrap">
-            <div className="menu-sidebar-heading">
-              <h2>{isMenuPage ? "The Full Deaf Shark Menu" : "Salvadoran roasts, poured fresh."}</h2>
-            </div>
-            <div className="menu-product-card">
-              <ProductVisual product={menuShowcaseProduct} />
-              <button
-                className="menu-card-pill"
-                onClick={() => openProduct(menuShowcaseProduct)}
-                aria-label={`Customize ${menuShowcaseProduct.name}`}
-              >
-                {menuShowcaseProduct.name} · {money(menuShowcaseProduct.price)}
-              </button>
-            </div>
-            <div className="menu-card-brand">
-              <img src="/favicon.png" alt="" />
-              <div className="menu-brand-text">
-                <strong>DEAF SHARK COFFEE</strong>
-                <span className="brand-dot">·</span>
-                <small>Roasted in Union.</small>
+            <div className="menu-product-pin">
+              <div className="menu-sidebar-heading">
+                {/* The menu page is its own document, so its title is the h1 there.
+                    On the home page this block sits under the hero h1 and stays an h2. */}
+                {isMenuPage
+                  ? <h1 className="menu-panel-heading">The Full Deaf Shark Menu</h1>
+                  : <h2>Salvadoran roasts, poured fresh.</h2>}
+              </div>
+              <div className="menu-product-card-sticky-mask">
+                <div className="menu-product-card">
+                  <ProductVisual product={menuShowcaseProduct} />
+                  <button
+                    className="menu-card-pill"
+                    onClick={() => openProduct(menuShowcaseProduct)}
+                    aria-label={`Customize ${menuShowcaseProduct.name}`}
+                  >
+                    {menuShowcaseProduct.name} · {money(menuShowcaseProduct.price)}
+                  </button>
+                </div>
+              </div>
+              <div className="menu-card-brand">
+                <img src="/favicon.png" alt="" />
+                <div className="menu-brand-text">
+                  <strong>DEAF SHARK COFFEE</strong>
+                  <span className="brand-dot">·</span>
+                  <small>Roasted in Union.</small>
+                </div>
               </div>
             </div>
           </aside>
@@ -967,7 +1430,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
           <div className="menu-list-panel">
             {isMenuPage && (
               <div className="category-nav-wrap">
-                <div className="category-nav" role="tablist" aria-label="Menu categories">
+                <div ref={categoryNavRef} className="category-nav" role="tablist" aria-label="Menu categories">
                   {categories.map((category) => (
                     <button
                       key={category}
@@ -976,9 +1439,10 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
                       className={activeCategory === category ? "active" : ""}
                       onClick={() => scrollToCategory(category)}
                     >
-                      {category}
+                      <span className="category-nav-label">{categoryLabel(category)}</span>
                     </button>
                   ))}
+                  <span ref={categoryIndicatorRef} className="category-nav-indicator" aria-hidden="true" />
                 </div>
               </div>
             )}
@@ -986,18 +1450,27 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
             {/*
               The menu page shows every category at once. The buttons jump to a
               section rather than filtering it, so nothing is hidden behind a click.
-              Section titles scroll with their items so selected rows never pass
-              behind a title and show as clipped dark strips.
+              Each section title stays pinned while its own items scroll. The next
+              category naturally replaces it when its section reaches the top.
             */}
             {isMenuPage ? (
               categories.map((category) => {
-                const items = products.filter((p) => p.category === category);
+                const items = products
+                  .filter((p) => p.category === category)
+                  .sort((a, b) => {
+                    if (category !== "Coffee") return 0;
+                    const aTemps = temperaturesFor(a);
+                    const bTemps = temperaturesFor(b);
+                    const aIsHotOnly = aTemps.length === 1 && aTemps[0] === "Hot";
+                    const bIsHotOnly = bTemps.length === 1 && bTemps[0] === "Hot";
+                    return Number(aIsHotOnly) - Number(bIsHotOnly);
+                  });
                 if (!items.length) return null;
                 return (
                   <section className="menu-category-block" key={category} id={categoryId(category)}>
                     <div className="menu-panel-header">
                       <div>
-                        <h3>{category}</h3>
+                        <h3>{categoryLabel(category)}</h3>
                       </div>
                       {DRINK_CATEGORIES.includes(category) && (
                         <span className="menu-milk-note">Whole, skim, oat, almond, or half and half · no extra charge</span>
@@ -1038,35 +1511,59 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
             )}
           </div>
         </div>
-      </section>
+        </section>
+      </div>
+
+      {!isMenuPage && (
+        <div className="mobile-menu-cta-shelf">
+          <a href="/menu" className="primary-button hero-cta-btn menu-full-button">
+            <span>View our full menu</span>
+            <svg className="btn-arrow" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M2.5 8h11M9.5 3.5l4.5 4.5-4.5 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </a>
+        </div>
+      )}
 
       {!isMenuPage && <section className="take-home-section">
         {/* Mobile only: the copy panel sits below the video there, so the section
             needs a heading up top to say what it is. */}
         <div className="take-home-banner">Take Home Our Roast!</div>
         <div className="take-home-image">
-          <img src="/ocean-blend-bags.jpg" alt="Deaf Shark Ocean Blend coffee bags displayed in the Union shop" />
+          <img src="/ocean-blend-bags-900.webp" alt="Deaf Shark Ocean Blend coffee bags displayed in the Union shop" loading="lazy" decoding="async" />
         </div>
         <div className="take-home-copy">
           <div className="take-home-body">
             <h2>Take Our Roast Home</h2>
-            <p>A 12 oz bag of medium roast whole bean coffee from El Salvador, roasted in Union and ready for your home setup.</p>
             <ul className="take-home-features">
+              <li><span className="take-home-num">-</span> 12 oz bag</li>
               <li><span className="take-home-num">-</span> Ocean Blend</li>
               <li><span className="take-home-num">-</span> Medium roast</li>
               <li><span className="take-home-num">-</span> Whole bean</li>
-              <li><span className="take-home-num">-</span> 12 oz bag</li>
+              <li><span className="take-home-num">-</span> From El Salvador</li>
+              <li><span className="take-home-num">-</span> Roasted in Union</li>
             </ul>
           </div>
-          <button className="primary-button take-home-btn" onClick={() => openProduct(oceanBlend)}>
-            <span>Order a bag · {money(oceanBlend.price)}</span>
-            <span className="btn-cart-glyph" />
-          </button>
+          <div className="take-home-action">
+            <img
+              className="take-home-product-cutout"
+              src="/menu/coffee/ocean-blend-single-bag-cutout-800.webp"
+              alt="Deaf Shark Ocean Blend coffee bag"
+              loading="lazy"
+              decoding="async"
+            />
+            <button type="button" className="primary-button take-home-btn" aria-label="Add Ocean Blend to order" onClick={() => quickAdd(oceanBlend)}>
+              <span>Add a bag · {money(oceanBlend.price)}</span>
+              <span className="btn-cart-glyph" />
+            </button>
+          </div>
         </div>
         <div className="take-home-film">
-          <video autoPlay muted loop playsInline preload="metadata" poster="/ocean-blend-bags.jpg" aria-label="Deaf Shark Ocean Blend bags on display">
-            <source src="/ocean-blend-bags.mp4" type="video/mp4" />
-          </video>
+          <LazyAutoplayVideo
+            src="/ocean-blend-bags.mp4"
+            poster="/ocean-blend-bags-900.webp"
+            ariaLabel="Deaf Shark Ocean Blend bags on display"
+          />
         </div>
       </section>}
 
@@ -1078,40 +1575,110 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
           <span className="eyebrow">The coffee</span>
           <h2>A cup with a place behind it.<br />One farm, one variety.</h2>
           <p>Our featured coffee comes from single-origin harvests in El Salvador. Red Bourbon beans are washed, roasted with care, and served here in Union.</p>
-          <dl>
-            <div><dt>Origin</dt><dd>El Salvador</dd></div>
-            <div><dt>Variety</dt><dd>Red Bourbon</dd></div>
-            <div><dt>Process</dt><dd>Washed</dd></div>
-            <div><dt>Roast</dt><dd>Medium</dd></div>
-          </dl>
+          <div className="origin-profile">
+            <strong>El Salvador</strong>
+            <p>
+              <span>Red Bourbon</span>
+              <i aria-hidden="true">-</i>
+              <span>Washed process</span>
+              <i aria-hidden="true">-</i>
+              <span>Medium roast</span>
+            </p>
+          </div>
         </div>
       </section>}
+
+      {!isMenuPage && (
+        <section className="menu-boards-section" id="menus">
+          <div className="menu-boards-header">
+            <h2>Food & Breakfast Menus</h2>
+          </div>
+          <div className="menu-boards-grid">
+            <div className="menu-board-card">
+              <div className="menu-board-img-wrap">
+                <img
+                  src="/menu-board-breakfast.jpeg"
+                  alt="Deaf Shark Coffee Morning Handhelds and Breakfast Menu"
+                  loading="lazy"
+                />
+                <a className="menu-board-view-link" href="/menu">View full menu</a>
+                <button
+                  type="button"
+                  className="menu-board-zoom-badge"
+                  aria-label="Expand breakfast menu image"
+                  title="Expand menu image"
+                  onClick={() => setActiveMenuImage({ src: "/menu-board-breakfast.jpeg", title: "Morning Handhelds & Breakfast Menu" })}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div className="menu-board-card">
+              <div className="menu-board-img-wrap">
+                <img
+                  src="/menu-board-food.jpeg"
+                  alt="Deaf Shark Coffee Sandwiches and Bites Food Menu"
+                  loading="lazy"
+                />
+                <a className="menu-board-view-link" href="/menu">View full menu</a>
+                <button
+                  type="button"
+                  className="menu-board-zoom-badge"
+                  aria-label="Expand food menu image"
+                  title="Expand menu image"
+                  onClick={() => setActiveMenuImage({ src: "/menu-board-food.jpeg", title: "Sandwiches & Bites Food Menu" })}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {!isMenuPage && (
         <section className="visit-section" id="visit">
           <div className="visit-header-block">
             <div className="visit-title-wrap">
               <h2>Deaf Shark Coffee<br />Union, New Jersey</h2>
-              <img src="/deafshark-logo.png" alt="Deaf Shark Coffee" className="visit-brand-stamp" />
+              <img src="/deafshark-logo-640.webp" alt="Deaf Shark Coffee" className="visit-brand-stamp" loading="lazy" decoding="async" />
             </div>
             <div className="visit-cards-row">
               <div className="visit-card">
                 <span className="visit-card-label">Address</span>
                 <strong>900 Green Lane</strong>
                 <span>Union, NJ 07083</span>
-                <a href="https://maps.google.com/?q=900+Green+Lane+Union+NJ+07083" target="_blank" rel="noopener noreferrer">Get directions</a>
+                <a className="primary-button visit-action-btn hero-cta-btn" href="https://maps.google.com/?q=900+Green+Lane+Union+NJ+07083" target="_blank" rel="noopener noreferrer">
+                  <span>Get directions</span>
+                  <svg className="btn-arrow" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M2.5 8h11M9.5 3.5l4.5 4.5-4.5 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </a>
               </div>
               <div className="visit-card">
                 <span className="visit-card-label">Hours</span>
                 <strong>6:00 AM – 5:00 PM</strong>
-                <span>Through Aug. 31 · 6:00 AM – 8:00 PM starting Sept. 1</span>
-                <a href="/menu">Order ahead</a>
+                <span>Open daily</span>
+                <a className="primary-button visit-action-btn visit-order-btn" href="/menu">
+                  <span>Order online</span>
+                  <span className="btn-cart-glyph" aria-hidden="true" />
+                </a>
               </div>
               <div className="visit-card">
                 <span className="visit-card-label">Contact</span>
                 <strong>(908) 481-8884</strong>
                 <span>Call ahead or stop in</span>
-                <a href="tel:+19084818884">Call shop</a>
+                <a className="primary-button visit-action-btn phone-ring-btn" href="tel:+19084818884">
+                  <svg className="phone-ring-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                  </svg>
+                  <span>Call shop</span>
+                </a>
               </div>
             </div>
           </div>
@@ -1130,7 +1697,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
               className="map-location-banner"
             >
               <div className="map-banner-logo-wrap">
-                <img src="/deafshark-logo.png" alt="Deaf Shark Coffee" className="map-banner-logo" />
+                <img src="/deafshark-logo-640.webp" alt="Deaf Shark Coffee" className="map-banner-logo" loading="lazy" decoding="async" />
               </div>
               <div className="map-banner-info">
                 <strong>Deaf Shark Coffee</strong>
@@ -1152,18 +1719,13 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
         <ProductConfigurator
           product={selectedProduct}
           initialItem={editingCartItem || undefined}
-          onClose={() => {
-            setSelectedProduct(null);
-            if (editingCartItem) {
-              setEditingCartItem(null);
-              setCartOpen(true);
-            }
-          }}
+          onClose={closeProduct}
           onAdd={handleSaveConfiguredItem}
         />
       )}
-      {cartOpen && (
+      {CUSTOM_CHECKOUT_ENABLED && (
         <CartDrawer
+          isOpen={cartOpen}
           cart={cart}
           subtotal={subtotal}
           onClose={() => setCartOpen(false)}
@@ -1177,18 +1739,29 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
           ordersPaused={ordersPaused}
         />
       )}
-      {checkoutOpen && (
-        <Checkout prepTime={prepTime} scheduling={scheduling} ordersPaused={ordersPaused} cart={cart} subtotal={subtotal} onClose={() => setCheckoutOpen(false)} onComplete={(number, eta, phone) => { rememberOrder({ orderNumber: number, phone }); setCheckoutOpen(false); setCart([]); setConfirmation({ number, eta }); }} />
+      {CUSTOM_CHECKOUT_ENABLED && checkoutOpen && (
+        <Checkout prepTime={prepTime} scheduling={scheduling} ordersPaused={ordersPaused} cart={cart} subtotal={subtotal} onClose={() => setCheckoutOpen(false)} onComplete={(number, eta) => { setCheckoutOpen(false); setCart([]); setConfirmation({ number, eta }); }} />
       )}
-      {confirmation && (
+      {CUSTOM_CHECKOUT_ENABLED && confirmation && (
         <div className="modal-backdrop">
           <section className="confirmation-card" role="dialog" aria-modal="true">
             <img src="/deafshark-dog-art.png" alt="Deaf Shark character" />
             <span className="eyebrow">Order received</span>
             <h2>We have it, {confirmation.number}.</h2>
-            <p>Your pickup estimate is <strong>{confirmation.eta}</strong>. We will text you once when it is ready for pickup.</p>
+            <p>Your pickup estimate is <strong>{confirmation.eta}</strong>. Please pay at the counter when you arrive.</p>
             <div className="confirmation-actions"><button className="primary-button" onClick={() => { setConfirmation(null); window.dispatchEvent(new Event("deaf-shark-open-order")); }}>View order status</button><button className="soft-button" onClick={() => setConfirmation(null)}>Back to the menu</button></div>
           </section>
+        </div>
+      )}
+
+      {activeMenuImage && (
+        <div className="modal-backdrop menu-board-modal-backdrop" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setActiveMenuImage(null);
+        }}>
+          <div className="menu-board-modal-content" role="dialog" aria-modal="true" aria-label={activeMenuImage.title}>
+            <button className="modal-close menu-board-modal-close" onClick={() => setActiveMenuImage(null)} aria-label="Close menu view">×</button>
+            <img src={activeMenuImage.src} alt={activeMenuImage.title} className="menu-board-modal-img" />
+          </div>
         </div>
       )}
 
@@ -1196,7 +1769,6 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
         <CustomVideoModal
           product={activeVideoModal}
           onClose={() => setActiveVideoModal(null)}
-          onOrder={(product) => openProduct(product)}
         />
       )}
     </main>
@@ -1206,11 +1778,9 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
 function CustomVideoModal({
   product,
   onClose,
-  onOrder,
 }: {
   product: Product;
   onClose: () => void;
-  onOrder: (p: Product) => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(true);
@@ -1224,14 +1794,21 @@ function CustomVideoModal({
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    video.volume = volume;
-    video.muted = isMuted;
+    video.volume = 0.85;
+    video.muted = false;
     video.play().catch(() => {
       video.muted = true;
       setIsMuted(true);
       video.play().catch(() => {});
     });
   }, []);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.volume = volume;
+    video.muted = isMuted;
+  }, [isMuted, volume]);
 
   const togglePlay = () => {
     const video = videoRef.current;
@@ -1302,12 +1879,11 @@ function CustomVideoModal({
   return (
     <div
       className="video-modal-backdrop"
-      onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label={`${product.name} video presentation`}
     >
-      <div className="video-modal-dialog" onClick={(e) => e.stopPropagation()}>
+      <div className="video-modal-dialog">
         <button
           type="button"
           className="video-modal-close"
@@ -1328,7 +1904,9 @@ function CustomVideoModal({
             onLoadedMetadata={handleLoadedMetadata}
             onEnded={() => setIsPlaying(false)}
             onClick={togglePlay}
-          />
+          >
+            <track kind="captions" srcLang="en" label="English" src="/product-video-captions.vtt" />
+          </video>
 
           <div className="custom-video-controls">
             <div className="video-scrubber-wrap">
@@ -1421,21 +1999,66 @@ function CustomVideoModal({
             </div>
           </div>
         </div>
-
-        <div className="video-modal-caption">
-          <h3>{product.name}</h3>
-          <p>{product.description}</p>
-        </div>
       </div>
     </div>
   );
 }
 
-function CartDrawer({ cart, subtotal, ordersPaused, onClose, onEdit, onRemove, onCheckout }: { cart: CartItem[]; subtotal: number; ordersPaused: boolean; onClose: () => void; onEdit: (item: CartItem) => void; onRemove: (key: string) => void; onCheckout: () => void }) {
+function CartDrawer({
+  isOpen,
+  cart,
+  subtotal,
+  ordersPaused,
+  onClose,
+  onEdit,
+  onRemove,
+  onCheckout,
+}: {
+  isOpen: boolean;
+  cart: CartItem[];
+  subtotal: number;
+  ordersPaused: boolean;
+  onClose: () => void;
+  onEdit: (item: CartItem) => void;
+  onRemove: (key: string) => void;
+  onCheckout: () => void;
+}) {
   return (
-    <div className="drawer-backdrop" onMouseDown={onClose}>
-      <aside className="cart-drawer" data-lenis-prevent onMouseDown={(event) => event.stopPropagation()}>
-        <div className="drawer-header"><div><h2>Your cart</h2></div><button onClick={onClose} aria-label="Close cart">×</button></div>
+    <div
+      className={`cart-backdrop ${isOpen ? "is-open" : ""}`}
+      aria-hidden={!isOpen}
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <aside className="cart-drawer" data-lenis-prevent role="dialog" aria-modal="true" aria-label="Shopping cart">
+        <div className="drawer-header">
+          <div>
+            <h2>Your cart</h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close cart"
+            className="drawer-close-btn"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="18"
+              height="18"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
         <div className="cart-items">
           {cart.length === 0 && <div className="empty-cart"><img src="/favicon.png" alt="" /><h3>Your cart is ready when you are.</h3><p>Choose a drink, breakfast, sandwich, or bite from the menu.</p></div>}
           {cart.map((item) => (
@@ -1460,37 +2083,29 @@ function CartDrawer({ cart, subtotal, ordersPaused, onClose, onEdit, onRemove, o
   );
 }
 
+/* Crypto-random so two browsers can never collide on the same checkout key. */
+function createIdempotencyKey() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onClose, onComplete }: { cart: CartItem[]; subtotal: number; prepTime?: number; scheduling: SchedulingSettings; ordersPaused: boolean; onClose: () => void; onComplete: (number: string, eta: string, phone: string) => void }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [payment, setPayment] = useState<"pickup" | "card">("card");
-  const [accountState, setAccountState] = useState<"loading" | "member" | "guest">("loading");
   const [fulfillmentType, setFulfillmentType] = useState<"asap" | "scheduled">("asap");
   const [scheduledFor, setScheduledFor] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<{ name?: string; phone?: string; scheduledFor?: string }>({});
   const [scheduleAnchor] = useState(() => Date.now());
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
+  /* One key per checkout session. A retry or a double-click reuses it, so the
+     server resolves the second request to the order it already stored. */
+  const [idempotencyKey] = useState(createIdempotencyKey);
   const tax = subtotal * 0.06625;
-
-  useEffect(() => {
-    let active = true;
-    fetch("/api/profile", { cache: "no-store" })
-      .then((response) => response.json() as Promise<ProfilePayload>)
-      .then((data) => {
-        if (!active) return;
-        const profile = data.profile;
-        if (data.authenticated && profile) {
-          setAccountState("member");
-          setName((current) => current || profile.displayName || "");
-          setPhone((current) => current || formatPhoneInput(profile.phone || ""));
-        } else {
-          setAccountState("guest");
-        }
-      })
-      .catch(() => { if (active) setAccountState("guest"); });
-    return () => { active = false; };
-  }, []);
 
   function localInputValue(date: Date) {
     const offset = date.getTimezoneOffset() * 60_000;
@@ -1509,10 +2124,15 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onC
     if (fulfillmentType === "scheduled" && !scheduledFor) nextFieldErrors.scheduledFor = "Choose your pickup date and time.";
     setFieldErrors(nextFieldErrors);
     if (Object.keys(nextFieldErrors).length) return;
+    if (!turnstileToken) {
+      setError("Please complete the security check before placing your order.");
+      return;
+    }
     if (ordersPaused) {
       setError("Online ordering is temporarily paused. Please order at the counter.");
       return;
     }
+    if (submitting) return;
     setSubmitting(true);
     try {
       const response = await fetch("/api/orders", {
@@ -1521,10 +2141,12 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onC
         body: JSON.stringify({
           customerName: name,
           phone,
-          paymentMethod: payment,
+          paymentMethod: "pickup",
           fulfillmentType,
           scheduledFor: fulfillmentType === "scheduled" ? new Date(scheduledFor).toISOString() : undefined,
-          items: cart,
+          turnstileToken,
+          idempotencyKey,
+          items: cart.map((item) => ({ id: item.id, quantity: item.quantity, selection: item.selection })),
         }),
       });
       const data = await response.json() as {
@@ -1537,35 +2159,26 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onC
       setError(caught instanceof Error ? caught.message : "Unable to place order");
     } finally {
       setSubmitting(false);
+      setTurnstileResetKey((current) => current + 1);
     }
   }
 
-  function formatPhoneInput(raw: string) {
-    const digits = raw.replace(/\D/g, "").slice(0, 10);
-    if (!digits) return "";
-    if (digits.length <= 3) return `(${digits}`;
-    if (digits.length <= 6) return `(${digits.slice(0, 3)})-${digits.slice(3)}`;
-    return `(${digits.slice(0, 3)})-${digits.slice(3, 6)}-${digits.slice(6)}`;
-  }
-
   return (
-    <div className="modal-backdrop" onMouseDown={onClose}>
-      <form className="checkout-card" data-lenis-prevent onSubmit={submit} noValidate onMouseDown={(event) => event.stopPropagation()}>
-        <button type="button" className="modal-close" onClick={onClose} aria-label="Close checkout">×</button>
+    <div className="modal-backdrop">
+      <form className="checkout-card" data-lenis-prevent onSubmit={submit} noValidate>
+        <button type="button" className="modal-close" onClick={onClose} aria-label="Close checkout">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8" /></svg>
+        </button>
         <h2>Finish your order</h2>
         <label className={fieldErrors.name ? "has-error" : undefined}><span>Name for the order</span><input value={name} onChange={(event) => { setName(event.target.value); if (fieldErrors.name) setFieldErrors((current) => ({ ...current, name: undefined })); }} placeholder="Your name" aria-invalid={fieldErrors.name ? true : undefined} aria-describedby={fieldErrors.name ? "checkout-name-error" : undefined} />{fieldErrors.name && <small className="checkout-field-error" id="checkout-name-error" role="alert"><i aria-hidden="true">!</i>{fieldErrors.name}</small>}</label>
-        <label className={fieldErrors.phone ? "has-error" : undefined}><span>Mobile number</span><input type="tel" value={phone} onChange={(event) => { setPhone(formatPhoneInput(event.target.value)); if (fieldErrors.phone) setFieldErrors((current) => ({ ...current, phone: undefined })); }} placeholder="(908)-555-0123" maxLength={14} aria-invalid={fieldErrors.phone ? true : undefined} aria-describedby={fieldErrors.phone ? "checkout-phone-error checkout-phone-note" : "checkout-phone-note"} />{fieldErrors.phone && <small className="checkout-field-error" id="checkout-phone-error" role="alert"><i aria-hidden="true">!</i>{fieldErrors.phone}</small>}<small className="field-note" id="checkout-phone-note">We send one text when your order is ready. That is the only message you will get.</small></label>
+        <label className={fieldErrors.phone ? "has-error" : undefined}><span>Mobile number</span><input type="tel" value={phone} onChange={(event) => { setPhone(formatPhoneInput(event.target.value)); if (fieldErrors.phone) setFieldErrors((current) => ({ ...current, phone: undefined })); }} placeholder="(908)-555-0123" maxLength={PHONE_INPUT_MAX_LENGTH} aria-invalid={fieldErrors.phone ? true : undefined} aria-describedby={fieldErrors.phone ? "checkout-phone-error checkout-phone-note" : "checkout-phone-note"} />{fieldErrors.phone && <small className="checkout-field-error" id="checkout-phone-error" role="alert"><i aria-hidden="true">!</i>{fieldErrors.phone}</small>}<small className="field-note" id="checkout-phone-note">The shop can use this number if there is a question about your order.</small></label>
         <fieldset className="payment-options pickup-options">
           <legend>Pickup time</legend>
-          <label><input type="radio" name="fulfillment" checked={fulfillmentType === "asap"} onChange={() => setFulfillmentType("asap")} /><span><strong>As soon as possible</strong><small>Estimated in about {prepTime} minutes</small></span></label>
-          {scheduling.enabled && <label><input type="radio" name="fulfillment" checked={fulfillmentType === "scheduled"} onChange={() => { setFulfillmentType("scheduled"); setPayment("card"); if (!scheduledFor) setScheduledFor(localInputValue(firstScheduledDate)); }} /><span><strong>Schedule pickup</strong><small>Choose a time within the next few hours</small></span></label>}
+          <label htmlFor="fulfillment-asap" aria-label="As soon as possible"><input id="fulfillment-asap" type="radio" name="fulfillment" checked={fulfillmentType === "asap"} onChange={() => setFulfillmentType("asap")} /><span><strong>As soon as possible</strong><small>Estimated in about {prepTime} minutes</small></span></label>
+          {scheduling.enabled && <label htmlFor="fulfillment-scheduled" aria-label="Schedule pickup"><input id="fulfillment-scheduled" type="radio" name="fulfillment" checked={fulfillmentType === "scheduled"} onChange={() => { setFulfillmentType("scheduled"); if (!scheduledFor) setScheduledFor(localInputValue(firstScheduledDate)); }} /><span><strong>Schedule pickup</strong><small>Choose a time within the next few hours</small></span></label>}
         </fieldset>
-        {fulfillmentType === "scheduled" && <label className={fieldErrors.scheduledFor ? "has-error" : undefined}><span>Scheduled pickup</span><input type="datetime-local" value={scheduledFor} min={localInputValue(firstScheduledDate)} max={localInputValue(lastScheduledDate)} step={scheduling.slotMinutes * 60} onChange={(event) => { setScheduledFor(event.target.value); if (fieldErrors.scheduledFor) setFieldErrors((current) => ({ ...current, scheduledFor: undefined })); }} aria-invalid={fieldErrors.scheduledFor ? true : undefined} aria-describedby={fieldErrors.scheduledFor ? "checkout-schedule-error" : undefined} />{fieldErrors.scheduledFor && <small className="checkout-field-error" id="checkout-schedule-error" role="alert"><i aria-hidden="true">!</i>{fieldErrors.scheduledFor}</small>}<small className="field-note">Scheduled orders require advance online payment.</small></label>}
-        <fieldset className="payment-options">
-          <legend>Payment</legend>
-          <label><input type="radio" name="payment" disabled={fulfillmentType === "scheduled" || accountState !== "member"} checked={payment === "pickup"} onChange={() => setPayment("pickup")} /><span><strong>Pay at pickup</strong><small>{fulfillmentType === "scheduled" ? "Not available for scheduled orders" : accountState === "member" ? "Available to signed-in members" : accountState === "loading" ? "Checking your account…" : "Sign in to use pay at pickup"}</small></span></label>
-          <label><input type="radio" name="payment" checked={payment === "card"} onChange={() => setPayment("card")} /><span><strong>Card payment demo</strong><small>Production payment provider to be confirmed</small></span></label>
-        </fieldset>
+        {fulfillmentType === "scheduled" && <label className={fieldErrors.scheduledFor ? "has-error" : undefined}><span>Scheduled pickup</span><input type="datetime-local" value={scheduledFor} min={localInputValue(firstScheduledDate)} max={localInputValue(lastScheduledDate)} step={scheduling.slotMinutes * 60} onChange={(event) => { setScheduledFor(event.target.value); if (fieldErrors.scheduledFor) setFieldErrors((current) => ({ ...current, scheduledFor: undefined })); }} aria-invalid={fieldErrors.scheduledFor ? true : undefined} aria-describedby={fieldErrors.scheduledFor ? "checkout-schedule-error" : undefined} />{fieldErrors.scheduledFor && <small className="checkout-field-error" id="checkout-schedule-error" role="alert"><i aria-hidden="true">!</i>{fieldErrors.scheduledFor}</small>}</label>}
+        <div className="checkout-pickup-info"><strong>Payment due at pickup</strong><span>No card information is collected on this website.</span></div>
         <div className="checkout-total">
           <div><span>Subtotal</span><strong>{money(subtotal)}</strong></div>
           <div><span>Estimated tax</span><strong>{money(tax)}</strong></div>
@@ -1578,8 +2191,9 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onC
           </svg>
           <span>{fulfillmentType === "scheduled" ? <>Pickup at <strong>{scheduledFor ? new Date(scheduledFor).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "your selected time"}</strong></> : <>Estimated pickup in <strong>about {prepTime} minutes</strong></>}</span>
         </div>
+        <TurnstileWidget action="order" onToken={setTurnstileToken} resetKey={turnstileResetKey} />
         {error && <p className="form-error">{error}</p>}
-        <button className="primary-button" disabled={submitting || ordersPaused}>{submitting ? "Sending order..." : ordersPaused ? "Online ordering paused" : `Place pickup order · ${money(subtotal + tax)}`}</button>
+        <button className="primary-button" disabled={submitting || ordersPaused || !turnstileToken}>{submitting ? "Sending order..." : ordersPaused ? "Online ordering paused" : `Place pickup order · ${money(subtotal + tax)}`}</button>
       </form>
     </div>
   );

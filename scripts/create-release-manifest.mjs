@@ -1,0 +1,22 @@
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { basename, resolve } from "node:path";
+import { spawnSync } from "node:child_process";
+
+const allowDirty = process.argv.includes("--allow-dirty");
+const git = (...args) => spawnSync("git", args, { encoding: "utf8", shell: false });
+const status = git("status", "--porcelain");
+if (!allowDirty && status.status === 0 && status.stdout.trim()) throw new Error("Working tree is dirty. Commit or use --allow-dirty for a non-release artifact.");
+const required = ["dist/server/index.js", "dist/server/wrangler.json", "package-lock.json"];
+required.forEach((path) => { if (!existsSync(path)) throw new Error(`Missing release file: ${path}`); });
+const migrationResult = git("ls-files", "drizzle/*.sql");
+const migrations = migrationResult.status === 0 ? migrationResult.stdout.trim().split(/\r?\n/).filter(Boolean) : [];
+const hash = (path) => createHash("sha256").update(readFileSync(path)).digest("hex");
+const files = [...required, ...migrations].map((path) => ({ path, bytes: statSync(path).size, sha256: hash(path) }));
+const commit = git("rev-parse", "HEAD");
+const branch = git("branch", "--show-current");
+const manifest = { createdAt: new Date().toISOString(), commit: commit.stdout?.trim() || null, branch: branch.stdout?.trim() || null, node: process.version, files };
+mkdirSync("release-artifacts", { recursive: true });
+const path = resolve("release-artifacts", `release-${new Date().toISOString().replaceAll(":", "-").replaceAll(".", "-")}.json`);
+writeFileSync(path, `${JSON.stringify(manifest, null, 2)}\n`);
+console.log(`Release manifest created: ${basename(path)}`);

@@ -18,7 +18,7 @@ export default function EmploymentPage() {
           <p>Deaf Shark Coffee is a veteran-owned neighborhood shop. Our coffee comes from El Salvador and is roasted right here in Union, then served across the counter to the people who live and work nearby. If that is the kind of place you want to spend your shifts, tell us about yourself.</p>
         </div>
         <div className="emp-hero-mark">
-          <img src="/deafshark-logo.png" alt="Deaf Shark Coffee logo" />
+          <img src="/deafshark-logo-640.webp" alt="Deaf Shark Coffee logo" decoding="async" />
         </div>
       </section>
 
@@ -41,6 +41,8 @@ export default function EmploymentPage() {
               <h3>Come join the family. We are looking for someone who:</h3>
               <ul className="emp-flyer-list">
                 <li>Has real barista experience</li>
+                <li>Can work the kitchen for breakfast, sandwiches, and bites</li>
+                <li>Is comfortable on the register taking orders and handling payments</li>
                 <li>Understands quality, workflow, and presentation</li>
                 <li>Wants creative input on drinks & menu development</li>
                 <li>Brings positive energy and leadership</li>

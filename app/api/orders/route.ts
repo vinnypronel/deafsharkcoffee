@@ -1,59 +1,27 @@
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../db";
 import { customerProfiles, menuAvailability, menuContent, orders, storeSettings } from "../../../db/schema";
 import { getCustomerSession } from "../../../lib/auth";
 import { requireStaff } from "../../../lib/staff-auth";
-import { effectiveOrderingHours } from "../../../lib/store-hours";
-import { applyMenuContentOverride, menuProducts, prepStationFor, priceProductSelection, type ProductSelection } from "../../menu-data";
-
-type CartPayload = {
-  id: string;
-  quantity: number;
-  selection?: ProductSelection;
-};
-
-function orderNumber() {
-  const rand = Math.floor(1000 + Math.random() * 9000);
-  return `DS${Date.now().toString().slice(-4)}${rand}`;
-}
-
-const STORE_TIME_ZONE = "America/New_York";
-
-function clockMinutes(value: string) {
-  const [hours, minutes] = value.split(":").map(Number);
-  return hours * 60 + minutes;
-}
-
-function localClockMinutes(date: Date) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: STORE_TIME_ZONE,
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(date);
-  const hours = Number(parts.find((part) => part.type === "hour")?.value ?? 0);
-  const minutes = Number(parts.find((part) => part.type === "minute")?.value ?? 0);
-  return hours * 60 + minutes;
-}
-
-function localDateKey(date: Date) {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: STORE_TIME_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
-}
-
-function scheduledLabel(date: Date) {
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: STORE_TIME_ZONE,
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(date);
-}
+import { verifyPublicForm } from "../../../lib/public-form";
+import {
+  OrderRequestError,
+  logOrderEvent,
+  normalizeCartItems,
+  normalizeCustomerName,
+  normalizeIdempotencyKey,
+  normalizePhone,
+  orderNumber,
+  orderReference,
+  orderTotals,
+  priceCart,
+  readOrderJson,
+  resolveFulfillment,
+  stationFlags,
+  type OrderSettings,
+} from "../../../lib/order-intake";
+import type { MenuContentOverride } from "../../menu-data";
+import { CUSTOM_CHECKOUT_ENABLED } from "../../ordering";
 
 export async function GET(request: Request) {
   try {
@@ -78,28 +46,66 @@ export async function GET(request: Request) {
   }
 }
 
+type StoredOrder = typeof orders.$inferSelect;
+
+function orderResponse(order: StoredOrder, status: number, reference: string) {
+  return Response.json(
+    {
+      reference,
+      order: {
+        ...order,
+        items: JSON.parse(order.itemsJson),
+      },
+    },
+    { status, headers: { "Cache-Control": "no-store" } },
+  );
+}
+
+function isUniqueConstraintError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return /UNIQUE constraint failed/i.test(message);
+}
+
 export async function POST(request: Request) {
+  const reference = orderReference();
+
+  if (!CUSTOM_CHECKOUT_ENABLED) {
+    return Response.json(
+      { error: "Direct website checkout is not available. Please use the online-ordering link.", reference },
+      { status: 503 },
+    );
+  }
+
   try {
-    await ensureSchema();
-    const payload = (await request.json()) as {
-      customerName?: string;
-      phone?: string;
-      paymentMethod?: string;
-      pickupEta?: string;
-      fulfillmentType?: "asap" | "scheduled";
-      scheduledFor?: string;
-      items?: CartPayload[];
-    };
+    const payload = await readOrderJson(request);
 
-    const customerName = payload.customerName?.trim() ?? "";
-    const phone = payload.phone?.trim() ?? "";
-    const items = payload.items ?? [];
-
-    if (!customerName || !phone || items.length === 0) {
+    /* Turnstile runs before any database work so unverified traffic never
+       reaches D1. The token is never logged. */
+    if (!(await verifyPublicForm(request, payload.turnstileToken, "order"))) {
+      logOrderEvent("rejected", { reference, code: "turnstile_failed", status: 400 });
       return Response.json(
-        { error: "Name, phone, and at least one item are required." },
+        { error: "Please complete the security check and try again.", reference },
         { status: 400 },
       );
+    }
+
+    const idempotencyKey = normalizeIdempotencyKey(payload.idempotencyKey);
+    const customerName = normalizeCustomerName(payload.customerName);
+    const phone = normalizePhone(payload.phone);
+    const cartItems = normalizeCartItems(payload.items);
+
+    await ensureSchema();
+
+    /* A retried or double-clicked submit resolves to the order already stored
+       for this checkout session instead of creating a second ticket. */
+    const [alreadyPlaced] = await getDb()
+      .select()
+      .from(orders)
+      .where(eq(orders.idempotencyKey, idempotencyKey))
+      .limit(1);
+    if (alreadyPlaced) {
+      logOrderEvent("replayed", { reference, orderId: alreadyPlaced.id, status: 200 });
+      return orderResponse(alreadyPlaced, 200, reference);
     }
 
     const [settingsRow, availabilityRows, menuRows] = await Promise.all([
@@ -107,85 +113,21 @@ export async function POST(request: Request) {
       getDb().select().from(menuAvailability),
       getDb().select().from(menuContent),
     ]);
-    const settings = settingsRow[0];
-    if (!settings) throw new Error("Store settings are unavailable.");
-    if (settings.paused) {
-      return Response.json({ error: "Online ordering is temporarily paused. Please order at the counter." }, { status: 409 });
-    }
+    const settings = settingsRow[0] as OrderSettings | undefined;
+    if (!settings) throw new Error("Store settings row is missing.");
 
     const availability = new Map(availabilityRows.map((item) => [item.productId, item.available]));
-    const menuOverrides = new Map(menuRows.map((item) => [item.productId, item]));
-    const orderItems = items.map((item) => {
-      const baseProduct = menuProducts.find((candidate) => candidate.id === item.id);
-      if (!baseProduct) throw new Error(`Unknown menu item: ${item.id}`);
-      const product = applyMenuContentOverride(baseProduct, menuOverrides.get(baseProduct.id));
-      if (availability.get(product.id) === false) throw new Error(`${product.name} is currently sold out.`);
-      if (!Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 20) {
-        throw new Error(`Choose a valid quantity for ${product.name}.`);
-      }
-      const priced = priceProductSelection(product, item.selection);
-      return {
-        id: product.id,
-        name: product.name,
-        quantity: item.quantity,
-        unitPrice: priced.unitPrice,
-        options: priced.options,
-        selection: priced.selection,
-        prepStation: prepStationFor(product),
-      };
-    });
-
-    const subtotalCents = Math.round(
-      orderItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0) * 100,
+    const overrides = new Map<string, MenuContentOverride>(
+      menuRows.map((item) => [item.productId, item as MenuContentOverride]),
     );
-    const taxCents = Math.round(subtotalCents * 0.06625);
-    const totalCents = subtotalCents + taxCents;
+
+    const orderItems = priceCart(cartItems, { availability, overrides });
+    const { subtotalCents, taxCents, totalCents } = orderTotals(orderItems);
+    const { fulfillmentType, scheduledFor, pickupEta } = resolveFulfillment(payload, settings);
+    const { hasCoffeeItems, hasKitchenItems } = stationFlags(orderItems);
+
     const session = await getCustomerSession(request);
-
-    const orderNum = orderNumber();
-    const createdTimestamp = Math.floor(Date.now() / 1000);
-    const fulfillmentType = payload.fulfillmentType === "scheduled" ? "scheduled" : "asap";
-    const paymentMethod = payload.paymentMethod === "card" ? "card-demo" : "pickup";
-    if (paymentMethod === "pickup" && !session) {
-      return Response.json({ error: "Sign in to your Deaf Shark account to pay at pickup." }, { status: 401 });
-    }
-    const now = new Date();
-    const effectiveHours = effectiveOrderingHours(settings, now);
-    const closingCutoff = clockMinutes(effectiveHours.closeTime) - settings.cutoffMinutes;
-    let scheduledFor: Date | null = null;
-    let pickupEta = `${settings.prepTimeMinutes} min`;
-
-    if (fulfillmentType === "scheduled") {
-      if (!settings.schedulingEnabled) {
-        return Response.json({ error: "Scheduled pickup is not available right now." }, { status: 409 });
-      }
-      if (paymentMethod !== "card-demo") {
-        return Response.json({ error: "Scheduled pickup requires advance online payment." }, { status: 400 });
-      }
-      scheduledFor = payload.scheduledFor ? new Date(payload.scheduledFor) : null;
-      if (!scheduledFor || Number.isNaN(scheduledFor.getTime())) {
-        return Response.json({ error: "Choose a valid scheduled pickup time." }, { status: 400 });
-      }
-      const minutesAhead = (scheduledFor.getTime() - now.getTime()) / 60_000;
-      const scheduledMinutes = localClockMinutes(scheduledFor);
-      if (
-        minutesAhead < settings.prepTimeMinutes ||
-        minutesAhead > settings.schedulingHorizonMinutes ||
-        localDateKey(scheduledFor) !== localDateKey(now) ||
-        scheduledMinutes < clockMinutes(effectiveHours.openTime) ||
-        scheduledMinutes > closingCutoff ||
-        scheduledMinutes % settings.slotMinutes !== 0
-      ) {
-        return Response.json({ error: "That pickup time is outside the available scheduling window." }, { status: 400 });
-      }
-      pickupEta = scheduledLabel(scheduledFor);
-    } else if (localClockMinutes(now) < clockMinutes(effectiveHours.openTime) || localClockMinutes(now) > closingCutoff) {
-      return Response.json({ error: "Online ordering is closed for today. Please schedule during store hours." }, { status: 409 });
-    }
     const customerUserId = session?.user.id ?? null;
-    const hasCoffeeItems = orderItems.some((item) => item.prepStation === "COFFEE" || item.prepStation === "RETAIL");
-    const hasKitchenItems = orderItems.some((item) => item.prepStation === "KITCHEN");
-
     if (session) {
       await getDb().insert(customerProfiles).values({
         userId: session.user.id,
@@ -198,56 +140,73 @@ export async function POST(request: Request) {
       });
     }
 
-    const [createdOrder] = await getDb().insert(orders).values({
-      orderNumber: orderNum,
-      customerName,
-      phone,
-      itemsJson: JSON.stringify(orderItems),
-      subtotalCents,
-      taxCents,
+    /* Every stored field below is server-derived. Nothing the client sends about
+       prices, tax, payment state, source, or station routing is trusted. */
+    let createdOrder: StoredOrder;
+    try {
+      [createdOrder] = await getDb().insert(orders).values({
+        orderNumber: orderNumber(),
+        customerName,
+        phone,
+        itemsJson: JSON.stringify(orderItems),
+        subtotalCents,
+        taxCents,
+        totalCents,
+        status: "new",
+        coffeeStatus: hasCoffeeItems ? "new" : "not_needed",
+        kitchenStatus: hasKitchenItems ? "new" : "not_needed",
+        source: "website",
+        paymentMethod: "pickup",
+        pickupEta,
+        fulfillmentType,
+        scheduledFor,
+        customerUserId,
+        idempotencyKey,
+        createdAt: new Date(),
+      }).returning();
+    } catch (error) {
+      /* Two submits raced past the lookup above. The winner's order is the order. */
+      if (!isUniqueConstraintError(error)) throw error;
+      const [raced] = await getDb()
+        .select()
+        .from(orders)
+        .where(eq(orders.idempotencyKey, idempotencyKey))
+        .limit(1);
+      if (!raced) throw error;
+      logOrderEvent("replayed", { reference, orderId: raced.id, status: 200 });
+      return orderResponse(raced, 200, reference);
+    }
+
+    logOrderEvent("created", {
+      reference,
+      orderId: createdOrder.id,
+      lineItems: orderItems.length,
+      units: orderItems.reduce((sum, item) => sum + item.quantity, 0),
       totalCents,
-      status: "new",
-      coffeeStatus: hasCoffeeItems ? "new" : "not_needed",
-      kitchenStatus: hasKitchenItems ? "new" : "not_needed",
-      source: "website",
-      paymentMethod,
-      pickupEta,
       fulfillmentType,
-      scheduledFor,
-      customerUserId,
-      createdAt: new Date(createdTimestamp * 1000),
-    }).returning();
+      paymentMethod: "pickup",
+      coffee: hasCoffeeItems,
+      kitchen: hasKitchenItems,
+      authenticated: Boolean(customerUserId),
+    });
 
-    const orderId = createdOrder.id;
-
-    return Response.json(
-      {
-        order: {
-          id: orderId,
-          orderNumber: orderNum,
-          customerName,
-          phone,
-          itemsJson: JSON.stringify(orderItems),
-          subtotalCents,
-          taxCents,
-          totalCents,
-          status: "new",
-          coffeeStatus: hasCoffeeItems ? "new" : "not_needed",
-          kitchenStatus: hasKitchenItems ? "new" : "not_needed",
-          source: "website",
-          paymentMethod,
-          pickupEta,
-          fulfillmentType,
-          scheduledFor,
-          customerUserId,
-          createdAt: new Date(createdTimestamp * 1000),
-          items: orderItems,
-        },
-      },
-      { status: 201 },
-    );
+    return orderResponse(createdOrder, 201, reference);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to place order";
-    return Response.json({ error: message }, { status: 500 });
+    if (error instanceof OrderRequestError) {
+      logOrderEvent("rejected", { reference, code: error.code, status: error.status });
+      return Response.json({ error: error.message, reference }, { status: error.status });
+    }
+    /* Internal failures never leak their message to the customer. The reference
+       ties the generic response to the detailed server log. */
+    logOrderEvent("failed", {
+      reference,
+      status: 500,
+      cause: error instanceof Error ? error.name : "unknown",
+    });
+    console.error(`Order ${reference} failed:`, error);
+    return Response.json(
+      { error: "We could not place that order. Please try again or call the shop.", reference },
+      { status: 500 },
+    );
   }
 }

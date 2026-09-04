@@ -167,7 +167,7 @@ export const DECAF_MODIFIER: ModifierGroup = {
   required: true,
   options: [
     { label: "Regular" },
-    { label: "Decaf (about twice the prep time)", price: 1 },
+    { label: "Decaf (2x prep time)", price: 1 },
   ],
 };
 
@@ -191,6 +191,24 @@ export const EXTRA_BACON: ModifierGroup = {
   type: "single",
   options: [{ label: "Extra bacon", price: 1 }],
 };
+
+export const REMOVE_BACON: ModifierGroup = {
+  label: "Bacon",
+  type: "single",
+  options: [{ label: "No bacon" }],
+};
+
+export const REMOVE_BLT_INGREDIENTS: ModifierGroup = {
+  label: "Remove ingredients",
+  type: "multiple",
+  options: ["No turkey bacon", "No lettuce", "No tomato", "No mayo"].map((label) => ({ label })),
+};
+
+const removeIngredients = (...ingredients: string[]): ModifierGroup => ({
+  label: "Remove ingredients",
+  type: "multiple",
+  options: ingredients.map((ingredient) => ({ label: `No ${ingredient}` })),
+});
 
 export const categories: MenuCategory[] = [
   "Coffee",
@@ -223,13 +241,36 @@ export const temperaturesForProduct = (product: Product): ("Hot" | "Iced")[] => 
   return product.temps ?? ["Hot", "Iced"];
 };
 
-export const modifierGroupsForProduct = (product: Product): ModifierGroup[] => {
+export const defaultTemperatureForProduct = (product: Product): "Hot" | "Iced" => {
+  const availableTemperatures = temperaturesForProduct(product);
+  const preferredTemperature = availableTemperatures.includes("Iced") ? "Iced" : availableTemperatures[0];
+  const sizesForTemperature = (temperature: "Hot" | "Iced") =>
+    temperature === "Hot" ? product.sizing?.hot ?? [] : product.sizing?.iced ?? [];
+
+  if (preferredTemperature && sizesForTemperature(preferredTemperature).some((size) => size.price === product.price)) {
+    return preferredTemperature;
+  }
+
+  return availableTemperatures.find((temperature) =>
+    sizesForTemperature(temperature).some((size) => size.price === product.price),
+  ) ?? preferredTemperature ?? "Hot";
+};
+
+export const defaultSizeForProduct = (product: Product, temperature: "Hot" | "Iced") => {
+  const sizes = temperature === "Hot" ? product.sizing?.hot ?? [] : product.sizing?.iced ?? [];
+  return sizes.find((size) => size.price === product.price)?.label ?? sizes[0]?.label ?? "";
+};
+
+/* `temperature` is the currently selected one. A hot drink has no ice level, so
+   the group is withheld rather than printing "Regular ice" on a hot ticket. */
+export const modifierGroupsForProduct = (product: Product, temperature?: "Hot" | "Iced"): ModifierGroup[] => {
   const isDrink = DRINK_CATEGORIES.includes(product.category);
   const isSmoothie = Boolean(product.bases?.length);
+  const servedIced = temperaturesForProduct(product).includes("Iced") && temperature !== "Hot";
   return [
     ...(product.modifierGroups ?? []),
     ...(product.decafAvailable ? [DECAF_MODIFIER] : []),
-    ...(isDrink && !isSmoothie && temperaturesForProduct(product).includes("Iced") ? [ICE_MODIFIER] : []),
+    ...(isDrink && !isSmoothie && servedIced ? [ICE_MODIFIER] : []),
     ...(isDrink && !isSmoothie && product.id !== "hot-tea" ? [SWEETENER_MODIFIER] : []),
   ];
 };
@@ -240,14 +281,14 @@ export function priceProductSelection(product: Product, input: ProductSelection 
   const isDrink = DRINK_CATEGORIES.includes(product.category);
   const isSmoothie = Boolean(product.bases?.length);
   const availableTemperatures = temperaturesForProduct(product);
-  const temperature = input.temperature ?? (availableTemperatures.includes("Iced") ? "Iced" : availableTemperatures[0]);
+  const temperature = input.temperature ?? defaultTemperatureForProduct(product);
   if (isDrink && (!temperature || !availableTemperatures.includes(temperature))) {
     throw new Error(`Invalid temperature for ${product.name}.`);
   }
 
   const sizes = temperature === "Hot" ? product.sizing?.hot ?? [] : product.sizing?.iced ?? [];
-  const hasTwoSizes = ["shark-cubano", "chicken-sandwich", "emilia"].includes(product.id);
-  const size = input.size ?? sizes[0]?.label ?? (hasTwoSizes ? "Regular" : "");
+  const hasTwoSizes = false;
+  const size = input.size ?? (defaultSizeForProduct(product, temperature) || (hasTwoSizes ? "Regular" : ""));
   if (sizes.length && !sizes.some((entry) => entry.label === size)) {
     throw new Error(`Invalid size for ${product.name}.`);
   }
@@ -285,7 +326,7 @@ export function priceProductSelection(product: Product, input: ProductSelection 
     throw new Error(`Invalid espresso-shot quantity for ${product.name}.`);
   }
 
-  const modifierGroups = modifierGroupsForProduct(product);
+  const modifierGroups = modifierGroupsForProduct(product, temperature);
   const modifiers: Record<string, string[]> = {};
   for (const group of modifierGroups) {
     const selected = [...new Set(input.modifiers?.[group.label] ?? (group.required && group.options[0] ? [group.options[0].label] : []))];
@@ -634,226 +675,183 @@ export const menuProducts: Product[] = [
     photo: "/drink-smoothie-tropical-sunrise.webp",
   },
   {
-    id: "plain-croissant-or-bagel",
-    name: "Croissant or Bagel (Plain)",
+    id: "nj-classic",
+    name: "The NJ Classic",
     category: "Breakfast",
-    price: 3.2,
-    description: "Choose a plain croissant, plain bagel, or everything bagel.",
-    configurable: true,
-    modifierGroups: [{
-      label: "Choose one",
-      type: "single",
-      required: true,
-      options: ["Croissant", "Plain bagel", "Everything bagel"].map((label) => ({ label })),
-    }],
-    visual: "sandwich",
-    photo: "/food-croissant-bagel-real.png",
-  },
-  {
-    id: "bagel-with-spread",
-    name: "Bagel with Cream Cheese or Jelly",
-    category: "Breakfast",
-    price: 3.95,
-    description: "Plain or everything bagel with your choice of spread.",
-    configurable: true,
-    modifierGroups: [
-      { label: "Bagel", type: "single", required: true, options: ["Plain bagel", "Everything bagel"].map((label) => ({ label })) },
-      { label: "Spread", type: "single", required: true, options: ["Cream cheese", "Jelly"].map((label) => ({ label })) },
-    ],
-    visual: "sandwich",
-    photo: "/food-bagel-cream-cheese-real.png",
-  },
-  {
-    id: "maple-waffle-sandwich",
-    name: "Maple Waffle Sandwich",
-    category: "Breakfast",
-    price: 6.25,
-    description: "Maple waffle sandwich with sausage and egg.",
-    configurable: true,
-    modifierGroups: [ADD_BACON, FOOD_ADD_ONS],
-    visual: "bite",
-    photo: "/food-maple-waffle-real.png",
-  },
-  {
-    id: "jalapeno-biscuit",
-    name: "Jalapeño Biscuit",
-    category: "Breakfast",
-    price: 6.25,
-    description: "Jalapeño biscuit with sausage, egg, and cheddar.",
-    configurable: true,
-    modifierGroups: [CHEESE_UPGRADES, ADD_BACON, FOOD_ADD_ONS],
-    visual: "sandwich",
-    photo: "/food-jalapeno-biscuit-real-v3.png",
-  },
-  {
-    id: "ham-and-cheese-breakfast",
-    name: "Ham and Cheese",
-    category: "Breakfast",
-    price: 6.25,
-    description: "Ham and cheese on your choice of breakfast bread.",
-    configurable: true,
-    modifierGroups: [BREAKFAST_BREAD_MODIFIER, CHEESE_UPGRADES, ADD_BACON, FOOD_ADD_ONS],
-    visual: "sandwich",
-    photo: "/food-ham-cheese-breakfast-original-style.png",
-  },
-  {
-    id: "egg-and-cheese-breakfast",
-    name: "Egg and Cheese",
-    category: "Breakfast",
-    price: 6.25,
-    description: "Egg and cheese on your choice of breakfast bread.",
-    configurable: true,
-    modifierGroups: [BREAKFAST_BREAD_MODIFIER, CHEESE_UPGRADES, ADD_BACON, FOOD_ADD_ONS],
-    visual: "sandwich",
-    photo: "/food-egg-cheese-breakfast-original-style.png",
-  },
-  {
-    id: "sausage-egg-cheese-croissant",
-    name: "Sausage, Egg and Cheese Croissant",
-    category: "Breakfast",
-    price: 6.75,
-    description: "Sausage, egg, and cheese on a flaky croissant.",
+    price: 8,
+    description: "Taylor ham, egg, and cheese on a croissant.",
     popular: true,
     configurable: true,
-    modifierGroups: [CHEESE_UPGRADES, ADD_BACON, FOOD_ADD_ONS],
-    visual: "sandwich",
-    photo: "/food-breakfast-croissant-real.png",
-  },
-  {
-    id: "classic-breakfast",
-    name: "Classic Breakfast Sandwich",
-    category: "Breakfast",
-    price: 6.75,
-    description: "Bacon, egg, and cheese, with turkey bacon available.",
-    configurable: true,
     modifierGroups: [
-      BREAKFAST_BREAD_MODIFIER,
-      { label: "Meat", type: "single", required: true, options: ["Bacon", "Turkey bacon"].map((label) => ({ label })) },
-      CHEESE_UPGRADES,
-      EXTRA_BACON,
+      { label: "Meat", type: "single", options: ["Taylor ham", "Ham", "Bacon", "Turkey bacon"].map((label) => ({ label })) },
+      removeIngredients("egg", "cheese"),
       FOOD_ADD_ONS,
     ],
     visual: "sandwich",
-    photo: "/food-classic-breakfast-real.png",
+    photo: "/menu/owner/nj-classic.webp",
+  },
+  {
+    id: "jersey-devil",
+    name: "The Jersey Devil",
+    category: "Breakfast",
+    price: 9.75,
+    description: "Egg, pepper jack, Taylor ham, bacon, jalapeño, hash browns, and chipotle mayo on a Portuguese roll.",
+    configurable: true,
+    modifierGroups: [removeIngredients("egg", "pepper jack", "bacon", "jalapeño", "hash browns", "chipotle mayo"), FOOD_ADD_ONS],
+    visual: "sandwich",
+    photo: "/menu/owner/jersey-devil.webp",
+  },
+  {
+    id: "ham-cheese-croissant",
+    name: "Ham and Cheese Croissant",
+    category: "Breakfast",
+    price: 7.25,
+    description: "Ham and melted cheese on a flaky croissant.",
+    configurable: true,
+    modifierGroups: [removeIngredients("cheese"), FOOD_ADD_ONS],
+    visual: "sandwich",
+    photo: "/menu/owner/ham-cheese-croissant-v3.png",
+  },
+  {
+    id: "french-toast",
+    name: "French Toast",
+    category: "Breakfast",
+    price: 8.5,
+    description: "Golden French toast finished with powdered sugar.",
+    visual: "bite",
+    photo: "/menu/owner/french-toast.webp",
+  },
+  {
+    id: "grilled-cheese",
+    name: "Grilled Cheese",
+    category: "Breakfast",
+    price: 8,
+    description: "Swiss cheese, American cheese, and bacon on whole wheat bread.",
+    configurable: true,
+    modifierGroups: [removeIngredients("Swiss cheese", "American cheese", "bacon"), FOOD_ADD_ONS],
+    visual: "sandwich",
+    photo: "/menu/owner/grilled-cheese.webp",
   },
   {
     id: "breakfast-wrap",
     name: "Breakfast Wrap",
     category: "Breakfast",
-    price: 6.75,
-    description: "Bacon, egg, and cheese wrapped for an easy breakfast.",
+    price: 8.25,
+    description: "Egg and cheese with your choice of ham, bacon, turkey bacon, or Taylor ham.",
     configurable: true,
-    modifierGroups: [CHEESE_UPGRADES, EXTRA_BACON, FOOD_ADD_ONS],
-    visual: "sandwich",
-    photo: "/food-breakfast-wrap-original-style.png",
-  },
-  {
-    id: "taylor-ham-egg-cheese",
-    name: "Taylor Ham, Egg and Cheese",
-    category: "Breakfast",
-    price: 7.25,
-    description: "Taylor ham, egg, and cheese on your choice of breakfast bread.",
-    configurable: true,
-    modifierGroups: [BREAKFAST_BREAD_MODIFIER, CHEESE_UPGRADES, ADD_BACON, FOOD_ADD_ONS],
-    visual: "sandwich",
-    photo: "/food-taylor-ham-egg-cheese-real.png",
-  },
-  {
-    id: "lunch-special",
-    name: "Lunch Special",
-    category: "Sandwiches",
-    price: 7,
-    description: "Sandwich, soda, and chips. Served 12:00 PM to 3:00 PM, Monday to Friday.",
-    popular: true,
-    configurable: true,
-    flavorLabel: "Choose one",
-    flavors: [
-      "Emilia Sandwich - mortadella, provolone, honey sauce",
-      "Small Chicken Sandwich - chicken, lettuce, ham, swiss, pickles, mustard",
+    modifierGroups: [
+      { label: "Meat", type: "single", required: true, options: ["Ham", "Bacon", "Turkey bacon", "Taylor ham", "No meat"].map((label) => ({ label })) },
+      removeIngredients("egg", "cheese"),
+      FOOD_ADD_ONS,
     ],
     visual: "sandwich",
-    photo: "/food-lunch-special-coke-positioned.png",
+    photo: "/menu/owner/breakfast-wrap-v2.png",
+  },
+  {
+    id: "turkey-blt",
+    name: "Turkey BLT",
+    category: "Breakfast",
+    price: 8.25,
+    description: "Turkey bacon, lettuce, tomato, and mayo on a roll or wrap.",
+    configurable: true,
+    modifierGroups: [
+      { label: "Bread", type: "single", required: true, options: ["Roll", "Wrap"].map((label) => ({ label })) },
+      REMOVE_BLT_INGREDIENTS,
+      FOOD_ADD_ONS,
+    ],
+    visual: "sandwich",
+    photo: "/menu/owner/turkey-blt.webp",
+  },
+  {
+    id: "plain-croissant",
+    name: "Croissant",
+    category: "Breakfast",
+    price: 3.25,
+    description: "Fresh, flaky butter croissant.",
+    configurable: true,
+    modifierGroups: [{ label: "Spread", type: "single", options: [{ label: "Butter", price: 1 }, { label: "Jelly", price: 1 }] }],
+    visual: "sandwich",
+    photo: "/food-croissant-bagel-real.png",
   },
   {
     id: "shark-cubano",
     name: "The Shark Cubano",
     category: "Sandwiches",
-    price: 6,
+    price: 12,
     description: "Pressed panini with pork, Swiss, ham, lettuce, pickles, and mustard.",
     popular: true,
     configurable: true,
-    modifierGroups: [FOOD_ADD_ONS],
+    modifierGroups: [removeIngredients("Swiss cheese", "lettuce", "pickles", "mustard"), FOOD_ADD_ONS],
     visual: "sandwich",
-    photo: "/food-shark-cubano.jpg",
+    photo: "/menu/owner/shark-cubano-v3.png",
   },
   {
     id: "chicken-sandwich",
     name: "Chicken Sandwich",
     category: "Sandwiches",
-    price: 6,
+    price: 12,
     description: "Pressed panini with chicken, Swiss, ham, lettuce, pickles, and mustard.",
     configurable: true,
-    modifierGroups: [FOOD_ADD_ONS],
+    modifierGroups: [removeIngredients("Swiss cheese", "ham", "lettuce", "pickles", "mustard"), FOOD_ADD_ONS],
     visual: "sandwich",
-    photo: "/food-chicken-sandwich.jpg",
+    photo: "/menu/owner/chicken-sandwich-v3.png",
   },
   {
     id: "emilia",
-    name: "Emilia",
+    name: "Emilia Grill Cheese",
     category: "Sandwiches",
-    price: 6,
-    description: "Mortadella, provolone, and honey in a pressed sandwich.",
+    price: 12,
+    description: "Mortadella, provolone cheese, and honey.",
     configurable: true,
-    modifierGroups: [FOOD_ADD_ONS],
+    modifierGroups: [removeIngredients("provolone cheese", "honey"), FOOD_ADD_ONS],
     visual: "sandwich",
-    photo: "/food-emilia-real-v2.png",
+    photo: "/menu/owner/emilia-grill-cheese-v3.png",
   },
   {
-    id: "turkey-pesto",
-    name: "Turkey Pesto",
+    id: "italian",
+    name: "Italian",
     category: "Sandwiches",
-    price: 7.25,
-    description: "Ciabatta, turkey pesto, Swiss, lettuce, and tomato.",
+    price: 12.5,
+    description: "Provolone, ham, salami, onion, lettuce, oregano, vinegar, and oil.",
     configurable: true,
-    modifierGroups: [FOOD_ADD_ONS],
+    modifierGroups: [removeIngredients("provolone", "onion", "lettuce", "oregano", "vinegar", "oil"), FOOD_ADD_ONS],
     visual: "sandwich",
-    photo: "/food-turkey-pesto.jpg",
+    photo: "/menu/owner/italian.webp",
+  },
+  {
+    id: "chicken-deluxe",
+    name: "Chicken Deluxe",
+    category: "Sandwiches",
+    price: 12,
+    description: "Breaded chicken, provolone, lettuce, tomato, and mayo on a roll.",
+    configurable: true,
+    modifierGroups: [removeIngredients("provolone", "lettuce", "tomato", "mayo"), FOOD_ADD_ONS],
+    visual: "sandwich",
+    photo: "/menu/owner/chicken-deluxe.webp",
   },
   {
     id: "chicken-pesto",
     name: "Chicken Pesto",
     category: "Sandwiches",
-    price: 7.75,
-    description: "Grilled chicken, melted cheese, tomato, and basil pesto on toasted artisan bread.",
+    price: 12,
+    description: "Shredded chicken, pesto, provolone cheese, tomato, and lettuce.",
     popular: true,
     configurable: true,
-    modifierGroups: [FOOD_ADD_ONS],
+    modifierGroups: [removeIngredients("pesto", "provolone cheese", "tomato", "lettuce"), FOOD_ADD_ONS],
     visual: "sandwich",
     photo: "/chicken-pesto-centered.jpg",
     video: "/featured-chicken-pesto.mp4",
   },
   {
-    id: "la-toscana",
-    name: "La Toscana",
-    category: "Sandwiches",
-    price: 9.75,
-    description: "Mortadella, burrata, pesto, arugula, roasted peppers, and olive oil.",
-    popular: true,
-    configurable: true,
-    modifierGroups: [FOOD_ADD_ONS],
-    visual: "sandwich",
-    photo: "/food-la-toscana-real-v2.png",
-  },
-  {
     id: "cachapa",
     name: "Cachapa",
     category: "Bites",
-    price: 9.5,
+    price: 10.5,
     description: "Sweet corn pancake filled with cheese.",
     popular: true,
     configurable: true,
     visual: "bite",
-    photo: "/food-cachapa.jpg",
+    photo: "/menu/owner/cachapa-v5.png",
   },
   {
     id: "tequenos",
@@ -863,7 +861,7 @@ export const menuProducts: Product[] = [
     description: "Four golden pastry sticks filled with cheese.",
     popular: true,
     visual: "bite",
-    photo: "/food-tequenos-real.png",
+    photo: "/menu/owner/tequenos-v5.png",
   },
   {
     id: "cachitos",
@@ -872,16 +870,16 @@ export const menuProducts: Product[] = [
     price: 6.99,
     description: "Soft pastry stuffed with ham, cheese, and bacon.",
     visual: "bite",
-    photo: "/food-cachitos-croissant-style-v2.png",
+    photo: "/menu/owner/cachitos-v6.png",
   },
   {
     id: "fries",
     name: "French Fries",
     category: "Bites",
-    price: 3.99,
+    price: 5,
     description: "Crisp, golden, and ready to share.",
     visual: "bite",
-    photo: "/food-fries-real.png",
+    photo: "/menu/owner/french-fries-v5.png",
   },
   {
     id: "mozzarella-sticks",
@@ -890,17 +888,17 @@ export const menuProducts: Product[] = [
     price: 5.99,
     description: "Six golden mozzarella sticks.",
     visual: "bite",
-    photo: "/food-mozzarella-sticks-real-v3.png",
+    photo: "/menu/owner/mozzarella-sticks-v7.png",
   },
   {
     id: "chicken-wings-fries",
     name: "Chicken Wings with French Fries",
     category: "Bites",
-    price: 7.99,
-    description: "Chicken wings served with French fries.",
+    price: 10,
+    description: "Five breaded chicken wings served with French fries.",
     configurable: true,
     visual: "bite",
-    photo: "/food-chicken-wings-fries-breaded-v2.png",
+    photo: "/menu/owner/chicken-wings-fries-v6.png",
   },
   {
     id: "poland-spring",
@@ -989,7 +987,7 @@ export const menuProducts: Product[] = [
     flavorLabel: "Choose a flavor",
     flavors: ["Orange Juice", "Apple Juice", "Cranberry Cocktail"],
     visual: "iced",
-    photo: "/menu/fridge/tropicana-juice-11oz-all-flavors-group-catalog-v2.png",
+    photo: "/menu/fridge/tropicana-juice-11oz-all-flavors-group-catalog-v3.png",
     flavorPhotos: {
       "Orange Juice": "/menu/fridge/tropicana-orange-juice-11oz-catalog-v1.png",
       "Apple Juice": "/menu/fridge/tropicana-apple-juice-11oz-catalog-v1.png",
@@ -1081,7 +1079,7 @@ export const menuProducts: Product[] = [
     flavorLabel: "Choose a soda",
     flavors: ["Inca Kola", "Coca-Cola", "Canada Dry Ginger Ale"],
     visual: "iced",
-    photo: "/menu/fridge/bottled-soda-all-options-group-catalog-v1.png",
+      photo: "/menu/fridge/bottled-soda-all-options-group-catalog-v2.png",
     flavorPhotos: {
       "Inca Kola": "/menu/fridge/inca-kola-bottle-20oz-catalog-v1.png",
       "Coca-Cola": "/menu/fridge/coca-cola-bottle-20oz-catalog-v1.png",
@@ -1111,7 +1109,7 @@ export const menuProducts: Product[] = [
 ];
 
 export const featuredProducts = [
-  menuProducts.find((product) => product.id === "strawberry-matcha")!,
-  menuProducts.find((product) => product.id === "ocean-blend-bag")!,
-  menuProducts.find((product) => product.id === "chicken-pesto")!,
+  { ...menuProducts.find((product) => product.id === "strawberry-matcha")!, featuredCategoryLabel: "Beverages" },
+  { ...menuProducts.find((product) => product.id === "ocean-blend-bag")!, featuredCategoryLabel: "Coffee Beans" },
+  { ...menuProducts.find((product) => product.id === "chicken-pesto")!, featuredCategoryLabel: "Sandwiches" },
 ];

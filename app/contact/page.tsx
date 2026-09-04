@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { CustomerHeader, SiteFooter } from "../site-chrome";
+import { OrderOnlineLink } from "../order-online-link";
 import ContactForm from "./contact-form";
 
 export const metadata: Metadata = {
@@ -12,25 +13,28 @@ export default function ContactPage() {
     <main className="content-page">
       <CustomerHeader active="/contact" />
       <section className="page-hero contact-hero">
-        <div><span className="eyebrow">Visit the shop</span><h1>Come see us<br />in Union.</h1><p>Stop in for coffee, breakfast, sandwiches, and bites. Pickup ordering is available through this demo.</p></div>
-        <div className="contact-stamp"><img src="/deafshark-logo.png" alt="Deaf Shark Coffee logo" /></div>
+        <div><span className="eyebrow">Visit the shop</span><h1>Come see us,<br />in Union!</h1><p>Stop in for coffee, breakfast, sandwiches, and bites. Online ordering is coming soon.</p></div>
+        <div className="contact-hero-photo"><img src="/grand-opening.jpg" alt="Deaf Shark Coffee grand opening ribbon cutting ceremony" /></div>
       </section>
       <section className="contact-grid">
+        <img src="/deafshark-logo-640.webp" alt="" className="contact-grid-badge" aria-hidden="true" loading="lazy" decoding="async" />
         <article>
           <h2>Visit</h2>
           <p><strong>900 Green Lane</strong><span>Union, NJ 07083</span></p>
           <a className="primary-button hero-cta-btn" href="https://maps.google.com/?q=900+Green+Lane+Union+NJ+07083" target="_blank" rel="noopener noreferrer">
             <span>Get directions</span>
-            <svg className="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
+            <svg className="btn-arrow" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M2.5 8h11M9.5 3.5l4.5 4.5-4.5 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </a>
         </article>
         <article>
           <h2>Hours</h2>
-          <p><strong>6:00 AM – 5:00 PM</strong><span>Through August 31. Starting September 1: 6:00 AM – 8:00 PM.</span></p>
-          <a className="primary-button hero-cta-btn" href="/menu">
-            <span>Order pickup</span>
-            <svg className="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
-          </a>
+          <p><strong>6:00 AM – 5:00 PM</strong><span>Open daily</span></p>
+          <OrderOnlineLink className="primary-button visit-order-btn">
+            <span>Order online</span>
+            <span className="btn-cart-glyph" aria-hidden="true" />
+          </OrderOnlineLink>
         </article>
         <article>
           <h2>Call</h2>
@@ -60,7 +64,7 @@ export default function ContactPage() {
             className="map-location-banner"
           >
             <div className="map-banner-logo-wrap">
-              <img src="/deafshark-logo.png" alt="Deaf Shark Coffee" className="map-banner-logo" />
+              <img src="/deafshark-logo-640.webp" alt="Deaf Shark Coffee" className="map-banner-logo" loading="lazy" decoding="async" />
             </div>
             <div className="map-banner-info">
               <strong>Deaf Shark Coffee</strong>
@@ -74,7 +78,7 @@ export default function ContactPage() {
           </a>
         </div>
       </section>
-      <section className="contact-note"><span className="eyebrow">Good to know</span><h2>Pickup only for now.</h2><p>Delivery platform integrations can be added later. The launch ordering flow will send website orders into Deaf Shark&apos;s existing Quantic system.</p></section>
+      <section className="contact-note"><span className="eyebrow">Good to know</span><h2>Pickup only for now.</h2></section>
       <SiteFooter />
     </main>
   );

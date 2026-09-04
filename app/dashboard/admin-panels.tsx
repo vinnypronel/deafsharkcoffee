@@ -9,7 +9,11 @@ type View = "menu" | "website" | "events" | "forms" | "history" | "loyalty";
 type Featured = { slot: number; productId: string; categoryLabel: string; title: string; buttonLabel: string; priceCents: number; mediaUrl: string };
 type MenuDraft = { productId: string; name: string; category: string; description: string; priceCents: number; photoUrl: string };
 type EventDraft = { id?: number; title: string; description: string; dateLabel: string; timeLabel: string; location: string; entryLabel: string; details: string; buttonLabel: string; buttonHref: string; imageLeftUrl: string; imageRightUrl: string; imageCaption: string | null; published: boolean; sortOrder: number; createdAt?: string };
-type Records = { orders: any[]; contacts: any[]; applications: any[]; subscribers: any[] };
+type OrderRecord = { id: number; orderNumber: string; customerName: string; phone: string; fulfillmentType: string; pickupEta: string; paymentMethod: string; totalCents: number; status: string; createdAt: string | Date };
+type ContactRecord = { id: number; name: string; email: string; phone?: string | null; topic: string; message: string; createdAt: string | Date };
+type ApplicationRecord = { id: number; fullName: string; email: string; phone: string; position: string; employmentType: string; experience?: string | null; why?: string | null; createdAt: string | Date };
+type SubscriberRecord = { id: number; email: string; status: string; consentText: string; consentedAt: string | Date };
+type Records = { orders: OrderRecord[]; contacts: ContactRecord[]; applications: ApplicationRecord[]; subscribers: SubscriberRecord[] };
 type LoyaltyMember = { userId: string; email: string; displayName: string; phone?: string | null; points: number; lifetimePoints: number; updatedAt: string };
 type LoyaltyTransaction = { id: number; userId: string; orderId?: number | null; pointsChange: number; balanceAfter: number; reason: string; createdAt: string };
 type MemberOffer = { id: number; userId: string; offerType: string; code: string; status: string; issuedAt: string; redeemedAt?: string | null; redeemedBy?: string | null };
@@ -71,7 +75,12 @@ export function AdminPanels({ view }: { view: View }) {
     }
   }, []);
 
-  useEffect(() => { load().catch(() => setMessage("Some admin data could not be loaded.")); }, [load]);
+  useEffect(() => {
+    const initialLoad = window.setTimeout(() => {
+      load().catch(() => setMessage("Some admin data could not be loaded."));
+    }, 0);
+    return () => window.clearTimeout(initialLoad);
+  }, [load]);
 
   async function save(body: Record<string, unknown>, success: string) {
     setMessage("Saving…");
@@ -284,6 +293,6 @@ function EventEditor({ event, title, setEvent, upload, onSave, onDelete }: { eve
   </div></details>;
 }
 
-function RecordsBlock({ title, rows }: { title: string; rows: Array<{ id: number; date: string; heading: string; meta: string; body: string }> }) {
+function RecordsBlock({ title, rows }: { title: string; rows: Array<{ id: number; date: string | Date; heading: string; meta: string; body: string }> }) {
   return <section className="records-block"><h2>{title}</h2>{rows.length === 0 ? <p className="empty-records">Nothing submitted yet.</p> : <div className="records-list">{rows.map((row) => <article key={row.id}><header><div><strong>{row.heading}</strong><small>{row.meta}</small></div><time>{when(row.date)}</time></header><p>{row.body}</p></article>)}</div>}</section>;
 }

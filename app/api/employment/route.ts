@@ -1,14 +1,16 @@
 import { env } from "cloudflare:workers";
 import { getDb, ensureSchema } from "../../../db";
 import { employmentApplications } from "../../../db/schema";
-import { cleanEmail, cleanPhone, cleanText, verifyPublicForm } from "../../../lib/public-form";
+import { cleanEmail, cleanPhone, cleanText, requestExceedsBytes, verifyPublicForm } from "../../../lib/public-form";
+import { sendStaffNotification } from "../../../lib/transactional-email";
+import { allowedResumeExtensions, isAllowedResumeFile } from "../../../lib/resume-file";
 
-const allowedPositions = new Set(["Barista", "Kitchen", "Cashier", "Shift Lead", "Open to anything"]);
 const allowedTypes = new Set(["Full time", "Part time", "Either"]);
 const allowedShifts = new Set(["Morning", "Afternoon", "Evening", "Flexible"]);
 const allowedDays = new Set(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]);
-const allowedExtensions = new Set(["pdf", "doc", "docx", "txt", "rtf"]);
-const maxResumeBytes = 5 * 1024 * 1024;
+/* A text resume is well under 1 MB and a scanned one rarely passes 3 MB.
+   The cap bounds what a single submission can push into R2. */
+const maxResumeBytes = 3 * 1024 * 1024;
 
 function field(form: FormData, key: string, max: number) {
   return cleanText(form.get(key), max);
@@ -17,11 +19,17 @@ function field(form: FormData, key: string, max: number) {
 export async function POST(request: Request) {
   let uploadedKey: string | null = null;
   try {
+    if (requestExceedsBytes(request, 4 * 1024 * 1024)) {
+      return Response.json({ error: "Application files and fields must total no more than 6 MB." }, { status: 413 });
+    }
     const form = await request.formData();
     const fullName = field(form, "fullName", 100);
     const email = cleanEmail(form.get("email"));
     const phone = cleanPhone(form.get("phone"));
-    const position = field(form, "position", 50);
+    /* The shop cross-trains: every hire works the kitchen, the register and the
+       bar, so applicants no longer pick a role. The column stays populated so
+       existing rows and the staff view keep the same shape. */
+    const position = "All roles";
     const employmentType = field(form, "employmentType", 30);
     const shiftValue = field(form, "shift", 30);
     const shift = allowedShifts.has(shiftValue) ? shiftValue : null;
@@ -31,10 +39,10 @@ export async function POST(request: Request) {
     const why = field(form, "why", 4000) || null;
     const days = form.getAll("days").map((day) => cleanText(day, 3)).filter((day) => allowedDays.has(day));
 
-    if (fullName.length < 2 || !email || phone.length < 7 || !allowedPositions.has(position) || !allowedTypes.has(employmentType) || !["Yes", "No"].includes(isAdultValue)) {
+    if (fullName.length < 2 || !email || phone.length < 7 || !allowedTypes.has(employmentType) || !["Yes", "No"].includes(isAdultValue)) {
       return Response.json({ error: "Complete all required application fields." }, { status: 400 });
     }
-    if (!(await verifyPublicForm(request, form.get("turnstileToken")))) {
+    if (!(await verifyPublicForm(request, form.get("turnstileToken"), "employment"))) {
       return Response.json({ error: "Please complete the security check and try again." }, { status: 400 });
     }
 
@@ -44,8 +52,8 @@ export async function POST(request: Request) {
     let resumeSize: number | null = null;
     if (resume instanceof File && resume.size > 0) {
       const extension = resume.name.split(".").pop()?.toLowerCase() ?? "";
-      if (!allowedExtensions.has(extension) || resume.size > maxResumeBytes) {
-        return Response.json({ error: "Resume must be a PDF, Word, RTF, or text file no larger than 5 MB." }, { status: 400 });
+      if (!allowedResumeExtensions.has(extension) || resume.size > maxResumeBytes || !(await isAllowedResumeFile(resume, extension))) {
+        return Response.json({ error: "Resume must be a PDF, Word, RTF, or text file no larger than 3 MB." }, { status: 400 });
       }
       const uploads = (env as unknown as { UPLOADS?: R2Bucket }).UPLOADS;
       if (!uploads) return Response.json({ error: "Resume storage is not configured yet. Please try again without a resume or call the shop." }, { status: 503 });
@@ -76,12 +84,24 @@ export async function POST(request: Request) {
       resumeSize,
     }).returning({ id: employmentApplications.id });
 
-    return Response.json({ success: true, reference: `JOB-${application.id}` }, { status: 201 });
-  } catch {
+    const reference = `JOB-${application.id}`;
+    const notificationDelivered = await sendStaffNotification("employment", `New job application ${reference}`, [
+      `Applicant: ${fullName} <${email}>`,
+      `Phone: ${phone}`,
+      `Employment type: ${employmentType}`,
+      `Resume: ${resumeName ? "Attached securely in the staff dashboard" : "Not provided"}`,
+      "Open the staff dashboard to review the application.",
+    ], email);
+    if (!notificationDelivered) {
+      console.warn(JSON.stringify({ service: "deaf-shark-coffee", event: "staff_notification_pending", channel: "employment", reference }));
+    }
+    return Response.json({ success: true, reference }, { status: 201 });
+  } catch (error) {
     if (uploadedKey) {
       const uploads = (env as unknown as { UPLOADS?: R2Bucket }).UPLOADS;
       await uploads?.delete(uploadedKey).catch(() => undefined);
     }
+    console.error(JSON.stringify({ service: "deaf-shark-coffee", event: "employment_submission_failed", errorType: error instanceof Error ? error.name : "UnknownError" }));
     return Response.json({ error: "We could not save your application. Please try again or call the shop." }, { status: 500 });
   }
 }

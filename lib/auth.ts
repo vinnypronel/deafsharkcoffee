@@ -3,10 +3,12 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { getDb } from "../db";
 import * as schema from "../db/schema";
+import { sendPasswordResetEmail, sendVerificationEmail, transactionalEmailConfigured } from "./transactional-email";
 
 function createAuth() {
   const googleClientId = env.GOOGLE_CLIENT_ID?.trim();
   const googleClientSecret = env.GOOGLE_CLIENT_SECRET?.trim();
+  const emailEnabled = transactionalEmailConfigured();
 
   return betterAuth({
     appName: "Deaf Shark Coffee",
@@ -23,10 +25,19 @@ function createAuth() {
       },
     }),
     emailAndPassword: {
-      enabled: true,
+      enabled: emailEnabled,
       minPasswordLength: 8,
       maxPasswordLength: 128,
-      requireEmailVerification: false,
+      requireEmailVerification: true,
+      sendResetPassword: async ({ user, url }) => sendPasswordResetEmail(user.email, url),
+      revokeSessionsOnPasswordReset: true,
+    },
+    emailVerification: {
+      sendVerificationEmail: async ({ user, url }) => sendVerificationEmail(user.email, url),
+      sendOnSignUp: true,
+      sendOnSignIn: true,
+      autoSignInAfterVerification: true,
+      expiresIn: 60 * 60,
     },
     socialProviders: googleClientId && googleClientSecret
       ? { google: { clientId: googleClientId, clientSecret: googleClientSecret } }

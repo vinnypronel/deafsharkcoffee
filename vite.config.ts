@@ -2,9 +2,26 @@ import vinext from "vinext";
 import { defineConfig } from "vite";
 import { sites } from "./build/sites-vite-plugin";
 
-// Real D1 id for deploys, placeholder id for local dev (Miniflare ignores it).
-const D1_DATABASE_ID =
-  process.env.CF_D1_DATABASE_ID ?? "2946c7c3-7c7e-44af-a194-39c442fce372";
+type DeploymentTarget = "local" | "staging" | "production";
+
+const requestedTarget = process.env.DEPLOY_TARGET?.trim().toLowerCase();
+if (requestedTarget && requestedTarget !== "staging" && requestedTarget !== "production") {
+  throw new Error("DEPLOY_TARGET must be either staging or production when it is set.");
+}
+const deploymentTarget: DeploymentTarget = (requestedTarget ?? "local") as DeploymentTarget;
+
+// Miniflare ignores the local placeholder. Deployment builds must receive the
+// business-owned resource identifiers explicitly instead of silently targeting
+// a remembered production resource.
+const LOCAL_D1_DATABASE_ID = "00000000-0000-0000-0000-000000000000";
+const D1_DATABASE_ID = process.env.CF_D1_DATABASE_ID?.trim() || LOCAL_D1_DATABASE_ID;
+const WORKER_NAME = process.env.CF_WORKER_NAME?.trim()
+  || (deploymentTarget === "staging" ? "deaf-shark-coffee-staging" : "deaf-shark-coffee");
+const R2_BUCKET_NAME = process.env.CF_R2_BUCKET_NAME?.trim() || "site-creator-r2";
+
+if (deploymentTarget !== "local" && D1_DATABASE_ID === LOCAL_D1_DATABASE_ID) {
+  throw new Error(`CF_D1_DATABASE_ID is required for a ${deploymentTarget} deployment build.`);
+}
 
 // Hosting bindings. Inlined because `.openai/` is gitignored and is not
 // present on CI, where importing it broke the build.
@@ -13,17 +30,15 @@ const r2: string | null = "UPLOADS";
 
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
-const localAuthVars = Object.fromEntries(
-  ["BETTER_AUTH_SECRET", "BETTER_AUTH_URL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "STAFF_EMAILS", "TURNSTILE_SECRET_KEY"]
-    .flatMap((key) => process.env[key] ? [[key, process.env[key]]] : []),
-);
-
 const localBindingConfig = {
-  name: "deaf-shark-coffee",
+  name: WORKER_NAME,
   main: "./worker/index.ts",
   compatibility_date: "2026-08-20",
   compatibility_flags: ["nodejs_compat"],
-  vars: localAuthVars,
+  // Runtime configuration is intentionally absent here. Values placed in
+  // `vars` are copied into dist/server/wrangler.json. Use `.dev.vars` locally
+  // and `wrangler secret put` / the Cloudflare dashboard for hosted values.
+  send_email: [{ name: "EMAIL" }],
   images: { binding: "IMAGES" },
   d1_databases: d1
     ? [
@@ -39,7 +54,7 @@ const localBindingConfig = {
     ? [
         {
           binding: r2,
-          bucket_name: "site-creator-r2",
+          bucket_name: R2_BUCKET_NAME,
         },
       ]
     : [],

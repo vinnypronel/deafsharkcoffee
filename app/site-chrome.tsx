@@ -1,22 +1,60 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { menuProducts } from "./menu-data";
+import Link from "next/link";
+import Lenis from "lenis";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { menuProducts, type Product } from "./menu-data";
 import { OfferBarcode } from "./offer-barcode";
-
-type SavedOrder = { orderNumber: string; phone: string };
-type HeaderOrder = {
-  orderNumber: string;
-  status: string;
-  pickupEta: string;
-  totalCents: number;
-  items: { name: string; quantity: number }[];
-};
-
-const STORAGE_KEY = "deaf-shark-customer-orders";
-const statusLabels: Record<string, string> = { new: "Received", preparing: "Preparing", ready: "Ready for pickup", complete: "Completed", cancelled: "Cancelled" };
+import { OrderOnlineLink } from "./order-online-link";
 type ProfileResponse = { authenticated: boolean; profile?: { displayName: string; email: string; phone?: string | null; points: number; lifetimePoints: number; activity?: Array<{ id: number; pointsChange: number; balanceAfter: number; reason: string; createdAt: string }>; welcomeOffer?: { id: number; code: string; status: string; issuedAt: string; redeemedAt?: string | null } | null } };
-type AuthConfig = { googleEnabled: boolean; emailEnabled: boolean; emailVerificationEnabled: boolean };
+type AuthConfig = { googleEnabled: boolean; emailEnabled: boolean; emailVerificationEnabled: boolean; passwordRecoveryEnabled: boolean };
+type LenisController = { start: () => void; stop: () => void; scrollTo: (target: number, options?: Record<string, unknown>) => void };
+type WindowWithLenis = Window & { __lenis?: LenisController };
+
+function normalizeSearchText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function menuSearchScore(product: Product, normalizedQuery: string) {
+  const name = normalizeSearchText(product.name);
+  const category = normalizeSearchText(product.category);
+  const description = normalizeSearchText(product.description);
+  const searchableText = `${name} ${category} ${description}`;
+  const queryWords = normalizedQuery.split(" ").filter(Boolean);
+
+  if (!queryWords.every((word) => searchableText.includes(word))) return null;
+
+  let score = 0;
+  if (name === normalizedQuery) score -= 1000;
+  else if (name.startsWith(normalizedQuery)) score -= 700;
+  else if (name.includes(normalizedQuery)) score -= 500;
+  else if (category === normalizedQuery) score -= 350;
+  else if (category.includes(normalizedQuery)) score -= 250;
+  else if (description.includes(normalizedQuery)) score -= 150;
+
+  const nameWords = name.split(" ");
+  const categoryWords = category.split(" ");
+  const descriptionWords = description.split(" ");
+
+  for (const word of queryWords) {
+    if (nameWords.includes(word)) continue;
+    if (nameWords.some((candidate) => candidate.startsWith(word))) score += 5;
+    else if (name.includes(word)) score += 10;
+    else if (categoryWords.includes(word)) score += 25;
+    else if (categoryWords.some((candidate) => candidate.startsWith(word))) score += 30;
+    else if (category.includes(word)) score += 35;
+    else if (descriptionWords.includes(word)) score += 45;
+    else if (descriptionWords.some((candidate) => candidate.startsWith(word))) score += 50;
+    else score += 55;
+  }
+
+  return score;
+}
 
 async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit, timeoutMs = 6000) {
   const controller = new AbortController();
@@ -28,49 +66,31 @@ async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit, ti
   }
 }
 
-function latestSavedOrder(): SavedOrder | null {
-  try {
-    const saved = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "[]") as SavedOrder[];
-    return saved[0] ?? null;
-  } catch {
-    return null;
-  }
-}
-
 export function BrandMark({ dark = false }: { dark?: boolean }) {
-  return <span className={`brand-mark ${dark ? "brand-mark-dark" : ""}`}><img src="/favicon.png" alt="" /><span>Deaf Shark Coffee</span></span>;
+  return (
+    <span className={`brand-mark ${dark ? "brand-mark-dark" : ""}`}>
+      <img src="/favicon.png" alt="" />
+      <span className="brand-mark-text">
+        <span className="brand-mark-name">Deaf Shark</span>
+        <span className="brand-mark-suffix">&nbsp;Coffee</span>
+      </span>
+    </span>
+  );
 }
 
 export function CustomerHeader({ active, action }: { active?: string; action?: ReactNode }) {
-  const [reference, setReference] = useState<SavedOrder | null>(null);
-  const [order, setOrder] = useState<HeaderOrder | null>(null);
-  const [open, setOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [authConfig, setAuthConfig] = useState<AuthConfig>({
     googleEnabled: false,
-    emailEnabled: true,
+    emailEnabled: false,
     emailVerificationEnabled: false,
+    passwordRecoveryEnabled: false,
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const links = [["/", "Home"], ["/menu", "Menu"], ["/about", "Our Story"], ["/events", "Events"], ["/contact", "Visit Us"], ["/employment", "Apply now"]];
-  const loadReference = useCallback(() => setReference(latestSavedOrder()), []);
-
-  useEffect(() => {
-    loadReference();
-    const update = () => loadReference();
-    const openOrder = () => { loadReference(); setOpen(true); };
-    window.addEventListener("storage", update);
-    window.addEventListener("deaf-shark-orders-updated", update);
-    window.addEventListener("deaf-shark-open-order", openOrder);
-    return () => {
-      window.removeEventListener("storage", update);
-      window.removeEventListener("deaf-shark-orders-updated", update);
-      window.removeEventListener("deaf-shark-open-order", openOrder);
-    };
-  }, [loadReference]);
 
   useEffect(() => {
     if (!mobileMenuOpen) return;
@@ -81,76 +101,44 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [mobileMenuOpen]);
 
-  useEffect(() => {
-    if (!reference) { setOrder(null); return; }
-    const savedReference = reference;
-    let activeRequest = true;
-    async function refresh() {
-      try {
-        const response = await fetch("/api/customer-orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(savedReference), cache: "no-store" });
-        if (response.status === 404 || response.status === 400) {
-          try {
-            const currentList = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "[]") as SavedOrder[];
-            const remaining = currentList.filter((item) => item.orderNumber !== savedReference.orderNumber);
-            window.localStorage.setItem(STORAGE_KEY, JSON.stringify(remaining));
-            window.dispatchEvent(new Event("deaf-shark-orders-updated"));
-          } catch {}
-          setReference(null);
-          setOrder(null);
-          setOpen(false);
-          return;
-        }
-        const data = await response.json() as { order?: HeaderOrder | null };
-        if (response.ok && activeRequest) {
-          const ord = data.order;
-          if (!ord || ord.status === "complete" || ord.status === "completed" || ord.status === "cancelled" || ord.status === "picked_up") {
-            try {
-              const currentList = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "[]") as SavedOrder[];
-              const remaining = currentList.filter((item) => item.orderNumber !== savedReference.orderNumber);
-              window.localStorage.setItem(STORAGE_KEY, JSON.stringify(remaining));
-              window.dispatchEvent(new Event("deaf-shark-orders-updated"));
-            } catch {}
-            setReference(null);
-            setOrder(null);
-            setOpen(false);
-          } else {
-            setOrder(ord);
-          }
-        }
-      } catch {
-        // Keep the last known state if the network briefly drops.
-      }
-    }
-    refresh();
-    const timer = window.setInterval(refresh, 2500);
-    return () => { activeRequest = false; window.clearInterval(timer); };
-  }, [reference]);
-
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
-  const [authName, setAuthName] = useState("");
+  const [authFirstName, setAuthFirstName] = useState("");
+  const [authLastName, setAuthLastName] = useState("");
+  const [authPhone, setAuthPhone] = useState("");
+  const [authBirthdayMonth, setAuthBirthdayMonth] = useState("");
+  const [authBirthdayDay, setAuthBirthdayDay] = useState("");
+  const [authPoliciesAccepted, setAuthPoliciesAccepted] = useState(false);
+  const [authMarketingOptIn, setAuthMarketingOptIn] = useState(false);
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState("");
+  const [authNotice, setAuthNotice] = useState("");
+  const [passwordFlow, setPasswordFlow] = useState<"credentials" | "request" | "reset">("credentials");
+  const [resetToken, setResetToken] = useState("");
   const [profilePhone, setProfilePhone] = useState("");
   const [profileName, setProfileName] = useState("");
   const [profileMessage, setProfileMessage] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchResultsRef = useRef<HTMLDivElement>(null);
+  const searchResultsContentRef = useRef<HTMLDivElement>(null);
+  const searchResultsLenisRef = useRef<Lenis | null>(null);
 
   useEffect(() => {
     if (searchOpen || profileOpen) {
       document.body.classList.add("modal-open");
-      (window as any).__lenis?.stop();
+      (window as WindowWithLenis).__lenis?.stop();
     } else {
       if (!document.querySelector(".modal-backdrop, .drawer-backdrop")) {
         document.body.classList.remove("modal-open");
-        (window as any).__lenis?.start();
+        (window as WindowWithLenis).__lenis?.start();
       }
     }
     return () => {
       if (!document.querySelector(".modal-backdrop, .drawer-backdrop")) {
         document.body.classList.remove("modal-open");
-        (window as any).__lenis?.start();
+        (window as WindowWithLenis).__lenis?.start();
       }
     };
   }, [searchOpen, profileOpen]);
@@ -159,6 +147,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
     setSearchOpen(false);
     setProfileOpen(true);
     setAuthError("");
+    setAuthNotice("");
     // Show a usable sign-in form immediately. If a session exists, replace it
     // with the customer's profile as soon as the background request completes.
     setProfile((current) => current ?? { authenticated: false });
@@ -175,7 +164,27 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
     ]);
 
     if (profileResult.status === "fulfilled") {
-      const nextProfile = profileResult.value;
+      let nextProfile = profileResult.value;
+      if (nextProfile.authenticated) {
+        const pendingSignup = window.sessionStorage.getItem("deaf-shark-pending-signup");
+        if (pendingSignup) {
+          try {
+            const onboardingResponse = await fetch("/api/profile/onboarding", {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: pendingSignup,
+            });
+            if (onboardingResponse.ok) {
+              window.sessionStorage.removeItem("deaf-shark-pending-signup");
+              const refreshed = await fetchWithTimeout("/api/profile", { cache: "no-store", credentials: "include" });
+              if (refreshed.ok) nextProfile = await refreshed.json() as ProfileResponse;
+            }
+          } catch {
+            // Keep the pending profile locally and retry the next time the account opens.
+          }
+        }
+      }
       setProfile(nextProfile);
       if (nextProfile.profile) {
         setProfileName(nextProfile.profile.displayName);
@@ -183,7 +192,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
       }
     } else {
       setProfile({ authenticated: false });
-      setAuthError("We could not load your saved profile. You can still sign in or create an account below.");
+      setAuthError("We could not load your saved profile. Please try opening your account again.");
     }
 
     if (configResult.status === "fulfilled") setAuthConfig(configResult.value);
@@ -191,10 +200,58 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("account") === "signin") openProfile();
+    if (params.get("account") === "reset") {
+      const token = params.get("token") ?? "";
+      window.setTimeout(() => {
+        setResetToken(token);
+        setPasswordFlow("reset");
+        void openProfile();
+      }, 0);
+    } else if (params.get("account") === "signin") {
+      window.setTimeout(() => void openProfile(), 0);
+    }
     // This deep link is used by the protected admin page.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (searchOpen) searchInputRef.current?.focus();
+  }, [searchOpen]);
+
+  useEffect(() => {
+    if (!searchOpen) return;
+
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const touchDevice = window.matchMedia("(max-width: 768px)").matches || "ontouchstart" in window;
+    const wrapper = searchResultsRef.current;
+    const content = searchResultsContentRef.current;
+    if (reducedMotion || touchDevice || !wrapper || !content) return;
+
+    const lenis = new Lenis({
+      wrapper,
+      content,
+      duration: 1.2,
+      easing: (time) => Math.min(1, 1.001 - Math.pow(2, -10 * time)),
+      smoothWheel: true,
+      wheelMultiplier: 1,
+      overscroll: false,
+      autoRaf: true,
+    });
+    searchResultsLenisRef.current = lenis;
+
+    return () => {
+      searchResultsLenisRef.current = null;
+      lenis.destroy();
+    };
+  }, [searchOpen]);
+
+  useEffect(() => {
+    if (!searchOpen) return;
+    if (searchResultsLenisRef.current) {
+      searchResultsLenisRef.current.scrollTo(0, { immediate: true });
+    } else if (searchResultsRef.current) {
+      searchResultsRef.current.scrollTop = 0;
+    }
+  }, [query, searchOpen]);
 
   function requestedReturnTo() {
     const value = new URLSearchParams(window.location.search).get("returnTo") || "";
@@ -223,8 +280,8 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
 
   async function handleEmailSignIn(e: React.FormEvent) {
     e.preventDefault();
-    if (authMode === "signup" && !authName.trim()) {
-      setAuthError("Enter your name to create your Deaf Shark account.");
+    if (authMode === "signup" && (!authFirstName.trim() || !authLastName.trim())) {
+      setAuthError("Enter your first and last name to create your Deaf Shark account.");
       return;
     }
     if (!authEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(authEmail.trim())) {
@@ -235,6 +292,18 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
       setAuthError("Your password needs at least 8 characters.");
       return;
     }
+    if (authMode === "signup" && authPhone && authPhone.replace(/\D/g, "").length < 10) {
+      setAuthError("Enter a complete phone number or leave it blank.");
+      return;
+    }
+    if (authMode === "signup" && ((authBirthdayMonth && !authBirthdayDay) || (!authBirthdayMonth && authBirthdayDay))) {
+      setAuthError("Choose both a birthday month and day, or leave both blank.");
+      return;
+    }
+    if (authMode === "signup" && !authPoliciesAccepted) {
+      setAuthError("Accept the Terms and Privacy Policy to create your account.");
+      return;
+    }
     setAuthBusy(true);
     setAuthError("");
     try {
@@ -243,17 +312,103 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(authMode === "signup"
-          ? { name: authName.trim(), email: authEmail.trim(), password: authPassword, callbackURL: window.location.href }
+          ? { name: `${authFirstName.trim()} ${authLastName.trim()}`, email: authEmail.trim(), password: authPassword, callbackURL: window.location.href }
           : { email: authEmail.trim(), password: authPassword, callbackURL: window.location.href }),
       });
       const data = await response.json() as { message?: string };
       if (!response.ok) throw new Error(data.message || "We could not complete that request.");
+      if (authMode === "signup") {
+        const pendingSignup = JSON.stringify({
+          firstName: authFirstName.trim(),
+          lastName: authLastName.trim(),
+          phone: authPhone,
+          birthdayMonth: authBirthdayMonth ? Number(authBirthdayMonth) : null,
+          birthdayDay: authBirthdayDay ? Number(authBirthdayDay) : null,
+          policiesAccepted: authPoliciesAccepted,
+          marketingOptIn: authMarketingOptIn,
+        });
+        if (authConfig.emailVerificationEnabled) {
+          window.sessionStorage.setItem("deaf-shark-pending-signup", pendingSignup);
+          setAuthPassword("");
+          setAuthMode("signin");
+          setAuthNotice("Check your email and use the verification link to finish creating your account.");
+          return;
+        }
+        const onboardingResponse = await fetch("/api/profile/onboarding", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: pendingSignup,
+        });
+        const onboardingData = await onboardingResponse.json() as { error?: string };
+        if (!onboardingResponse.ok) throw new Error(onboardingData.error || "Your account was created, but your profile details could not be saved.");
+      }
       setAuthPassword("");
       const returnTo = requestedReturnTo();
       if (returnTo) { window.location.href = returnTo; return; }
       await openProfile();
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : "We could not complete that request.");
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function requestPasswordReset(e: React.FormEvent) {
+    e.preventDefault();
+    setAuthError("");
+    setAuthNotice("");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(authEmail.trim())) {
+      setAuthError("Enter the email address used for your account.");
+      return;
+    }
+    setAuthBusy(true);
+    try {
+      const redirectTo = `${window.location.origin}/?account=reset`;
+      const response = await fetch("/api/auth/request-password-reset", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: authEmail.trim(), redirectTo }),
+      });
+      if (!response.ok) throw new Error("We could not start password recovery.");
+      setAuthNotice("If that email has an account, a password-reset link is on its way.");
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "We could not start password recovery.");
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function completePasswordReset(e: React.FormEvent) {
+    e.preventDefault();
+    setAuthError("");
+    setAuthNotice("");
+    if (!resetToken) {
+      setAuthError("This password-reset link is invalid or has expired.");
+      return;
+    }
+    if (authPassword.length < 8) {
+      setAuthError("Your new password needs at least 8 characters.");
+      return;
+    }
+    setAuthBusy(true);
+    try {
+      const response = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: resetToken, newPassword: authPassword }),
+      });
+      if (!response.ok) throw new Error("This password-reset link is invalid or has expired.");
+      setAuthPassword("");
+      setResetToken("");
+      setPasswordFlow("credentials");
+      setAuthMode("signin");
+      setAuthNotice("Your password has been changed. You can sign in now.");
+      window.history.replaceState({}, "", window.location.pathname);
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "We could not reset your password.");
     } finally {
       setAuthBusy(false);
     }
@@ -296,48 +451,40 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
     setProfileMessage("Saved.");
   }
 
-  const searchMatches = query.trim()
-    ? menuProducts.filter((product) => `${product.name} ${product.category} ${product.description}`.toLowerCase().includes(query.trim().toLowerCase()))
-    : menuProducts.filter((product) => product.popular).slice(0, 5);
+  const normalizedQuery = normalizeSearchText(query);
+  const searchMatches = normalizedQuery
+    ? menuProducts
+        .map((product, menuOrder) => ({ product, menuOrder, score: menuSearchScore(product, normalizedQuery) }))
+        .filter((result): result is typeof result & { score: number } => result.score !== null)
+        .sort((a, b) => a.score - b.score || a.menuOrder - b.menuOrder)
+        .map(({ product }) => product)
+    : menuProducts;
 
-  const groupedSearchResults = query.trim()
-    ? searchMatches.reduce((acc, product) => {
-        const cat = product.category || "Menu Items";
-        if (!acc[cat]) acc[cat] = [];
-        acc[cat].push(product);
-        return acc;
-      }, {} as Record<string, typeof menuProducts>)
-    : { "Popular right now": searchMatches };
+  const groupedSearchResults = {
+    [normalizedQuery ? "Search results" : "Our Menu"]: searchMatches,
+  };
 
   return (
     <>
       <header className="site-header">
-        <nav aria-label="Primary navigation">{links.map(([href, label]) => <a key={href} href={href} className={active === href ? "active" : ""}>{label}</a>)}</nav>
-        <a className="header-brand" href="/" aria-label="Deaf Shark Coffee home"><BrandMark /></a>
+        <nav aria-label="Primary navigation">{links.map(([href, label]) => <Link key={href} href={href} className={active === href ? "active" : ""}>{label}</Link>)}</nav>
+        <Link className="header-brand" href="/" aria-label="Deaf Shark Coffee home"><BrandMark /></Link>
         <div className="header-action">
-          <button className="header-icon-button" onClick={() => { setOpen(false); setMobileMenuOpen(false); setSearchOpen((current) => !current); }} aria-label="Search menu">
+          <button className="header-icon-button" onClick={() => { setMobileMenuOpen(false); setSearchOpen((current) => !current); }} aria-label="Search menu">
             <svg className="header-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
           </button>
-          <button className="header-icon-button" onClick={() => { setMobileMenuOpen(false); openProfile(); }} aria-label="Open profile">
-            <svg className="header-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
-            </svg>
-          </button>
-          {order && (order.status === "new" || order.status === "preparing" || order.status === "ready") && (
-            <button className={`order-status-trigger ${order.status === "ready" ? "ready" : ""}`} onClick={() => setOpen((current) => !current)}>
-              <span>{order.status === "ready" ? "Ready" : "Order status"}</span>
-              <i />
-            </button>
-          )}
           {action ?? (
-            <a className="header-cart header-cart-fallback" href="/menu" aria-label="View cart and menu">
+            <OrderOnlineLink className="header-cart header-cart-fallback" ariaLabel="Order online">
               <img src="/cart-icon-white.png" className="cart-glyph" alt="" aria-hidden="true" />
-              <span>0</span>
-            </a>
+              <span aria-hidden="true">
+                <svg className="header-order-arrow" viewBox="0 0 12 12" fill="none">
+                  <path d="M3 9 9 3M4 3h5v5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+            </OrderOnlineLink>
           )}
 
           {/* Morphing Hamburger Button */}
@@ -345,7 +492,6 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
             type="button"
             className={`nav-hamburger ${mobileMenuOpen ? "open" : ""}`}
             onClick={() => {
-              setOpen(false);
               setSearchOpen(false);
               setProfileOpen(false);
               setMobileMenuOpen((prev) => !prev);
@@ -361,16 +507,6 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
             </span>
           </button>
 
-          {open && order && (order.status === "new" || order.status === "preparing" || order.status === "ready") && (
-            <section className="header-order-popover" aria-label="Current order status">
-              <button className="popover-close" onClick={() => setOpen(false)} aria-label="Close order status">×</button>
-              <span className="eyebrow">Current pickup</span>
-              <div className="popover-order-title"><h2>{order.orderNumber}</h2><span className={`customer-status status-${order.status}`}>{statusLabels[order.status]}</span></div>
-              <p>{order.status === "ready" ? "Your order is ready at the counter." : `Estimated pickup: ${order.pickupEta}`}</p>
-              <div className="popover-items">{order.items.slice(0, 3).map((item, index) => <span key={`${item.name}-${index}`}>{item.quantity}× {item.name}</span>)}</div>
-              <div className="popover-total"><span>Total</span><strong>${(order.totalCents / 100).toFixed(2)}</strong></div>
-            </section>
-          )}
         </div>
       </header>
 
@@ -385,32 +521,33 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
             const isActive = active === href;
             return (
               <li key={href} style={{ "--delay": `${0.05 + idx * 0.045}s` } as React.CSSProperties}>
-                <a
+                <Link
                   href={href}
                   className={`nav-fs-link ${isActive ? "active" : ""}`}
                   tabIndex={mobileMenuOpen ? 0 : -1}
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <span className="nav-fs-text">{label}</span>
-                </a>
+                </Link>
               </li>
             );
           })}
         </ul>
 
-        <div className="nav-fs-footer">
-          <a
-            className="primary-button hero-cta-btn nav-fs-cta"
-            href="/menu"
+        {/* Its own row between the links and the footer, so it sits evenly
+            spaced between the last link and the social icons. */}
+        <div className="nav-fs-cta-wrap">
+          <OrderOnlineLink
+            className="primary-button visit-order-btn nav-fs-cta"
             tabIndex={mobileMenuOpen ? 0 : -1}
             onClick={() => setMobileMenuOpen(false)}
           >
-            <span>Order pickup</span>
-            <svg className="btn-arrow" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <path d="M2.5 8h11M9.5 3.5l4.5 4.5-4.5 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </a>
+            <span>Order now</span>
+            <span className="btn-cart-glyph" aria-hidden="true" />
+          </OrderOnlineLink>
+        </div>
 
+        <div className="nav-fs-footer">
           {/* Social Icons */}
           <div className="nav-fs-socials">
             <a
@@ -459,62 +596,75 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
             <div className="nav-fs-contact-links">
               <a href="tel:+19084818884" tabIndex={mobileMenuOpen ? 0 : -1}>(908) 481-8884</a>
               <span className="nav-fs-dot" aria-hidden="true">•</span>
-              <a href="mailto:deafsharkcoffee@gmail.com" tabIndex={mobileMenuOpen ? 0 : -1}>deafsharkcoffee@gmail.com</a>
+              <a href="mailto:help@deafsharkcoffee.com" tabIndex={mobileMenuOpen ? 0 : -1}>help@deafsharkcoffee.com</a>
             </div>
           </div>
         </div>
       </div>
 
-      {searchOpen && (
-        <div className="search-backdrop" onMouseDown={() => setSearchOpen(false)}>
-          <aside
-            className="search-drawer"
-            data-lenis-prevent
-            role="dialog"
-            aria-modal="true"
-            aria-label="Search menu"
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <div className="search-drawer-header">
-              <h2>Search menu</h2>
-              <div className="search-drawer-badge">
-                <img src="/deafshark-logo.png" alt="Deaf Shark emblem" />
-              </div>
+      <div
+        className={`search-backdrop ${searchOpen ? "is-open" : ""}`}
+        role="button"
+        tabIndex={-1}
+        aria-label="Close search"
+        aria-hidden={!searchOpen}
+        onClick={(event) => {
+          if (event.target === event.currentTarget) setSearchOpen(false);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Escape" || event.key === "Enter" || event.key === " ") setSearchOpen(false);
+        }}
+      >
+        <aside
+          className="search-drawer"
+          data-lenis-prevent
+          role="dialog"
+          aria-modal="true"
+          aria-label="Search menu"
+        >
+          <div className="search-drawer-header">
+            <h2>Search menu</h2>
+            <button
+              type="button"
+              className="search-drawer-close"
+              onClick={() => setSearchOpen(false)}
+              aria-label="Close search"
+            >
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+            <div className="search-drawer-badge">
+              <img src="/deafshark-logo-640.webp" alt="Deaf Shark emblem" decoding="async" />
+            </div>
+          </div>
+
+          <div className="search-drawer-input-wrap">
+            <span className="search-glyph" aria-hidden="true" />
+            <input
+              ref={searchInputRef}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search coffee, breakfast, sandwiches..."
+              className="search-drawer-input"
+              type="search"
+              aria-label="Search the menu"
+            />
+            {query && (
               <button
                 type="button"
-                className="search-drawer-close"
-                onClick={() => setSearchOpen(false)}
-                aria-label="Close search"
+                className="search-clear-btn"
+                onClick={() => setQuery("")}
+                aria-label="Clear search text"
               >
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
+                ×
               </button>
-            </div>
+            )}
+          </div>
 
-            <div className="search-drawer-input-wrap">
-              <span className="search-glyph" aria-hidden="true" />
-              <input
-                autoFocus
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search coffee, breakfast, sandwiches..."
-                className="search-drawer-input"
-              />
-              {query && (
-                <button
-                  type="button"
-                  className="search-clear-btn"
-                  onClick={() => setQuery("")}
-                  aria-label="Clear search text"
-                >
-                  ×
-                </button>
-              )}
-            </div>
-
-            <div className="search-drawer-results">
+          <div ref={searchResultsRef} className="search-drawer-results">
+            <div ref={searchResultsContentRef} className="search-drawer-results-content">
               {searchMatches.length > 0 ? (
                 <div className="search-grouped-container">
                   {Object.entries(groupedSearchResults).map(([category, items]) => (
@@ -546,21 +696,34 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                 </div>
               )}
             </div>
-          </aside>
-        </div>
-      )}
+          </div>
+        </aside>
+      </div>
       {profileOpen && (
-        <div className="account-backdrop" onMouseDown={() => setProfileOpen(false)}>
-          <section className="account-modal" data-lenis-prevent role="dialog" aria-modal="true" aria-label="Customer account" onMouseDown={(event) => event.stopPropagation()}>
-            <button className="account-close" onClick={() => setProfileOpen(false)} aria-label="Close account">×</button>
+        <div
+          className="account-backdrop"
+          role="button"
+          tabIndex={-1}
+          aria-label="Close customer account"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setProfileOpen(false);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Escape" || event.key === "Enter" || event.key === " ") setProfileOpen(false);
+          }}
+        >
+          <section className="account-modal" data-auth-mode={profile?.authenticated ? "profile" : authMode} data-lenis-prevent role="dialog" aria-modal="true" aria-label="Customer account">
+            <button className="account-close" onClick={() => setProfileOpen(false)} aria-label="Close account">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8" /></svg>
+            </button>
             <img src="/favicon.png" alt="" />
             {!profile && <><h2>Opening your account...</h2><p>Loading your Deaf Shark profile and loyalty points.</p></>}
             {profile && !profile.authenticated && (
               <>
-                <h2>Sign in or create your account</h2>
-                <p>Create your free account to receive 25 welcome points and a one-time 50% off coffee offer for your next in-store visit.</p>
+                <h2>{passwordFlow === "reset" ? "Choose a new password" : passwordFlow === "request" ? "Reset your password" : "Sign in or create your account"}</h2>
+                <p>{passwordFlow === "reset" ? "Enter a new password for your Deaf Shark Coffee account." : passwordFlow === "request" ? "We will email you a secure, one-hour reset link." : "Create your free account to receive 25 welcome points and a one-time 50% off coffee offer for your next in-store visit."}</p>
 
-                <div className="social-auth-buttons">
+                {passwordFlow === "credentials" && <div className="social-auth-buttons">
                   <button
                     type="button"
                     className="social-auth-btn social-google"
@@ -576,23 +739,61 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                     </svg>
                     <span>{authConfig.googleEnabled ? "Continue with Google" : "Google sign-in — setup pending"}</span>
                   </button>
-                </div>
+                </div>}
 
-                <div className="auth-divider">
+                {passwordFlow === "credentials" && authConfig.emailEnabled && <div className="auth-divider">
                   <span>or continue with email</span>
-                </div>
+                </div>}
 
-                <form className="auth-email-form" onSubmit={handleEmailSignIn} noValidate>
+                {passwordFlow === "credentials" && authConfig.emailEnabled && <form className="auth-email-form" onSubmit={handleEmailSignIn} noValidate>
                   {authMode === "signup" && (
-                    <input
-                      type="text"
-                      maxLength={80}
-                      value={authName}
-                      onChange={(e) => setAuthName(e.target.value)}
-                      placeholder="Your name"
-                      autoComplete="name"
-                      className="auth-email-input"
-                    />
+                    <>
+                      <div className="auth-field-row">
+                        <input
+                          type="text"
+                          maxLength={40}
+                          value={authFirstName}
+                          onChange={(e) => setAuthFirstName(e.target.value)}
+                          placeholder="First name"
+                          aria-label="First name"
+                          autoComplete="given-name"
+                          className="auth-email-input"
+                        />
+                        <input
+                          type="text"
+                          maxLength={40}
+                          value={authLastName}
+                          onChange={(e) => setAuthLastName(e.target.value)}
+                          placeholder="Last name"
+                          aria-label="Last name"
+                          autoComplete="family-name"
+                          className="auth-email-input"
+                        />
+                      </div>
+                      <input
+                        type="tel"
+                        maxLength={24}
+                        value={authPhone}
+                        onChange={(e) => setAuthPhone(e.target.value)}
+                        placeholder="Mobile number (optional)"
+                        aria-label="Mobile number, optional"
+                        autoComplete="tel"
+                        className="auth-email-input"
+                      />
+                      <fieldset className="auth-birthday-fieldset">
+                        <legend>Birthday for your annual reward <span>(optional)</span></legend>
+                        <div className="auth-field-row">
+                          <select value={authBirthdayMonth} onChange={(e) => { setAuthBirthdayMonth(e.target.value); setAuthBirthdayDay(""); }} aria-label="Birthday month" className="auth-email-input">
+                            <option value="">Month</option>
+                            {[["1", "January"], ["2", "February"], ["3", "March"], ["4", "April"], ["5", "May"], ["6", "June"], ["7", "July"], ["8", "August"], ["9", "September"], ["10", "October"], ["11", "November"], ["12", "December"]].map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                          </select>
+                          <select value={authBirthdayDay} onChange={(e) => setAuthBirthdayDay(e.target.value)} aria-label="Birthday day" className="auth-email-input" disabled={!authBirthdayMonth}>
+                            <option value="">Day</option>
+                            {Array.from({ length: authBirthdayMonth ? new Date(2000, Number(authBirthdayMonth), 0).getDate() : 31 }, (_, index) => index + 1).map((day) => <option key={day} value={day}>{day}</option>)}
+                          </select>
+                        </div>
+                      </fieldset>
+                    </>
                   )}
                   <input
                     type="email"
@@ -637,15 +838,47 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                       )}
                     </button>
                   </div>
+                  {authMode === "signup" && <p className="auth-password-guidance">Use at least 8 characters. A longer, unique password is safer.</p>}
+                  {authMode === "signup" && (
+                    <div className="auth-consents">
+                      <label>
+                        <input type="checkbox" checked={authPoliciesAccepted} onChange={(e) => setAuthPoliciesAccepted(e.target.checked)} />
+                        <span>I agree to the <Link href="/terms" target="_blank">Terms</Link> and acknowledge the <Link href="/privacy" target="_blank">Privacy Policy</Link>. <b>Required</b></span>
+                      </label>
+                      <label>
+                        <input type="checkbox" checked={authMarketingOptIn} onChange={(e) => setAuthMarketingOptIn(e.target.checked)} />
+                        <span>Send me Deaf Shark news, offers, and event updates. I can unsubscribe at any time. <b>Optional</b></span>
+                      </label>
+                    </div>
+                  )}
                   <button type="submit" className="primary-button auth-email-btn">
                     {authBusy ? "Please wait..." : authMode === "signup" ? "Create account" : "Sign in with email"}
                   </button>
-                </form>
+                </form>}
+                {passwordFlow === "request" && authConfig.passwordRecoveryEnabled && (
+                  <form className="auth-email-form" onSubmit={requestPasswordReset} noValidate>
+                    <input type="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} placeholder="Enter your email address" autoComplete="email" className="auth-email-input" />
+                    <button type="submit" className="primary-button auth-email-btn" disabled={authBusy}>{authBusy ? "Sending..." : "Email reset link"}</button>
+                  </form>
+                )}
+                {passwordFlow === "reset" && (
+                  <form className="auth-email-form" onSubmit={completePasswordReset} noValidate>
+                    <div className="auth-password-field">
+                      <input type={passwordVisible ? "text" : "password"} minLength={8} maxLength={128} value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} placeholder="New password (8 characters minimum)" autoComplete="new-password" className="auth-email-input" />
+                      <button type="button" className="auth-password-toggle" onClick={() => setPasswordVisible((current) => !current)} aria-label={passwordVisible ? "Hide password" : "Show password"} aria-pressed={passwordVisible}>Show</button>
+                    </div>
+                    <button type="submit" className="primary-button auth-email-btn" disabled={authBusy}>{authBusy ? "Saving..." : "Save new password"}</button>
+                  </form>
+                )}
                 {authError && <p className="account-form-message error" role="alert">{authError}</p>}
-                <button type="button" className="account-mode-toggle" onClick={() => { setAuthMode(authMode === "signin" ? "signup" : "signin"); setAuthError(""); }}>
+                {authNotice && <p className="account-form-message" role="status">{authNotice}</p>}
+                {passwordFlow === "credentials" && authConfig.emailEnabled && <button type="button" className="account-mode-toggle" onClick={() => { setAuthMode(authMode === "signin" ? "signup" : "signin"); setAuthError(""); setAuthNotice(""); }}>
                   {authMode === "signin" ? "New here? Create an account" : "Already have an account? Sign in"}
-                </button>
-                <small>Email verification and password recovery will be enabled before public launch.</small>
+                </button>}
+                {passwordFlow === "credentials" && authMode === "signin" && authConfig.passwordRecoveryEnabled && <button type="button" className="account-mode-toggle" onClick={() => { setPasswordFlow("request"); setAuthError(""); setAuthNotice(""); }}>Forgot your password?</button>}
+                {passwordFlow !== "credentials" && <button type="button" className="account-mode-toggle" onClick={() => { setPasswordFlow("credentials"); setAuthError(""); setAuthNotice(""); }}>Back to sign in</button>}
+                {!authConfig.googleEnabled && !authConfig.emailEnabled && <small>Customer accounts are temporarily unavailable while secure sign-in is being connected.</small>}
+                {authConfig.emailEnabled && <small>Email accounts require verification. Password recovery links expire after one hour.</small>}
               </>
             )}
             {profile?.authenticated && profile.profile && (
@@ -694,90 +927,47 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
 }
 
 export function SiteFooter() {
-  const [email, setEmail] = useState("");
-  const [subscribed, setSubscribed] = useState(false);
-  const [newsletterConsent, setNewsletterConsent] = useState(false);
-  const [newsletterBusy, setNewsletterBusy] = useState(false);
-  const [newsletterError, setNewsletterError] = useState("");
-  const [newsletterFieldErrors, setNewsletterFieldErrors] = useState<{ email?: string; consent?: string }>({});
-
-  async function handleSubscribe(e: React.FormEvent) {
-    e.preventDefault();
-    setNewsletterError("");
-    const trimmedEmail = email.trim();
-    const fieldErrors: { email?: string; consent?: string } = {};
-    if (!trimmedEmail) fieldErrors.email = "Enter your email address to join the club.";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) fieldErrors.email = "Enter a complete email address, like you@example.com.";
-    if (!newsletterConsent) fieldErrors.consent = "Please agree before joining the email list.";
-    setNewsletterFieldErrors(fieldErrors);
-    if (Object.keys(fieldErrors).length) return;
-
-    setNewsletterBusy(true);
-    try {
-      const response = await fetch("/api/newsletter", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmedEmail, consent: newsletterConsent }),
-      });
-      const data = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(data.error || "We could not save your subscription.");
-      setSubscribed(true);
-    } catch (error) {
-      setNewsletterError(error instanceof Error ? error.message : "We could not save your subscription.");
-    } finally {
-      setNewsletterBusy(false);
-    }
-  }
-
   return (
     <footer className="site-footer">
       <div className="footer-container">
         {/* Top Newsletter / Club Section */}
         <div className="footer-newsletter">
           <div className="newsletter-copy">
-            <h2>Join the club.</h2>
+            <h2>Join the club!</h2>
             <p>A free upgrade on your birthday, early access to new roasts, and invites to coffee tastings in Union.</p>
           </div>
           <div className="newsletter-form-wrap">
-            {subscribed ? (
-              <p className="newsletter-success">✓ You&#39;re in! We&#39;ll send your welcome perks soon.</p>
-            ) : (
-              <form className="newsletter-form" onSubmit={handleSubscribe} noValidate>
+            <div className="newsletter-coming-soon-wrapper">
+              <span className="newsletter-coming-soon-badge" aria-hidden="true">Coming soon!</span>
+              <form className="newsletter-form newsletter-disabled" onSubmit={(e) => e.preventDefault()} noValidate aria-disabled="true">
                 <label htmlFor="footer-email">E-MAIL</label>
-                <div className={`newsletter-input-row${newsletterFieldErrors.email ? " has-error" : ""}`}>
+                <div className="newsletter-input-row is-disabled">
                   <input
                     id="footer-email"
                     type="email"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      if (newsletterFieldErrors.email) setNewsletterFieldErrors((current) => ({ ...current, email: undefined }));
-                    }}
+                    value=""
+                    readOnly
+                    disabled
+                    tabIndex={-1}
                     placeholder="you@example.com"
-                    aria-invalid={newsletterFieldErrors.email ? true : undefined}
-                    aria-describedby={newsletterFieldErrors.email ? "footer-email-error" : undefined}
+                    aria-label="Email address (newsletter coming soon)"
                   />
-                  <button type="submit" disabled={newsletterBusy}>{newsletterBusy ? "Saving" : "Join"} <span>→</span></button>
+                  <button type="button" disabled tabIndex={-1} aria-disabled="true">
+                    Join <span>→</span>
+                  </button>
                 </div>
-                {newsletterFieldErrors.email && <p className="newsletter-field-error" id="footer-email-error" role="alert"><span aria-hidden="true">!</span>{newsletterFieldErrors.email}</p>}
-                <label className={`newsletter-consent${newsletterFieldErrors.consent ? " has-error" : ""}`}>
+                <label className="newsletter-consent is-disabled">
                   <input
                     type="checkbox"
-                    checked={newsletterConsent}
-                    onChange={(event) => {
-                      setNewsletterConsent(event.target.checked);
-                      if (newsletterFieldErrors.consent) setNewsletterFieldErrors((current) => ({ ...current, consent: undefined }));
-                    }}
-                    aria-invalid={newsletterFieldErrors.consent ? true : undefined}
-                    aria-describedby={newsletterFieldErrors.consent ? "footer-consent-error" : undefined}
+                    disabled
+                    readOnly
+                    tabIndex={-1}
+                    aria-disabled="true"
                   />
                   <span>I agree to receive Deaf Shark Coffee news and promotions by email. I can unsubscribe at any time.</span>
                 </label>
-                {newsletterFieldErrors.consent && <p className="newsletter-field-error" id="footer-consent-error" role="alert"><span aria-hidden="true">!</span>{newsletterFieldErrors.consent}</p>}
-                {newsletterError && <p className="newsletter-error" role="alert">{newsletterError}</p>}
-                {newsletterBusy && <p className="newsletter-status" role="status">Saving your subscription...</p>}
               </form>
-            )}
+            </div>
           </div>
         </div>
 
@@ -786,21 +976,21 @@ export function SiteFooter() {
         {/* 4-Column Navigation Section */}
         <div className="footer-columns">
           <div className="footer-col footer-col-brand">
-            <a
+            <Link
               className="footer-logo"
               href="/"
               aria-label="Deaf Shark Coffee, back to the top of the home page"
               onClick={(event) => {
                 if (window.location.pathname !== "/") return;
                 event.preventDefault();
-                const lenis = (window as unknown as { __lenis?: { scrollTo: (target: number, options?: Record<string, unknown>) => void } }).__lenis;
+                const lenis = (window as WindowWithLenis).__lenis;
                 if (lenis) lenis.scrollTo(0, { duration: 1.1 });
                 else window.scrollTo({ top: 0, behavior: "smooth" });
               }}
             >
               <img src="/favicon.png" alt="" />
               <span>DEAF SHARK COFFEE</span>
-            </a>
+            </Link>
             <p className="footer-tagline">One Farm. One Variety.<br />Roasted in Union, NJ.</p>
             <div className="footer-socials">
               <a
@@ -857,7 +1047,7 @@ export function SiteFooter() {
               <li><a href="/employment">Apply now</a></li>
               <li><a href="/about">Our Story</a></li>
               <li><a href="/events">Events</a></li>
-              <li><a href="/">Home</a></li>
+              <li><Link href="/">Home</Link></li>
             </ul>
           </div>
 
@@ -868,6 +1058,7 @@ export function SiteFooter() {
               <li><a href="/contact">Location &amp; Hours</a></li>
               <li><a href="https://maps.google.com/?q=900+Green+Lane+Union+NJ+07083" target="_blank" rel="noopener noreferrer">Get Directions ↗</a></li>
               <li><a href="tel:9084818884">(908) 481-8884</a></li>
+              <li><a href="mailto:help@deafsharkcoffee.com">help@deafsharkcoffee.com</a></li>
             </ul>
           </div>
         </div>

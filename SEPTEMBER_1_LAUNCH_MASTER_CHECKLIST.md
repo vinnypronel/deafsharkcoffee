@@ -2,6 +2,16 @@
 
 Prepared August 22, 2026
 
+Ordering architecture update, September 2, 2026: the website now takes its own
+pickup orders. Heartland/Genius hosted ordering is no longer the launch path, and
+every item below that assumes a hosted cart, hosted payment, or a launch loyalty
+program is superseded. Phase one is pay at pickup, with no card data collected by
+this website, no active public customer-account controls, and no customer-facing
+loyalty claim. Online prepay stays blocked until the business chooses and provides
+access to its own payment processor.
+
+Owner response recorded September 1–2, 2026: `admin@deafsharkcoffee.com` is the primary ownership/admin address; `miguelmerino@msn.com` is the off-domain backup ownership/recovery address; contact messages go to `contact@deafsharkcoffee.com`; applications go to `employment@deafsharkcoffee.com`; public support uses `help@deafsharkcoffee.com`; and the public phone and social links are approved. Updated hours, complete menu approval, final legal documents, and Genius payment readiness remain pending.
+
 ## The launch rule
 
 Production accounts, customer data, payments, domains, app-store listings, and messaging registrations should be owned by Deaf Shark Coffee. The owner should invite Vinny using a separate administrator/developer login. Nobody should share passwords, recovery codes, API keys, or banking credentials over text or chat.
@@ -35,9 +45,8 @@ There are two separate launch goals:
 - [ ] Quantic POS and its two KDS screens are not connected.
 - [ ] Staff dashboard and mutation APIs are not protected by staff authorization.
 - [ ] Newsletter signup currently displays success but saves and sends nothing.
-- [ ] Employment form currently displays success but saves and sends nothing.
-- [ ] Resume upload is not stored anywhere.
-- [ ] Visit Us has business information but no working customer inquiry/contact form.
+- [x] Employment applications are saved, résumé uploads use private R2 storage, and notifications have a dedicated employment recipient.
+- [x] Customer contact messages are saved and have a dedicated contact recipient.
 - [ ] Transactional order emails are not connected.
 - [ ] Ready-for-pickup SMS is not connected.
 - [ ] Email verification, password reset, and account-recovery delivery need a real sender.
@@ -115,18 +124,19 @@ Owner must have available: legal name, EIN/tax information, owner identity, busi
 Choose Google Workspace, Microsoft 365, or the business's existing email provider.
 
 - [ ] Ensure the owner controls the primary administrator account.
-- [ ] Create or confirm `info@`, `orders@`, `jobs@`, `support@`, and `privacy@deafsharkcoffee.com` as inboxes or aliases.
+- [x] Confirm `admin@`, `contact@`, `employment@`, `help@`, and `webdev@deafsharkcoffee.com` as the approved operational addresses.
+- [x] Off-domain backup ownership/recovery address confirmed: `miguelmerino@msn.com`.
 - [ ] Give the correct people access without sharing one password.
 - [ ] Enable two-factor authentication.
 - [ ] Configure SPF, DKIM, and DMARC DNS records.
-- [ ] Decide who receives contact inquiries, employment applications, failed-order alerts, and customer replies.
+- [x] Contact inquiries → `contact@`; employment applications → `employment@`; administrative alerts/access → `admin@`; public support → `help@deafsharkcoffee.com`.
 
 ### 6. Transactional email provider
 
-The application currently expects Resend credentials, so **Resend is the fastest code path**. Cloudflare Email Service is a valid alternative if the team wants all transactional infrastructure in Cloudflare.
+The application prefers the native Cloudflare Email Service binding and retains Resend as an optional fallback.
 
-- [ ] Owner creates the account and invites Vinny.
-- [ ] Verify a sending subdomain such as `updates.deafsharkcoffee.com`.
+- [ ] Enable Email Sending in the Deaf Shark-owned Cloudflare account and invite Vinny with technical access.
+- [ ] Verify `deafsharkcoffee.com` for transactional sending.
 - [ ] Add required SPF/DKIM records and a DMARC policy.
 - [ ] Create production sender identities.
 - [ ] Configure order confirmation, ready notice fallback, password reset, email verification, application receipt, and contact receipt templates.
@@ -134,12 +144,14 @@ The application currently expects Resend credentials, so **Resend is the fastest
 - [ ] Test delivery to Gmail, Outlook, and iCloud.
 - [ ] Track bounces and suppress invalid addresses.
 
-Recommended addresses:
+Approved addresses:
 
 - `orders@deafsharkcoffee.com` for order confirmations.
 - `account@deafsharkcoffee.com` for verification and password recovery.
-- `jobs@deafsharkcoffee.com` for employment receipts.
-- `hello@deafsharkcoffee.com` for contact-form receipts.
+- `employment@deafsharkcoffee.com` for employment notifications.
+- `contact@deafsharkcoffee.com` for contact-form notifications.
+- `admin@deafsharkcoffee.com` for security and operational alerts.
+- `help@deafsharkcoffee.com` for public customer support.
 
 ### 7. Twilio business account for transactional SMS
 
@@ -273,13 +285,13 @@ Transactional messages and marketing messages are different. Order confirmations
 ## Business and ordering
 
 - [ ] Exact legal business name and public brand name.
-- [x] Standard hours confirmed: 6:00 AM to 5:00 PM through August 31; 6:00 AM to 8:00 PM starting September 1.
+- [ ] Updated standard hours are pending confirmation from Miguel; do not publish the previously proposed September schedule as final.
 - [ ] Online-order start/end times and last-order cutoff.
 - [ ] ASAP pickup estimate rules.
 - [x] Scheduled pickup is enabled and must be paid online in advance.
 - [ ] Minimum/maximum scheduled lead time and slot size.
 - [x] Pay at pickup is allowed only for signed-in members placing ASAP orders.
-- [ ] Finish cancellation, no-show, refund, and chargeback policies. Confirmed portion: full refund when the customer cancels before Preparing.
+- [ ] Cancellation, no-show, and chargeback rules remain pending. Refund policy is approved for same-day quality issues, incorrect items, or store errors; refunds return to the original payment method in approximately 5–10 business days.
 - [ ] Whether tips are allowed and suggested percentages.
 - [ ] Maximum order size and whether large/catering orders require a call.
 - [ ] Who can pause orders, change prep time, issue refunds, and mark items sold out.
@@ -301,7 +313,7 @@ Transactional messages and marketing messages are different. Order confirmations
 - [x] Half-caf is not offered; decaf is $1 extra and needs a twice-normal-preparation-time warning.
 - [ ] Refrigerator brands, sizes, flavors, and prices.
 - [ ] Coffee bag sizes, roast details, and grind choices.
-- [ ] Allergens and cross-contact disclaimer.
+- [x] Allergen and cross-contact disclaimer approved for dairy, tree nuts, peanuts, gluten/wheat, soy, egg, and sesame in a shared environment.
 - [ ] Tax class for every category.
 - [ ] Prep station for every item: Coffee, Kitchen, or Retail.
 - [ ] Which items may be scheduled or ordered near closing.
@@ -319,8 +331,8 @@ Transactional messages and marketing messages are different. Order confirmations
 
 ## Forms and communications
 
-- [ ] Recipients for contact-form inquiries.
-- [ ] Recipients and reviewers for job applications.
+- [x] Contact-form recipient: `contact@deafsharkcoffee.com`.
+- [x] Job-application recipient: `employment@deafsharkcoffee.com`.
 - [ ] Resume retention period and deletion process.
 - [ ] Whether applicants receive an automatic receipt.
 - [ ] Whether the newsletter promise includes a birthday perk, discount, events, or early access.
@@ -333,8 +345,8 @@ Transactional messages and marketing messages are different. Order confirmations
 - [ ] Approve El Salvador farm/origin claims.
 - [ ] Approve veteran-owned statement.
 - [ ] Approve product photos and descriptions.
-- [ ] Approve business address, phone, and hours.
-- [ ] Supply legal privacy/refund/cancellation language or authorize professional drafting.
+- [ ] Phone `(908) 481-8884` is approved; updated hours remain pending.
+- [ ] Owner supplied refund, unavailable-item, allergen, and guest Wi-Fi wording. Final Terms and Privacy documents are still pending owner delivery/review.
 
 # Section C — Production database work
 
@@ -417,7 +429,7 @@ Transactional messages and marketing messages are different. Order confirmations
 - [x] Scheduled pickup requires advance online payment.
 - [x] Automatically confirm submitted orders without a separate employee acceptance step.
 - [ ] Implement customer cancellation and a full refund only while an order is New, before Preparing.
-- [ ] Owner decides the substitution/refund/cancellation procedure when a paid item becomes unexpectedly unavailable after submission.
+- [x] Unavailable-item procedure approved: contact the customer, offer a substitute, do not charge a higher difference without approval, otherwise refund the unavailable item and prepare the remainder; automatically do the latter if the customer cannot be reached before pickup.
 
 ## Stripe
 
@@ -550,13 +562,13 @@ Transactional messages and marketing messages are different. Order confirmations
 
 - [ ] Privacy Policy covering accounts, orders, phone numbers, texts, email, loyalty, analytics, job applicants, and service providers.
 - [ ] Terms of Use / Online Ordering Terms.
-- [ ] Refund, cancellation, no-show, substitution, and pickup policy.
+- [ ] Refund and substitution language is published; cancellation, no-show, uncollected-order, and final pickup language remain pending.
 - [ ] SMS consent and messaging terms.
 - [ ] Marketing email consent and unsubscribe process.
 - [ ] Job-applicant privacy and retention notice.
 - [ ] Cookie/analytics disclosure and consent behavior as applicable.
 - [ ] Accessibility statement and contact method.
-- [ ] Allergen and cross-contact notice approved by the business.
+- [x] Allergen and cross-contact notice approved by the business and published.
 - [ ] Copyright and photo permissions.
 - [ ] Confirm NJ tax treatment with the business's accountant or qualified tax professional.
 - [ ] Review whether any card surcharge/online processing fee is permitted before displaying it.

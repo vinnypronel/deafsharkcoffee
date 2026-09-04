@@ -31,7 +31,7 @@
   pointer-events: none;
 }
 .emp-hero-mark {
-  width: min(30vw, 400px);
+  width: min(33vw, 450px);
   aspect-ratio: 1;
   display: grid;
   place-items: center;
@@ -112,16 +112,26 @@
 }
 .emp-flyer-list {
   margin: 0;
-  padding-left: 20px;
+  /* Hyphen markers are drawn below, so the default list bullet is dropped. */
+  list-style: none;
+  padding-left: 0;
   display: flex;
   flex-direction: column;
   gap: 5px;
 }
 .emp-flyer-list li {
+  position: relative;
+  padding-left: 18px;
   color: var(--ink);
   font-size: 13.5px;
   font-weight: 600;
   line-height: 1.4;
+}
+.emp-flyer-list li::before {
+  content: "-";
+  position: absolute;
+  left: 4px;
+  top: 0;
 }
 .emp-flyer-actions {
   margin-top: 6px;
@@ -331,11 +341,13 @@
 }
 .emp-choice:hover { border-color: rgba(45, 26, 18, .3); }
 .emp-choice input {
-  width: 20px;
-  height: 20px;
+  /* 24px is the WCAG 2.2 minimum for a control someone taps on a phone. */
+  width: 24px;
+  height: 24px;
   flex: 0 0 auto;
   margin: 0;
   accent-color: var(--teal);
+  cursor: pointer;
 }
 .emp-choice:has(input:checked) {
   border-color: var(--teal);
@@ -384,13 +396,65 @@
   outline-offset: 1px;
 }
 
+/* Upload feedback sits at the right edge of the file row: a green bar while the
+   resume is in flight, replaced by a check once the server has it. */
+.emp-file-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.emp-upload-state {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+.emp-upload-bar {
+  display: block;
+  width: 92px;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(45, 26, 18, .12);
+  overflow: hidden;
+}
+.emp-upload-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: #2f9e5f;
+  transition: width .18s ease-out;
+}
+.emp-upload-check {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #2f9e5f;
+}
+.emp-upload-check svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: white;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+@media (prefers-reduced-motion: reduce) {
+  .emp-upload-fill { transition: none; }
+}
+
 .emp-file {
   width: 100%;
   min-height: 62px;
   display: block;
   border: 1px dashed rgba(45, 26, 18, .34);
   border-radius: 16px;
-  padding: 14px 16px;
+  padding: 14px 124px 14px 16px;
   background: white;
   color: var(--muted);
   font-size: 14px;
@@ -460,12 +524,12 @@
 /* Confirmation */
 .emp-confirmation {
   max-width: 760px;
-  border: 1px solid var(--line);
-  border-radius: 30px;
-  padding: clamp(30px, 4vw, 58px);
-  background: var(--paper);
-  box-shadow: var(--shadow);
+  /* Sits directly on the page rather than inside a card, centred in its band. */
+  margin: 0 auto;
+  padding: clamp(28px, 5vw, 72px) 0;
+  text-align: center;
 }
+.emp-confirmation p { margin-left: auto; margin-right: auto; }
 .emp-confirmation h2 {
   margin: 0 0 20px;
   font-family: Georgia, serif;
@@ -485,7 +549,7 @@
   padding: 14px 0 14px 18px;
   font-size: 14px;
 }
-.emp-confirmation-actions { margin-top: 28px; }
+.emp-confirmation-actions { margin-top: 28px; display: flex; justify-content: center; }
 .emp-confirmation-actions .primary-button:focus-visible {
   outline: 3px solid rgba(22, 139, 135, .35);
   outline-offset: 3px;
@@ -515,4 +579,27 @@
   .emp-submit-row { margin-top: 28px; padding-top: 24px; }
   .emp-submit { width: 100%; min-width: 0; }
   .emp-confirmation { border-radius: 24px; }
+}
+
+/* Tablet: fill the first screen so the cream section below stays off the fold. */
+@media (min-width: 601px) and (max-width: 780px) {
+  .emp-hero {
+    /* The header is 68px at this width, not the desktop 84px. */
+    min-height: calc(100vh - 68px);
+    min-height: calc(100dvh - 68px);
+    justify-content: center;
+    gap: clamp(40px, 7vh, 76px);
+  }
+  .emp-hero-mark {
+    width: min(84vw, 440px);
+    transform: translateX(clamp(28px, 9vw, 70px));
+  }
+}
+
+/* Phone: lift the mark out of the bottom corner and nudge it off centre. */
+@media (max-width: 600px) {
+  .emp-hero-mark {
+    margin-top: -52px;
+    transform: translateX(22px);
+  }
 }

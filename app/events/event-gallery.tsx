@@ -81,18 +81,12 @@ export function EventGallery({ photos }: EventGalleryProps) {
         </div>
         <div className="ev-gallery-grid">
           {photos.map((shot, idx) => (
-            <figure
+            <button
+              type="button"
               key={shot.src}
               className="ev-shot"
               onClick={() => openLightbox(idx)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  openLightbox(idx);
-                }
-              }}
+              style={{ border: 0, padding: 0 }}
               aria-label={`View photo ${idx + 1}: ${shot.alt}`}
             >
               <img src={shot.src} alt={shot.alt} loading="lazy" />
@@ -104,16 +98,22 @@ export function EventGallery({ photos }: EventGalleryProps) {
                   <line x1="8" y1="11" x2="14" y2="11" />
                 </svg>
               </div>
-            </figure>
+            </button>
           ))}
         </div>
       </section>
 
       {/* Popout Lightbox Modal */}
       {activeIndex !== null && currentPhoto && (
-        <div className="ev-lightbox-overlay" onClick={closeLightbox}>
+        <div className="ev-lightbox-overlay">
           {/* Blurred Backdrop */}
-          <div className="ev-lightbox-backdrop" aria-hidden="true" />
+          <button
+            type="button"
+            className="ev-lightbox-backdrop"
+            onClick={closeLightbox}
+            aria-label="Close lightbox"
+            style={{ border: 0, padding: 0 }}
+          />
 
           {/* Top Close Button */}
           <button
@@ -161,10 +161,7 @@ export function EventGallery({ photos }: EventGalleryProps) {
           </button>
 
           {/* Main Stage with Slide Animation */}
-          <div
-            className="ev-lightbox-stage"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="ev-lightbox-stage">
             <div
               key={animKey}
               className={`ev-lightbox-card ${

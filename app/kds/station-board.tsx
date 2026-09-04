@@ -108,10 +108,11 @@ export function StationBoard({ station }: { station: Station }) {
   }, [playAlert, station]);
 
   useEffect(() => {
-    loadOrders();
+    const initialLoad = window.setTimeout(loadOrders, 0);
     const poller = window.setInterval(loadOrders, 2200);
     const ticker = window.setInterval(() => setClock(new Date()), 30_000);
     return () => {
+      window.clearTimeout(initialLoad);
       window.clearInterval(poller);
       window.clearInterval(ticker);
     };

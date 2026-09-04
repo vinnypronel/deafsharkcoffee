@@ -479,7 +479,7 @@ Stores the active preparation estimate, online-order pause state, business hours
 
 ### Schema initialization
 
-- `db/index.ts` uses `ensureSchema()` to create required tables and indexes if they do not already exist.
+- `db/index.ts` uses `ensureSchema()` as a read-only readiness check. Schema changes and default records are applied explicitly from the ordered SQL files in `drizzle/` before deployment.
 - Drizzle migrations also exist under `drizzle/`.
 - Keep migrations packaged with deployment archives.
 

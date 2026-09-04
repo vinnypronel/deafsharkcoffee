@@ -4,6 +4,7 @@ import { CustomerHeader, SiteFooter } from "../site-chrome";
 import { EventVideos } from "./event-videos";
 import { EventGallery } from "./event-gallery";
 import { UpcomingEvents } from "./upcoming-events";
+import { PuppyPartyMedia } from "./puppy-party-media";
 
 export const metadata: Metadata = {
   title: "Events | Deaf Shark Coffee",
@@ -39,49 +40,37 @@ export default function EventsPage() {
       </section>
 
       {/* Past Events Showcase */}
-      <section className="ev-past-section">
-        <div className="ev-past-head">
-          <h2>Past events...</h2>
-        </div>
+        <section className="ev-past-section">
+          <div className="ev-past-head">
+            <h2>Past Events</h2>
+          </div>
 
         {/* Past Event 1: Puppy Party */}
         <article className="ev-featured ev-featured-puppy">
           <div className="ev-featured-copy">
             <h2>Puppy Party</h2>
             <p>An evening for the neighborhood and their dogs, hosted by Mango the Doxy. Free entry, a custom menu crafted for dogs, raffles, and prizes through the night. BYOB.</p>
-            <dl className="ev-details">
-              <div>
-                <dt>Date</dt>
-                <dd>Friday, August 21, 2026</dd>
-              </div>
-              <div>
-                <dt>Time</dt>
-                <dd>6:00 to 9:00 PM</dd>
-              </div>
-              <div>
-                <dt>Location</dt>
-                <dd>900 Green Lane, Union NJ 07083</dd>
-              </div>
-              <div>
-                <dt>Host</dt>
-                <dd>Mango the Doxy</dd>
-              </div>
-              <div>
-                <dt>Highlights</dt>
-                <dd>BYOB, puppies, dog menu, raffles, prizes</dd>
-              </div>
-            </dl>
+              <dl className="ev-details">
+                <div>
+                  <dt>Date</dt>
+                  <dd>Friday, August 21, 2026</dd>
+                </div>
+                <div>
+                  <dt>Location</dt>
+                  <dd>900 Green Lane, Union NJ 07083</dd>
+                </div>
+                <div>
+                  <dt>Host</dt>
+                  <dd>Mango the Doxy</dd>
+                </div>
+                <div>
+                  <dt>Highlights</dt>
+                  <dd>BYOB, puppies, dog menu, raffles, prizes</dd>
+                </div>
+              </dl>
             <a className="primary-button" href="/contact">Visit the shop</a>
           </div>
-          <div className="ev-featured-media ev-puppy-media">
-            <figure className="ev-featured-shot ev-host-shot">
-              <img src="/events/puppy-mango.jpg" alt="Mango the Doxy, your host" loading="lazy" />
-              <figcaption>Mango the Doxy, your host.</figcaption>
-            </figure>
-            <figure className="ev-featured-shot ev-flyer">
-              <img src="/events/puppy-party-flyer.jpg" alt="Puppy Party event artwork" loading="lazy" />
-            </figure>
-          </div>
+          <PuppyPartyMedia />
         </article>
 
         {/* Past Event 2: Salsa and Networking */}
@@ -89,24 +78,24 @@ export default function EventsPage() {
           <div className="ev-featured-copy">
             <h2>Salsa and Networking</h2>
             <p>An evening hosted with the Township of Union. Live open format DJ set by DJ Eazy E, salsa dancing that spilled from the counter out to the pavilion, and local business owners meeting each other over coffee.</p>
-            <dl className="ev-details">
-              <div>
-                <dt>Date</dt>
-                <dd>Thursday, August 13, 2026</dd>
-              </div>
-              <div>
-                <dt>Location</dt>
-                <dd>900 Green Lane, Union NJ 07083</dd>
-              </div>
-              <div>
-                <dt>Partner</dt>
-                <dd>Township of Union</dd>
-              </div>
-              <div>
-                <dt>Music</dt>
-                <dd>DJ Eazy E</dd>
-              </div>
-            </dl>
+              <dl className="ev-details">
+                <div>
+                  <dt>Date</dt>
+                  <dd>Thursday, August 13, 2026</dd>
+                </div>
+                <div>
+                  <dt>Location</dt>
+                  <dd>900 Green Lane, Union NJ 07083</dd>
+                </div>
+                <div>
+                  <dt>Partner</dt>
+                  <dd>Township of Union</dd>
+                </div>
+                <div>
+                  <dt>Music</dt>
+                  <dd>DJ Eazy E</dd>
+                </div>
+              </dl>
             <a className="primary-button" href="/contact">Visit the shop</a>
           </div>
           <div className="ev-featured-media">

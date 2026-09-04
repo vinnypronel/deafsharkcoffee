@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { menuProducts, type PrepStation } from "../menu-data";
 import { AdminPanels } from "./admin-panels";
 
@@ -66,7 +67,33 @@ export function Dashboard() {
   const [activeView, setActiveView] = useState<"orders" | "menu" | "website" | "events" | "forms" | "history" | "loyalty">("orders");
   const [mobileColumn, setMobileColumn] = useState<Order["status"]>("new");
   const [connection, setConnection] = useState<"live" | "waiting">("waiting");
-  const [lastNewCount, setLastNewCount] = useState(0);
+  const [soundArmed, setSoundArmed] = useState(false);
+  /* Ids of new orders a staff member has already seen. Anything new and
+     unacknowledged keeps the alarm sounding. */
+  const [acknowledgedIds, setAcknowledgedIds] = useState<number[]>([]);
+  const lastNewCount = useRef(0);
+  const audioContext = useRef<AudioContext | null>(null);
+
+  /* Browsers block audio until a real gesture, so nothing can sound until a staff
+     member taps Enable sound once. The banner below makes an unarmed board obvious. */
+  const playAlert = useCallback(() => {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    const context = audioContext.current ?? new AudioContextClass();
+    audioContext.current = context;
+    if (context.state === "suspended") void context.resume();
+    const start = context.currentTime;
+    [0, 0.2, 0.4].forEach((offset, index) => {
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.frequency.value = index === 1 ? 880 : 660;
+      gain.gain.setValueAtTime(0.0001, start + offset);
+      gain.gain.exponentialRampToValueAtTime(0.28, start + offset + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + offset + 0.16);
+      oscillator.connect(gain).connect(context.destination);
+      oscillator.start(start + offset);
+      oscillator.stop(start + offset + 0.17);
+    });
+  }, []);
 
   const loadData = useCallback(async () => {
     try {
@@ -76,7 +103,11 @@ export function Dashboard() {
       ]);
       if (ordersResponse.ok) {
         const data = await ordersResponse.json() as { orders?: Order[] };
-        setOrders(data.orders ?? []);
+        const nextOrders = data.orders ?? [];
+        const nextNewCount = nextOrders.filter((order) => order.status === "new").length;
+        if (nextNewCount > lastNewCount.current && lastNewCount.current !== 0) setMobileColumn("new");
+        lastNewCount.current = nextNewCount;
+        setOrders(nextOrders);
         setConnection("live");
       }
       if (menuResponse.ok) {
@@ -95,18 +126,43 @@ export function Dashboard() {
   }, []);
 
   useEffect(() => {
-    loadData();
+    const initialLoad = window.setTimeout(loadData, 0);
     const timer = window.setInterval(loadData, 2200);
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearTimeout(initialLoad);
+      window.clearInterval(timer);
+    };
   }, [loadData]);
 
   const openOrders = orders.filter((order) => ["new", "preparing", "ready"].includes(order.status));
   const newCount = orders.filter((order) => order.status === "new").length;
+  const newOrderIds = useMemo(
+    () => orders.filter((order) => order.status === "new").map((order) => order.id),
+    [orders],
+  );
+  const unacknowledged = newOrderIds.filter((id) => !acknowledgedIds.includes(id));
+  const alarmActive = soundArmed && unacknowledged.length > 0;
 
+  /* Repeats until acknowledged. A later order that arrives after an acknowledge
+     is not in the acknowledged list, so the alarm starts again on its own. */
   useEffect(() => {
-    if (newCount > lastNewCount && lastNewCount !== 0) setMobileColumn("new");
-    setLastNewCount(newCount);
-  }, [newCount, lastNewCount]);
+    if (!alarmActive) return;
+    playAlert();
+    const timer = window.setInterval(playAlert, 3000);
+    return () => window.clearInterval(timer);
+  }, [alarmActive, playAlert]);
+
+  function acknowledgeOrders() {
+    setAcknowledgedIds(newOrderIds);
+  }
+
+  async function enableSound() {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    const context = audioContext.current ?? new AudioContextClass();
+    audioContext.current = context;
+    await context.resume();
+    setSoundArmed(true);
+  }
 
   const todayTotal = useMemo(() => orders.filter((order) => order.status !== "cancelled").reduce((sum, order) => sum + order.totalCents, 0) / 100, [orders]);
 
@@ -125,11 +181,6 @@ export function Dashboard() {
     });
   }
 
-  async function toggleAvailability(productId: string) {
-    const available = availability[productId] !== false;
-    setItemAvailability(productId, !available);
-  }
-
   async function changePrepTime(newTime: number) {
     const valid = Math.max(5, newTime);
     setPrepTime(valid);
@@ -145,7 +196,7 @@ export function Dashboard() {
   return (
     <main className="dashboard-page">
       <header className="dashboard-header">
-        <a className="dashboard-brand" href="/"><img src="/favicon.png" alt="" /><span><strong>Deaf Shark Coffee</strong></span></a>
+        <Link className="dashboard-brand" href="/"><img src="/favicon.png" alt="" /><span><strong>Deaf Shark Coffee</strong></span></Link>
         <div className="dashboard-tabs">
           <button className={activeView === "orders" ? "active" : ""} onClick={() => setActiveView("orders")}>Live orders <span>{openOrders.length}</span></button>
           <a href="/kds/coffee" target="_blank" rel="noreferrer">Coffee screen</a>
@@ -157,12 +208,35 @@ export function Dashboard() {
           <button className={activeView === "loyalty" ? "active" : ""} onClick={() => setActiveView("loyalty")}>Loyalty</button>
           <button className={activeView === "history" ? "active" : ""} onClick={() => setActiveView("history")}>Order history</button>
         </div>
-        <div className={`connection-status ${connection}`}><i />{connection === "live" ? "Live" : "Connecting"}</div>
+        <div className="dashboard-status-cluster">
+          <span className={`sound-status ${soundArmed ? "armed" : "off"}`}><i />{soundArmed ? "Sound on" : "Sound off"}</span>
+          <div className={`connection-status ${connection}`}><i />{connection === "live" ? "Live" : "Connecting"}</div>
+        </div>
       </header>
+
+      {!soundArmed && (
+        <section className="order-alert-bar is-unarmed">
+          <div className="order-alert-copy">
+            <strong>New order sound is off</strong>
+            <span>Tap once to turn it on. Until then this screen makes no noise when an order arrives.</span>
+          </div>
+          <button type="button" className="order-alert-action" onClick={enableSound}>Enable sound</button>
+        </section>
+      )}
+
+      {alarmActive && (
+        <section className="order-alert-bar is-alarming" role="alert">
+          <div className="order-alert-copy">
+            <strong>{unacknowledged.length} new {unacknowledged.length === 1 ? "order" : "orders"}</strong>
+            <span>The alert keeps sounding until someone acknowledges it.</span>
+          </div>
+          <button type="button" className="order-alert-action" onClick={acknowledgeOrders}>Acknowledge</button>
+        </section>
+      )}
 
       {(activeView === "orders" || activeView === "menu") && <section className="rush-bar">
         <div><span>Current customer wait time</span><button onClick={() => changePrepTime(prepTime - 5)}>−</button><strong>{prepTime} min</strong><button onClick={() => changePrepTime(prepTime + 5)}>+</button></div>
-        <div className="rush-summary"><span><strong>{newCount}</strong> new</span><span><strong>{orders.filter((order) => order.status === "preparing").length}</strong> preparing</span><span><strong>${todayTotal.toFixed(2)}</strong> demo sales</span></div>
+        <div className="rush-summary"><span><strong>{newCount}</strong> new</span><span><strong>{orders.filter((order) => order.status === "preparing").length}</strong> preparing</span><span><strong>${todayTotal.toFixed(2)}</strong> order value</span></div>
         <button className={`pause-button ${paused ? "paused" : ""}`} onClick={togglePaused}>{paused ? "Resume online orders" : "Pause online orders"}</button>
       </section>}
 
@@ -236,7 +310,7 @@ function OrderCard({ order, onAdvance, onCancel }: { order: Order; onAdvance: ()
       <div className="order-items">
         {order.items.map((item, index) => <div key={`${item.id}-${index}`}><b>{item.quantity}</b><span><strong>{item.name}</strong>{(item.prepStation || (item.options && item.options.length > 0)) && <small>{[item.prepStation ? `${item.prepStation.toLowerCase()} station` : "", ...(item.options ?? [])].filter(Boolean).join(" · ")}</small>}</span></div>)}
       </div>
-      <div className="payment-line"><span>{order.paymentMethod === "pickup" ? "Pay at pickup" : "Card demo"}</span><strong>${(order.totalCents / 100).toFixed(2)}</strong></div>
+      <div className="payment-line"><span>{order.paymentMethod === "pickup" ? "Pay at pickup" : "Paid online"}</span><strong>${(order.totalCents / 100).toFixed(2)}</strong></div>
       <button className="advance-button" onClick={onAdvance}>{nextLabel[order.status]}</button>
       {order.status === "new" && <button className="cancel-order" onClick={onCancel}>Cancel order</button>}
     </article>

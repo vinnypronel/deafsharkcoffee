@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import TurnstileWidget from "../turnstile-widget";
+import { PHONE_INPUT_MAX_LENGTH, formatPhoneInput } from "../../lib/phone-format";
 
-const positions = ["Barista", "Kitchen", "Cashier", "Shift Lead", "Open to anything"];
 const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const shifts = ["Morning", "Afternoon", "Evening", "Flexible"];
 const employmentTypes = ["Full time", "Part time", "Either"];
@@ -11,23 +12,24 @@ type FieldName =
   | "fullName"
   | "email"
   | "phone"
-  | "position"
   | "employmentType"
   | "shift"
   | "startDate"
   | "isAdult"
   | "experience"
-  | "why";
+  | "why"
+  | "resume";
 
 type Errors = Partial<Record<FieldName, string>>;
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+/* Must match maxResumeBytes in app/api/employment/route.ts. */
+const MAX_RESUME_BYTES = 3 * 1024 * 1024;
 
 export default function EmploymentForm() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [position, setPosition] = useState("");
   const [employmentType, setEmploymentType] = useState("");
   const [days, setDays] = useState<string[]>([]);
   const [shift, setShift] = useState("");
@@ -36,11 +38,31 @@ export default function EmploymentForm() {
   const [experience, setExperience] = useState("");
   const [why, setWhy] = useState("");
   const [resumeName, setResumeName] = useState("");
+  /* Upload progress for the resume. fetch() cannot report it, so the submit
+     below uses XMLHttpRequest purely to drive this. */
+  const [uploadPercent, setUploadPercent] = useState(0);
+  const [uploadDone, setUploadDone] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const confirmationRef = useRef<HTMLDivElement>(null);
+
+  /* Submitting from the bottom of a long form leaves the viewport parked on the
+     footer, so the confirmation is never seen. Lenis owns scrolling when it is
+     active; it is disabled on touch and reduced-motion, hence the fallback. */
+  useEffect(() => {
+    if (!submitted) return;
+    const target = confirmationRef.current;
+    if (!target) return;
+    const lenis = (window as Window & {
+      __lenis?: { scrollTo: (target: HTMLElement, options?: { offset?: number }) => void };
+    }).__lenis;
+    if (lenis) lenis.scrollTo(target, { offset: -120 });
+    else target.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [submitted]);
   const [submitError, setSubmitError] = useState("");
-  const [reference, setReference] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
 
   function clearError(field: FieldName) {
     setErrors((current) => {
@@ -55,8 +77,20 @@ export default function EmploymentForm() {
     setDays((current) => (current.includes(day) ? current.filter((item) => item !== day) : [...current, day]));
   }
 
+  /* Mirrors the server cap so an oversized file is rejected on selection
+     rather than after the applicant waits through a failed upload. */
   function onResumeChange(event: ChangeEvent<HTMLInputElement>) {
-    setResumeName(event.target.files?.[0]?.name ?? "");
+    const file = event.target.files?.[0];
+    if (file && file.size > MAX_RESUME_BYTES) {
+      event.target.value = "";
+      setResumeName("");
+      setErrors((current) => ({ ...current, resume: "That file is larger than 3 MB. Please attach a smaller resume." }));
+      return;
+    }
+    setErrors((current) => ({ ...current, resume: undefined }));
+    setUploadPercent(0);
+    setUploadDone(false);
+    setResumeName(file?.name ?? "");
   }
 
   function validate(): Errors {
@@ -65,7 +99,6 @@ export default function EmploymentForm() {
     if (!email.trim()) next.email = "Please enter an email address.";
     else if (!emailPattern.test(email.trim())) next.email = "Please enter a valid email address.";
     if (!phone.trim()) next.phone = "Please enter a phone number where we can reach you.";
-    if (!position) next.position = "Please choose the position you are applying for.";
     if (!employmentType) next.employmentType = "Please choose full time, part time, or either.";
     if (!isAdult) next.isAdult = "Please let us know if you are 18 or older.";
     return next;
@@ -81,18 +114,50 @@ export default function EmploymentForm() {
       document.getElementById(`emp-${firstError}`)?.focus();
       return;
     }
+    if (!turnstileToken) {
+      setSubmitError("Please complete the security check before submitting your application.");
+      return;
+    }
     const form = event.currentTarget;
+    const body = new FormData(form);
+    body.set("turnstileToken", turnstileToken);
     setSubmitting(true);
+    setUploadPercent(0);
+    setUploadDone(false);
     try {
-      const response = await fetch("/api/employment", { method: "POST", body: new FormData(form) });
-      const data = (await response.json()) as { error?: string; reference?: string };
-      if (!response.ok) throw new Error(data.error || "We could not save your application.");
-      setReference(data.reference || "");
+      await new Promise<{ error?: string; reference?: string }>((resolve, reject) => {
+        const request = new XMLHttpRequest();
+        request.open("POST", "/api/employment");
+        request.upload.addEventListener("progress", (progressEvent) => {
+          if (!progressEvent.lengthComputable) return;
+          setUploadPercent(Math.round((progressEvent.loaded / progressEvent.total) * 100));
+        });
+        /* The bytes are sent; the server is still working. Hold at 100 so the
+           bar does not sit at 99 while the response is in flight. */
+        request.upload.addEventListener("load", () => setUploadPercent(100));
+        request.addEventListener("load", () => {
+          let parsed: { error?: string; reference?: string } = {};
+          try {
+            parsed = JSON.parse(request.responseText) as { error?: string; reference?: string };
+          } catch {
+            parsed = {};
+          }
+          if (request.status >= 200 && request.status < 300) resolve(parsed);
+          else reject(new Error(parsed.error || "We could not save your application."));
+        });
+        request.addEventListener("error", () => reject(new Error("We could not reach the server. Please try again.")));
+        request.addEventListener("abort", () => reject(new Error("The upload was cancelled.")));
+        request.send(body);
+      });
+      if (resumeName) setUploadDone(true);
       setSubmitted(true);
     } catch (error) {
+      setUploadPercent(0);
+      setUploadDone(false);
       setSubmitError(error instanceof Error ? error.message : "We could not save your application.");
     } finally {
       setSubmitting(false);
+      setTurnstileResetKey((current) => current + 1);
     }
   }
 
@@ -109,13 +174,12 @@ export default function EmploymentForm() {
   if (submitted) {
     return (
       <section className="emp-form-section" aria-labelledby="emp-confirm-heading">
-        <div className="emp-confirmation">
+        <div className="emp-confirmation" ref={confirmationRef}>
           <h2 id="emp-confirm-heading">Application received.</h2>
           <p>
             Thank you for your interest in joining the Deaf Shark Coffee team! We will review your application and get in touch with you shortly.
           </p>
-          {reference && <p><strong>Application reference: {reference}</strong></p>}
-          <p>To follow up on working at the shop, you can also call (908) 481-8884 or stop by 900 Green Lane in Union.</p>
+          <p>To follow up, you can call (908) 481-8884 or stop by the shop at 900 Green Lane in Union.</p>
           <div className="emp-confirmation-actions">
             <button type="button" className="primary-button" onClick={startOver}>
               Back to the form
@@ -193,8 +257,10 @@ export default function EmploymentForm() {
               type="tel"
               autoComplete="tel"
               value={phone}
+              maxLength={PHONE_INPUT_MAX_LENGTH}
+              placeholder="(908)-555-0123"
               onChange={(event) => {
-                setPhone(event.target.value);
+                setPhone(formatPhoneInput(event.target.value));
                 clearError("phone");
               }}
               aria-invalid={errors.phone ? true : undefined}
@@ -207,35 +273,6 @@ export default function EmploymentForm() {
             )}
           </div>
 
-          <div className="emp-field">
-            <label htmlFor="emp-position">
-              Position applying for <span className="emp-required">*</span>
-            </label>
-            <select
-              id="emp-position"
-              name="position"
-              className="emp-select"
-              value={position}
-              onChange={(event) => {
-                setPosition(event.target.value);
-                clearError("position");
-              }}
-              aria-invalid={errors.position ? true : undefined}
-              aria-describedby={describedBy("position")}
-            >
-              <option value="">Choose a position</option>
-              {positions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-            {errors.position && (
-              <p className="emp-error" id="emp-position-error">
-                {errors.position}
-              </p>
-            )}
-          </div>
 
           <fieldset className="emp-fieldset emp-span-2">
             <legend id="emp-employmentType-legend">
@@ -385,22 +422,48 @@ export default function EmploymentForm() {
 
           <div className="emp-field emp-span-2">
             <label htmlFor="emp-resume">Resume</label>
-            <input
-              id="emp-resume"
-              name="resume"
-              type="file"
-              className="emp-file"
-              accept=".pdf,.doc,.docx,.txt,.rtf"
-              onChange={onResumeChange}
-              aria-describedby="emp-resume-note"
-            />
+            <div className="emp-file-row">
+              <input
+                id="emp-resume"
+                name="resume"
+                type="file"
+                className="emp-file"
+                accept=".pdf,.doc,.docx,.txt,.rtf"
+                onChange={onResumeChange}
+                aria-describedby="emp-resume-note"
+              />
+              {/* A check as soon as a valid file is chosen, a progress bar while it
+                  uploads, then the check again once the server has it. */}
+              {resumeName && (
+                <div className="emp-upload-state" aria-live="polite">
+                  {uploadPercent === 0 || uploadDone ? (
+                    <span className="emp-upload-check" role="img" aria-label={uploadDone ? "Resume uploaded" : "Resume ready to send"}>
+                      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10.5l4 4 8-8" /></svg>
+                    </span>
+                  ) : (
+                    <span
+                      className="emp-upload-bar"
+                      role="progressbar"
+                      aria-valuenow={uploadPercent}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-label="Uploading resume"
+                    >
+                      <span className="emp-upload-fill" style={{ width: `${uploadPercent}%` }} />
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
             {resumeName && <p className="emp-file-name">Selected file: {resumeName}</p>}
+            {errors.resume && <p className="emp-error" role="alert">{errors.resume}</p>}
             <p className="emp-hint" id="emp-resume-note">
-              Accepted formats: PDF, Word, RTF, or plain text.
+              Accepted formats: PDF, Word, RTF, or plain text. Maximum 3 MB.
             </p>
           </div>
         </div>
 
+        <TurnstileWidget action="employment" onToken={setTurnstileToken} resetKey={turnstileResetKey} />
         <div className="emp-submit-row">
           <button type="submit" className="primary-button emp-submit" disabled={submitting}>
             {submitting ? "Saving application..." : "Submit application"}

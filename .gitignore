@@ -26,6 +26,8 @@ build/
 /outputs/
 /work/
 /.codex-temp/
+/backups/
+/release-artifacts/
 *.tsbuildinfo
 tsconfig.tsbuildinfo
 
@@ -33,6 +35,7 @@ tsconfig.tsbuildinfo
 .env
 .env.*
 !.env.example
+.dev.vars
 *.pem
 
 # Testing & Coverage
@@ -74,3 +77,6 @@ Thumbs.db
 # Root Raw Uploads / Scratch Downloads
 /SaveClip*
 /Using_the_exact_cup_design*
+
+# Transient secret payload for `wrangler secret bulk`. Delete after uploading.
+worker-secrets.json

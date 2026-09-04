@@ -3,6 +3,8 @@
 import { useEffect } from "react";
 import Lenis from "lenis";
 
+type WindowWithLenis = Window & { __lenis?: Lenis };
+
 export function SmoothScrollProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -18,7 +20,7 @@ export function SmoothScrollProvider({ children }: { children: React.ReactNode }
       wheelMultiplier: 1,
     });
 
-    (window as any).__lenis = lenis;
+    (window as WindowWithLenis).__lenis = lenis;
 
     let frame = 0;
     const animate = (time: number) => {
@@ -30,7 +32,7 @@ export function SmoothScrollProvider({ children }: { children: React.ReactNode }
 
     return () => {
       window.cancelAnimationFrame(frame);
-      delete (window as any).__lenis;
+      delete (window as WindowWithLenis).__lenis;
       lenis.destroy();
     };
   }, []);

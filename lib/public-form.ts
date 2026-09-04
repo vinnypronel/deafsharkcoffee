@@ -15,22 +15,57 @@ export function cleanPhone(value: unknown) {
   return cleanText(value, 30).replace(/[^0-9+()\- .]/g, "");
 }
 
-export async function verifyPublicForm(request: Request, token: unknown) {
-  const secret = env.TURNSTILE_SECRET_KEY?.trim();
-  if (!secret) return true;
-  if (typeof token !== "string" || !token) return false;
+const TURNSTILE_TOKEN_MAX_LENGTH = 2048;
+const TURNSTILE_TIMEOUT_MS = 10_000;
 
-  const body = new FormData();
+type TurnstileResult = {
+  success?: boolean;
+  action?: string;
+  hostname?: string;
+};
+
+function configuredHostnames() {
+  return new Set(
+    (env.TURNSTILE_HOSTNAMES ?? "")
+      .split(",")
+      .map((hostname) => hostname.trim().toLowerCase())
+      .filter(Boolean),
+  );
+}
+
+export function requestExceedsBytes(request: Request, maxBytes: number) {
+  const value = request.headers.get("content-length");
+  if (!value) return false;
+  const length = Number(value);
+  return Number.isFinite(length) && length > maxBytes;
+}
+
+export async function verifyPublicForm(request: Request, token: unknown, expectedAction: string) {
+  const secret = env.TURNSTILE_SECRET_KEY?.trim();
+  const hostnames = configuredHostnames();
+  const responseToken = typeof token === "string" ? token.trim() : "";
+  if (!secret || hostnames.size === 0 || !responseToken || responseToken.length > TURNSTILE_TOKEN_MAX_LENGTH) return false;
+
+  const body = new URLSearchParams();
   body.set("secret", secret);
-  body.set("response", token);
+  body.set("response", responseToken);
   const ip = request.headers.get("cf-connecting-ip");
   if (ip) body.set("remoteip", ip);
 
-  const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
-    method: "POST",
-    body,
-  });
-  if (!response.ok) return false;
-  const result = (await response.json()) as { success?: boolean };
-  return result.success === true;
+  try {
+    const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+      signal: AbortSignal.timeout(TURNSTILE_TIMEOUT_MS),
+    });
+    if (!response.ok) return false;
+    const result = (await response.json()) as TurnstileResult;
+    return result.success === true
+      && result.action === expectedAction
+      && typeof result.hostname === "string"
+      && hostnames.has(result.hostname.toLowerCase());
+  } catch {
+    return false;
+  }
 }

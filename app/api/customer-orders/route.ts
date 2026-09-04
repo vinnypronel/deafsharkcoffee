@@ -1,46 +1,39 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../db";
 import { orders } from "../../../db/schema";
-
-const digits = (value: string) => value.replace(/\D/g, "");
+import { getCustomerSession } from "../../../lib/auth";
+import { serveOwnedCustomerOrder } from "../../../lib/customer-order-access";
 
 export async function POST(request: Request) {
   try {
+    const session = await getCustomerSession(request);
+    if (!session) {
+      return Response.json(
+        { error: "Sign in to view your order." },
+        { status: 401, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
     await ensureSchema();
-    const payload = (await request.json()) as { orderNumber?: string; phone?: string };
-    const orderNumber = payload.orderNumber?.trim().toUpperCase() ?? "";
-    const phone = payload.phone?.trim() ?? "";
-
-    if (!orderNumber) {
-      return Response.json({ error: "Enter your order number." }, { status: 400 });
-    }
-
-    const [order] = await getDb().select().from(orders).where(eq(orders.orderNumber, orderNumber)).limit(1);
-    if (!order) {
-      return Response.json({ error: "We could not find an order with those details." }, { status: 404 });
-    }
-
-    if (phone && digits(phone).length >= 7 && digits(order.phone) && digits(order.phone) !== digits(phone)) {
-      return Response.json({ error: "We could not find an order with those details." }, { status: 404 });
-    }
-
-    return Response.json({
-      order: {
-        id: order.id,
-        orderNumber: order.orderNumber,
-        customerName: order.customerName,
-        items: JSON.parse(order.itemsJson),
-        totalCents: order.totalCents,
-        status: order.status,
-        paymentMethod: order.paymentMethod,
-        pickupEta: order.pickupEta,
-        fulfillmentType: order.fulfillmentType,
-        scheduledFor: order.scheduledFor,
-        createdAt: order.createdAt,
+    return serveOwnedCustomerOrder(
+      request,
+      session.user.id,
+      async (orderNumber, customerUserId) => {
+        const [order] = await getDb()
+          .select()
+          .from(orders)
+          .where(and(
+            eq(orders.orderNumber, orderNumber),
+            eq(orders.customerUserId, customerUserId),
+          ))
+          .limit(1);
+        return order ?? null;
       },
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to find your order";
-    return Response.json({ error: message }, { status: 500 });
+    );
+  } catch {
+    return Response.json(
+      { error: "Unable to load your order right now." },
+      { status: 500, headers: { "Cache-Control": "no-store" } },
+    );
   }
 }

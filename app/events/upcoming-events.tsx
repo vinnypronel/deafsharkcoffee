@@ -59,7 +59,7 @@ export function UpcomingEvents() {
             </div>
             <div className="ev-upcoming-media">
               <figure className="ev-host-shot">
-                <img src={event.imageLeftUrl} alt={`${event.title} photo`} loading="lazy" />
+                <img src={event.imageLeftUrl} alt={`${event.title} gathering`} loading="lazy" />
                 {event.imageCaption && <figcaption>{event.imageCaption}</figcaption>}
               </figure>
               <figure className="ev-flyer"><img src={event.imageRightUrl} alt={`${event.title} event artwork`} loading="lazy" /></figure>

@@ -92,12 +92,16 @@ export const orders = sqliteTable(
     fulfillmentType: text("fulfillment_type").notNull().default("asap"),
     scheduledFor: integer("scheduled_for", { mode: "timestamp" }),
     customerUserId: text("customer_user_id"),
+    /* Client-generated per checkout attempt. The unique index makes a retried or
+       double-clicked submit resolve to the order that was already stored. */
+    idempotencyKey: text("idempotency_key"),
     createdAt: integer("created_at", { mode: "timestamp" })
       .notNull()
       .$defaultFn(() => new Date()),
   },
   (table) => [
     index("idx_orders_status_created_at").on(table.status, table.createdAt),
+    uniqueIndex("idx_orders_idempotency_key_unique").on(table.idempotencyKey),
   ],
 );
 
@@ -110,6 +114,8 @@ export const customerProfiles = sqliteTable("customer_profiles", {
   lifetimePoints: integer("lifetime_points").notNull().default(0),
   birthdayMonth: integer("birthday_month"),
   birthdayDay: integer("birthday_day"),
+  termsAcceptedAt: integer("terms_accepted_at", { mode: "timestamp" }),
+  privacyAcceptedAt: integer("privacy_accepted_at", { mode: "timestamp" }),
   signupBonusAwarded: integer("signup_bonus_awarded", { mode: "boolean" }).notNull().default(false),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),

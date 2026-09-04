@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import TurnstileWidget from "../turnstile-widget";
+import { PHONE_INPUT_MAX_LENGTH, formatPhoneInput } from "../../lib/phone-format";
 
 type ContactField = "name" | "email" | "message";
 type ContactErrors = Partial<Record<ContactField, string>>;
@@ -15,6 +17,9 @@ export default function ContactForm() {
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<ContactErrors>({});
   const [reference, setReference] = useState("");
+  const [phone, setPhone] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -32,13 +37,17 @@ export default function ContactForm() {
     else if (message.length < 10) nextErrors.message = "Please add a little more detail—at least 10 characters.";
     setFieldErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
+    if (!turnstileToken) {
+      setError("Please complete the security check before sending your message.");
+      return;
+    }
 
     setSubmitting(true);
     try {
       const response = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+        body: JSON.stringify({ ...values, turnstileToken }),
       });
       const data = (await response.json()) as { error?: string; reference?: string };
       if (!response.ok) throw new Error(data.error || "We could not send your message.");
@@ -48,6 +57,7 @@ export default function ContactForm() {
       setError(caught instanceof Error ? caught.message : "We could not send your message.");
     } finally {
       setSubmitting(false);
+      setTurnstileResetKey((current) => current + 1);
     }
   }
 
@@ -55,9 +65,18 @@ export default function ContactForm() {
     return (
       <section className="contact-form-section" aria-labelledby="contact-form-heading">
         <div className="contact-form-success">
-          <span className="eyebrow">Message saved</span>
+          <img
+            className="contact-success-logo"
+            src="/deafshark-logo-640.webp"
+            alt=""
+            aria-hidden="true"
+            width={72}
+            height={72}
+            loading="eager"
+            decoding="async"
+          />
           <h2 id="contact-form-heading">Thank you for reaching out.</h2>
-          <p>Your reference is <strong>{reference}</strong>. The Deaf Shark team can review your message and respond using the email you provided.</p>
+          <p>We have your message. The Deaf Shark team will get back to you at the email you provided.</p>
           <button className="soft-button" type="button" onClick={() => setReference("")}>Send another message</button>
         </div>
       </section>
@@ -67,8 +86,7 @@ export default function ContactForm() {
   return (
     <section className="contact-form-section" aria-labelledby="contact-form-heading">
       <div className="contact-form-intro">
-        <span className="eyebrow">Questions and inquiries</span>
-        <h2 id="contact-form-heading">Send the shop a message.</h2>
+        <h2 id="contact-form-heading">Send us a message.</h2>
         <p>Use this form for catering, events, order questions, feedback, or anything else the team can help with.</p>
       </div>
       <form
@@ -84,9 +102,10 @@ export default function ContactForm() {
       >
         <label className={fieldErrors.name ? "has-error" : undefined}><span>Name *</span><input name="name" autoComplete="name" maxLength={100} aria-invalid={fieldErrors.name ? true : undefined} aria-describedby={fieldErrors.name ? "contact-name-error" : undefined} /><FieldError id="contact-name-error">{fieldErrors.name}</FieldError></label>
         <label className={fieldErrors.email ? "has-error" : undefined}><span>Email *</span><input name="email" type="email" autoComplete="email" maxLength={254} aria-invalid={fieldErrors.email ? true : undefined} aria-describedby={fieldErrors.email ? "contact-email-error" : undefined} /><FieldError id="contact-email-error">{fieldErrors.email}</FieldError></label>
-        <label><span>Phone</span><input name="phone" type="tel" autoComplete="tel" maxLength={30} /></label>
+        <label><span>Phone</span><input name="phone" type="tel" autoComplete="tel" value={phone} maxLength={PHONE_INPUT_MAX_LENGTH} placeholder="(908)-555-0123" onChange={(event) => setPhone(formatPhoneInput(event.target.value))} /></label>
         <label><span>Topic *</span><select name="topic" defaultValue="general"><option value="general">General question</option><option value="catering">Catering</option><option value="order">Order help</option><option value="events">Events</option><option value="feedback">Feedback</option></select></label>
         <label className={`contact-message${fieldErrors.message ? " has-error" : ""}`}><span>Message *</span><textarea name="message" rows={6} minLength={10} maxLength={3000} aria-invalid={fieldErrors.message ? true : undefined} aria-describedby={fieldErrors.message ? "contact-message-error" : undefined} /><FieldError id="contact-message-error">{fieldErrors.message}</FieldError></label>
+        <TurnstileWidget action="contact" onToken={setTurnstileToken} resetKey={turnstileResetKey} />
         {error && <p className="form-error contact-form-error" role="alert">{error}</p>}
         <button className="primary-button" type="submit" disabled={submitting}>{submitting ? "Saving message..." : "Send message"}</button>
       </form>
