@@ -927,8 +927,12 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
         const stickyNav = document.querySelector(".standalone-order .category-nav-wrap");
         const stickyNavHeight = stickyNav?.getBoundingClientRect().height ?? 46;
         const standardTop = 84 + stickyNavHeight + 8;
+        const mobilePin = document.querySelector(".standalone-order .menu-product-pin");
+        const mobileTop = 68 + (mobilePin?.getBoundingClientRect().height ?? 0) + 12;
         const desiredTop =
-          category === "Coffee Beans" && window.innerWidth > 780
+          window.innerWidth <= 780
+            ? mobileTop
+            : category === "Coffee Beans"
             ? Math.max(standardTop, window.innerHeight - 180)
             : standardTop;
         const destination = Math.max(0, targetTop - desiredTop);
@@ -1139,11 +1143,15 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
     const nav = document.querySelector(".standalone-order .category-nav-wrap");
     const navHeight = nav ? nav.getBoundingClientRect().height : 46;
     const standardTop = 84 + navHeight + 8;
+    const mobilePin = document.querySelector(".standalone-order .menu-product-pin");
+    const mobileTop = 68 + (mobilePin?.getBoundingClientRect().height ?? 0) + 12;
     /* Coffee Beans is a short final section. Keep the last refrigerator rows
        in view above it instead of over-scrolling the heading to the top. */
-    const desiredTop = category === "Coffee Beans" && window.innerWidth > 780
-      ? Math.max(standardTop, window.innerHeight - 180)
-      : standardTop;
+    const desiredTop = window.innerWidth <= 780
+      ? mobileTop
+      : category === "Coffee Beans"
+        ? Math.max(standardTop, window.innerHeight - 180)
+        : standardTop;
     const y = window.scrollY + target.getBoundingClientRect().top - desiredTop;
     window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
     setActiveCategory(category);
@@ -1273,6 +1281,10 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
       /* the section whose header is closest to just under the sticky nav wins */
       let best = blocks[0];
       const finalSection = blocks[blocks.length - 1];
+      const mobilePin = document.querySelector(".standalone-order .menu-product-pin");
+      const activeLine = window.innerWidth <= 780
+        ? 68 + (mobilePin?.getBoundingClientRect().height ?? 0) + 12
+        : 150;
       const coffeeBeansFramed = window.innerWidth > 780
         && finalSection.getBoundingClientRect().top <= window.innerHeight - 170;
       if (coffeeBeansFramed) {
@@ -1280,7 +1292,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
       } else {
         let bestDist = Infinity;
         for (const el of blocks) {
-          const d = Math.abs(el.getBoundingClientRect().top - 150);
+          const d = Math.abs(el.getBoundingClientRect().top - activeLine);
           if (d < bestDist) { bestDist = d; best = el; }
         }
       }

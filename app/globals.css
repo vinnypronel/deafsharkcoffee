@@ -5076,18 +5076,21 @@ body.modal-open { touch-action: none; }
   margin-top: 8px;
 }
 @media (max-width: 780px) {
-  .order-section:not(.standalone-order) .menu-showcase-grid {
+  .order-section .menu-showcase-grid {
+    grid-template-columns: minmax(0, 1fr);
     gap: 0;
   }
-  .order-section:not(.standalone-order) .menu-product-card-wrap {
+  .order-section .menu-product-card-wrap {
+    position: static;
+    top: auto;
     display: contents;
   }
-  .order-section:not(.standalone-order) .menu-card-brand,
-  .order-section:not(.standalone-order) .menu-list-panel {
+  .order-section .menu-card-brand,
+  .order-section .menu-list-panel {
     position: relative;
     z-index: 1;
   }
-  .order-section:not(.standalone-order) .menu-product-pin {
+  .order-section .menu-product-pin {
     position: sticky;
     top: 68px;
     z-index: 12;
@@ -5096,7 +5099,7 @@ body.modal-open { touch-action: none; }
     padding: 0 0 16px;
     background: #faf2e4;
   }
-  .order-section:not(.standalone-order) .menu-product-pin::before {
+  .order-section .menu-product-pin::before {
     content: "";
     position: absolute;
     z-index: -1;
@@ -5104,16 +5107,16 @@ body.modal-open { touch-action: none; }
     background: #faf2e4;
     pointer-events: none;
   }
-  .order-section:not(.standalone-order) .menu-sidebar-heading {
+  .order-section .menu-sidebar-heading {
     margin-bottom: 12px;
   }
-  .order-section:not(.standalone-order) .menu-product-card-sticky-mask {
+  .order-section .menu-product-card-sticky-mask {
     position: relative;
     display: block;
     padding: 0;
     background: transparent;
   }
-  .order-section:not(.standalone-order) .menu-product-card {
+  .order-section .menu-product-card {
     position: relative;
     top: auto;
     z-index: 1;
@@ -5124,15 +5127,48 @@ body.modal-open { touch-action: none; }
     margin-bottom: 0;
     box-shadow: none;
   }
-  .order-section:not(.standalone-order) .menu-card-brand {
+  .order-section .menu-card-brand {
     z-index: 2;
     min-height: 32px;
     margin: 12px 0;
     padding-block: 2px;
     overflow: visible;
   }
-  .order-section:not(.standalone-order) .menu-list-panel {
+  .order-section .menu-list-panel {
     z-index: 1;
+  }
+  /* The full menu used to keep its desktop category tabs, section headings,
+     product card, and floating badge sticky at the same time. On a phone those
+     layers all converged under the 68px header. Let the product showcase be the
+     single pinned surface, just like the homepage menu, while the navigation
+     and category headings scroll normally beneath it. */
+  .standalone-order {
+    padding-top: 24px;
+  }
+  .standalone-order .order-section-badge-wrap {
+    display: none;
+  }
+  .standalone-order .category-nav-wrap {
+    position: relative;
+    top: auto;
+    z-index: 2;
+    margin: 0 -16px;
+    padding: 10px 16px;
+  }
+  .standalone-order .category-nav {
+    top: auto;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+  }
+  .standalone-order .menu-panel-header {
+    position: relative;
+    top: auto;
+    z-index: 2;
+    padding-top: 14px;
+  }
+  .standalone-order .menu-panel-header::after {
+    display: none;
   }
   .item-quick-add {
     display: none;
