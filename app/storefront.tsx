@@ -1193,7 +1193,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
             <span className="quick-add-plus" aria-hidden="true" />
           </OrderOnlineLink>
         )}
-        {!soldOut && CUSTOM_CHECKOUT_ENABLED && isSelected && (
+        {!soldOut && isSelected && (
           <div className="item-selected-actions" aria-label={`${product.name} actions`}>
             {product.configurable && (
               <button
@@ -1208,16 +1208,23 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
                 </svg>
               </button>
             )}
-            <button
-              type="button"
-              className={`item-selected-cart ${justAdded === product.id ? "added" : ""}`}
-              onClick={() => quickAdd(product)}
-              aria-label={`${justAdded === product.id ? "Added" : "Add"} ${product.name} to cart`}
-              title={`${justAdded === product.id ? "Added" : "Add to cart"}`}
-            >
-              <span className="universal-cart-glyph" aria-hidden="true" />
-              <span className="quick-add-plus" aria-hidden="true" />
-            </button>
+            {CUSTOM_CHECKOUT_ENABLED ? (
+              <button
+                type="button"
+                className={`item-selected-cart ${justAdded === product.id ? "added" : ""}`}
+                onClick={() => quickAdd(product)}
+                aria-label={`${justAdded === product.id ? "Added" : "Add"} ${product.name} to cart`}
+                title={`${justAdded === product.id ? "Added" : "Add to cart"}`}
+              >
+                <span className="universal-cart-glyph" aria-hidden="true" />
+                <span className="quick-add-plus" aria-hidden="true" />
+              </button>
+            ) : (
+              <OrderOnlineLink className="item-selected-cart" ariaLabel={`Add ${product.name} to cart`}>
+                <span className="universal-cart-glyph" aria-hidden="true" />
+                <span className="quick-add-plus" aria-hidden="true" />
+              </OrderOnlineLink>
+            )}
           </div>
         )}
       </div>

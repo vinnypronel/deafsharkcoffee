@@ -19,7 +19,39 @@ const BACKDROP = "#1a0f0a";
 
 // Module-level cached media elements so navigating back to the home page is instantaneous
 let cachedVideo: HTMLVideoElement | null = null;
+let cachedVideoSource = "";
 let cachedPoster: HTMLImageElement | null = null;
+const seekableVideoUrls = new Map<string, string>();
+const seekableVideoRequests = new Map<string, Promise<string>>();
+
+/* The production asset server currently answers MP4 range requests with the
+   entire file. Chromium can display that response, but it does not consistently
+   expose a seekable timeline for scroll scrubbing. Fetch the small clip once and
+   use a blob URL so every browser gets a genuinely local, seekable media source. */
+function getSeekableVideoUrl(src: string): Promise<string> {
+  const ready = seekableVideoUrls.get(src);
+  if (ready) return Promise.resolve(ready);
+
+  const pending = seekableVideoRequests.get(src);
+  if (pending) return pending;
+
+  const request = fetch(src, { cache: "force-cache" })
+    .then((response) => {
+      if (!response.ok) throw new Error(`Unable to cache hero video (${response.status})`);
+      return response.blob();
+    })
+    .then((blob) => {
+      const url = URL.createObjectURL(blob);
+      seekableVideoUrls.set(src, url);
+      return url;
+    })
+    .finally(() => {
+      seekableVideoRequests.delete(src);
+    });
+
+  seekableVideoRequests.set(src, request);
+  return request;
+}
 
 /* The head script starts fetching the footage during document parse. Adopting its
    element here means the scrub never waits on a second request after hydration. */
@@ -54,18 +86,23 @@ function attachOffscreen(video: HTMLVideoElement) {
 function getSharedVideo(src: string): HTMLVideoElement | null {
   if (typeof document === "undefined") return null;
   const preloaded = (window as unknown as HeroPreload).__heroScrubVideo;
-  if (!cachedVideo && preloaded && preloaded.src.endsWith(src)) {
+  const preloadedSrc = (window as unknown as HeroPreload).__heroScrubSrc;
+  if (!cachedVideo && preloaded && preloadedSrc === src) {
     cachedVideo = preloaded;
+    cachedVideoSource = src;
   }
   if (!cachedVideo) {
     cachedVideo = document.createElement("video");
     cachedVideo.src = src;
+    cachedVideoSource = src;
     cachedVideo.muted = true;
     cachedVideo.playsInline = true;
     cachedVideo.preload = "auto";
     cachedVideo.load();
-  } else if (!cachedVideo.src.endsWith(src) && cachedVideo.src !== src) {
+  } else if (cachedVideoSource !== src) {
+    cachedVideo.pause();
     cachedVideo.src = src;
+    cachedVideoSource = src;
     cachedVideo.load();
   }
   cachedVideo.preload = "auto";
@@ -464,6 +501,26 @@ export default function ScrollHero({
     ensureTicking();
     window.addEventListener("scroll", ensureTicking, { passive: true });
 
+    let disposed = false;
+    void getSeekableVideoUrl(chosenSrc).then((localUrl) => {
+      if (disposed || videoRef.current !== video || cachedVideoSource !== chosenSrc) return;
+      if (video.src === localUrl) return;
+
+      /* Preserve the current scroll-derived time while changing sources. The
+         loadedmetadata handler restores duration and the active animation frame
+         performs the exact seek on the new, fully seekable timeline. */
+      video.pause();
+      duration = 0;
+      seeking = false;
+      video.src = localUrl;
+      video.preload = "auto";
+      video.load();
+      ensureTicking();
+    }).catch(() => {
+      /* Keep the direct media URL as a graceful fallback if caching is blocked. */
+      ensureTicking();
+    });
+
     const handleResize = () => {
       refreshVars();
       resizeCanvas();
@@ -495,6 +552,7 @@ export default function ScrollHero({
     observer.observe(pin);
 
     return () => {
+      disposed = true;
       cancelAnimationFrame(frame);
       video.pause();
       video.removeEventListener("loadedmetadata", readDuration);
