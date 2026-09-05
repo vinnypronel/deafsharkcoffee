@@ -5083,6 +5083,9 @@ body.modal-open { touch-action: none; }
 .menu-category-block + .menu-category-block {
   margin-top: 8px;
 }
+.mobile-menu-pinned-controls {
+  display: none;
+}
 @media (max-width: 780px) {
   .order-section .menu-showcase-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -5145,38 +5148,120 @@ body.modal-open { touch-action: none; }
   .order-section .menu-list-panel {
     z-index: 1;
   }
-  /* The full menu used to keep its desktop category tabs, section headings,
-     product card, and floating badge sticky at the same time. On a phone those
-     layers all converged under the 68px header. Let the product showcase be the
-     single pinned surface, just like the homepage menu, while the navigation
-     and category headings scroll normally beneath it. */
+  /* Keep the showcase, category navigation, and current category title in one
+     sticky surface. Only the product rows travel beneath this stack. */
   .standalone-order {
-    padding-top: 24px;
+    padding-top: 16px;
   }
   .standalone-order .order-section-badge-wrap {
     display: none;
   }
   .standalone-order .category-nav-wrap {
-    position: relative;
-    top: auto;
-    z-index: 2;
-    margin: 0 -16px;
-    padding: 10px 16px;
+    display: none;
   }
-  .standalone-order .category-nav {
-    top: auto;
-    margin: 0;
+  .standalone-order .menu-product-pin {
+    padding-bottom: 0;
+  }
+  .standalone-order .menu-sidebar-heading {
+    margin-bottom: 8px;
+  }
+  .standalone-order .menu-card-brand {
+    margin: 8px 0;
+  }
+  .mobile-menu-pinned-controls {
+    display: block;
+    margin: 0 -16px;
+    padding: 0 16px;
+    background: #faf2e4;
+  }
+  .mobile-category-nav-shell {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) 28px;
+    align-items: center;
+    gap: 3px;
+    border-bottom: 1px solid rgba(45, 26, 18, 0.12);
+  }
+  .mobile-category-nav {
+    display: flex;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    scroll-behavior: smooth;
+  }
+  .mobile-category-nav::-webkit-scrollbar {
+    display: none;
+  }
+  .mobile-category-nav > button {
+    position: relative;
+    flex: 0 0 auto;
+    min-height: 38px;
+    border: 0;
+    padding: 4px 10px;
+    background: transparent;
+    color: rgba(45, 26, 18, 0.65);
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .mobile-category-nav > button.active {
+    color: var(--espresso);
+    font-weight: 850;
+  }
+  .mobile-category-nav > button.active::after {
+    content: "";
+    position: absolute;
+    right: 10px;
+    bottom: 0;
+    left: 10px;
+    height: 2px;
+    border-radius: 999px;
+    background: var(--espresso);
+  }
+  .mobile-category-arrow {
+    width: 28px;
+    height: 38px;
+    border: 0;
     padding: 0;
-    box-shadow: none;
+    background: transparent;
+    color: var(--espresso);
+    font: 700 28px/1 Georgia, serif;
+    cursor: pointer;
+  }
+  .mobile-category-arrow:disabled {
+    opacity: 0.25;
+    cursor: default;
+  }
+  .mobile-pinned-category-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 52px;
+    padding: 9px 0 11px;
+    box-shadow: inset 0 -2px 0 var(--espresso);
+  }
+  .mobile-pinned-category-header h3 {
+    margin: 0;
+    font-family: Georgia, serif;
+    font-size: 22px;
+    line-height: 1;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  .mobile-pinned-category-header span {
+    max-width: 62%;
+    color: var(--muted);
+    font-size: 10px;
+    line-height: 1.2;
+    text-align: right;
   }
   .standalone-order .menu-panel-header {
-    position: relative;
-    top: auto;
-    z-index: 2;
-    padding-top: 14px;
-  }
-  .standalone-order .menu-panel-header::after {
     display: none;
+  }
+  .standalone-order .menu-category-block,
+  .standalone-order .menu-category-block + .menu-category-block {
+    margin-top: 0;
+    scroll-margin-top: calc(68px + 56svh);
   }
   .item-quick-add {
     display: none;

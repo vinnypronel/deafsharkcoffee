@@ -709,6 +709,7 @@ function HeroFeaturedVideo({
 export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   const [activeCategory, setActiveCategory] = useState<MenuCategory>("Coffee");
   const categoryNavRef = useRef<HTMLDivElement | null>(null);
+  const mobileCategoryNavRef = useRef<HTMLDivElement | null>(null);
   const categoryIndicatorRef = useRef<HTMLSpanElement | null>(null);
   const [products, setProducts] = useState<Product[]>(menuProducts);
   const [featuredSlides, setFeaturedSlides] = useState<FeaturedProduct[]>(featuredProducts);
@@ -1009,6 +1010,15 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
     };
   }, [activeCategory, isMenuPage]);
 
+  useLayoutEffect(() => {
+    if (!isMenuPage) return;
+    const nav = mobileCategoryNavRef.current;
+    const activeButton = nav?.querySelector<HTMLElement>("button.active");
+    if (!nav || !activeButton) return;
+    const centeredLeft = activeButton.offsetLeft + activeButton.offsetWidth / 2 - nav.clientWidth / 2;
+    nav.scrollTo({ left: Math.max(0, centeredLeft), behavior: "smooth" });
+  }, [activeCategory, isMenuPage]);
+
   useEffect(() => {
     async function loadAvailability() {
       try {
@@ -1157,6 +1167,12 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
     setActiveCategory(category);
     const first = products.find((p) => p.category === category);
     if (first) setMenuShowcaseProduct(first);
+  }
+
+  function stepMobileCategory(direction: -1 | 1) {
+    const currentIndex = Math.max(0, categories.indexOf(activeCategory));
+    const nextIndex = Math.min(categories.length - 1, Math.max(0, currentIndex + direction));
+    scrollToCategory(categories[nextIndex]);
   }
 
   function renderRow(product: Product) {
@@ -1442,6 +1458,49 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
                   <small>Roasted in Union.</small>
                 </div>
               </div>
+              {isMenuPage && (
+                <div className="mobile-menu-pinned-controls">
+                  <div className="mobile-category-nav-shell">
+                    <button
+                      type="button"
+                      className="mobile-category-arrow"
+                      onClick={() => stepMobileCategory(-1)}
+                      disabled={activeCategory === categories[0]}
+                      aria-label="Previous menu category"
+                    >
+                      <span aria-hidden="true">‹</span>
+                    </button>
+                    <div ref={mobileCategoryNavRef} className="mobile-category-nav" role="tablist" aria-label="Menu categories">
+                      {categories.map((category) => (
+                        <button
+                          key={category}
+                          role="tab"
+                          aria-selected={activeCategory === category}
+                          className={activeCategory === category ? "active" : ""}
+                          onClick={() => scrollToCategory(category)}
+                        >
+                          {categoryLabel(category)}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      className="mobile-category-arrow"
+                      onClick={() => stepMobileCategory(1)}
+                      disabled={activeCategory === categories[categories.length - 1]}
+                      aria-label="Next menu category"
+                    >
+                      <span aria-hidden="true">›</span>
+                    </button>
+                  </div>
+                  <div className="mobile-pinned-category-header">
+                    <h3>{categoryLabel(activeCategory)}</h3>
+                    {DRINK_CATEGORIES.includes(activeCategory) && (
+                      <span>Whole, skim, oat, almond, or half and half · no extra charge</span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </aside>
 
