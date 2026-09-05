@@ -4,6 +4,7 @@ import "./globals.css";
 import { SmoothScrollProvider } from "./smooth-scroll-provider";
 import { PageTransition } from "./page-transition";
 import { MobileScrollProgress } from "./mobile-scroll-progress";
+import { DesktopScrollThumb } from "./desktop-scroll-thumb";
 import { siteUrl } from "./site-url";
 
 const geist = Geist({
@@ -83,6 +84,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className={geist.variable} suppressHydrationWarning>
         <PageTransition />
         <MobileScrollProgress />
+        <DesktopScrollThumb />
         <SmoothScrollProvider>{children}</SmoothScrollProvider>
       </body>
     </html>
