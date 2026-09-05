@@ -38,7 +38,7 @@ const localBindingConfig = {
   routes: deploymentTarget === "production"
     ? [
         { pattern: "deafsharkcoffee.com", custom_domain: true },
-        { pattern: "www.deafsharkcoffee.com", custom_domain: true },
+        { pattern: "www.deafsharkcoffee.com/*", zone_name: "deafsharkcoffee.com" },
       ]
     : [],
   // Runtime configuration is intentionally absent here. Values placed in
