@@ -346,44 +346,19 @@ export default function ScrollHero({
     video.addEventListener("loadeddata", onLoadedData);
     if (video.readyState >= 2) drawFrame();
 
-    /* iOS also refuses to produce frames from a video that has never played, even
-       once it is attached. A muted inline play followed by an immediate pause
-       primes the decoder without the footage ever being seen or heard. */
-    let primed = false;
-    let decoderPriming = false;
+    /* This is never a playing video. It is only a seekable frame source for the
+       canvas. In particular, do not "prime" iOS with play(): Safari may advance
+       several visible frames before the play promise resolves. */
     const stopUnexpectedPlayback = () => {
-      if (!decoderPriming && !video.paused) video.pause();
-    };
-    video.addEventListener("play", stopUnexpectedPlayback);
-
-    const primeDecoder = () => {
-      if (primed) return;
-      primed = true;
-      decoderPriming = true;
-      const started = video.play();
-      if (started && typeof started.then === "function") {
-        started.then(() => {
-          video.pause();
-          decoderPriming = false;
-          if (window.scrollY <= 1) {
-            current = 0;
-            try { video.currentTime = 0; } catch { /* A later scrub will seek. */ }
-          }
-          drawFrame();
-        }).catch(() => {
-          /* Autoplay refused. Retry on the first real interaction below. */
-          decoderPriming = false;
-          primed = false;
-        });
-      } else {
-        video.pause();
-        decoderPriming = false;
+      if (!video.paused) video.pause();
+      if (window.scrollY <= 1) {
+        current = 0;
+        try { video.currentTime = 0; } catch { /* Metadata may still be loading. */ }
+        drawFrame();
       }
     };
-    primeDecoder();
-    const primeOnGesture = () => primeDecoder();
-    window.addEventListener("touchstart", primeOnGesture, { passive: true, once: true });
-    window.addEventListener("pointerdown", primeOnGesture, { passive: true, once: true });
+    video.addEventListener("play", stopUnexpectedPlayback);
+    video.addEventListener("playing", stopUnexpectedPlayback);
 
     type FrameCallbackVideo = HTMLVideoElement & {
       requestVideoFrameCallback?: (cb: () => void) => number;
@@ -408,8 +383,7 @@ export default function ScrollHero({
         video.removeEventListener("loadedmetadata", readDuration);
         video.removeEventListener("loadeddata", onLoadedData);
         video.removeEventListener("play", stopUnexpectedPlayback);
-        window.removeEventListener("touchstart", primeOnGesture);
-        window.removeEventListener("pointerdown", primeOnGesture);
+        video.removeEventListener("playing", stopUnexpectedPlayback);
         if (videoFrameHandle && frameVideo.cancelVideoFrameCallback) {
           frameVideo.cancelVideoFrameCallback(videoFrameHandle);
         }
@@ -433,7 +407,7 @@ export default function ScrollHero({
 
       /* Native mobile media restoration must never turn this scrub source into
          free-running playback. Scrolling advances it only through exact seeks. */
-      if (!decoderPriming && !video.paused) video.pause();
+      if (!video.paused) video.pause();
 
       // A seek that never reports back must not wedge the scrub permanently.
       if (seeking && performance.now() - seekIssuedAt > 250) seeking = false;
@@ -545,8 +519,16 @@ export default function ScrollHero({
       current = 0;
       try { video.currentTime = 0; } catch { /* The next mount also resets it. */ }
     };
+    const resetForPageShow = () => {
+      if (window.scrollY <= 1) {
+        resetForPageExit();
+        drawFrame();
+        ensureTicking();
+      }
+    };
     document.addEventListener("visibilitychange", stopForPageState);
     window.addEventListener("pagehide", resetForPageExit);
+    window.addEventListener("pageshow", resetForPageShow);
 
     const observer = new ResizeObserver(handleResize);
     observer.observe(pin);
@@ -558,14 +540,14 @@ export default function ScrollHero({
       video.removeEventListener("loadedmetadata", readDuration);
       video.removeEventListener("loadeddata", onLoadedData);
       video.removeEventListener("play", stopUnexpectedPlayback);
+      video.removeEventListener("playing", stopUnexpectedPlayback);
       video.removeEventListener("seeked", onSeeked);
       video.removeEventListener("error", onError);
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("scroll", ensureTicking);
       document.removeEventListener("visibilitychange", stopForPageState);
       window.removeEventListener("pagehide", resetForPageExit);
-      window.removeEventListener("touchstart", primeOnGesture);
-      window.removeEventListener("pointerdown", primeOnGesture);
+      window.removeEventListener("pageshow", resetForPageShow);
       observer.disconnect();
       if (videoFrameHandle && frameVideo.cancelVideoFrameCallback) {
         frameVideo.cancelVideoFrameCallback(videoFrameHandle);
