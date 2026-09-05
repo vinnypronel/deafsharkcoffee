@@ -2222,6 +2222,10 @@ h1, h2, h3, p { margin-top: 0; }
   line-height: 1;
   opacity: .58;
 }
+.origin-story-button {
+  align-self: flex-start;
+  margin-top: 22px;
+}
 
 /* In-Store Menu Boards Showcase */
 .menu-boards-section {

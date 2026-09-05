@@ -1592,6 +1592,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
               <span>Medium roast</span>
             </p>
           </div>
+          <a href="/about" className="primary-button origin-story-button">Read our story</a>
         </div>
       </section>}
 
