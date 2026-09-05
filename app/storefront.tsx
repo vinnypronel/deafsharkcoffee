@@ -232,6 +232,7 @@ function ProductConfigurator({
 }) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const isDrink = DRINK_CATEGORIES.includes(product.category);
+  const isFood = ["Breakfast", "Sandwiches", "Bites"].includes(product.category);
   const isSmoothie = !!product.bases?.length;
   const hasMilkOptions =
     isDrink && !isSmoothie && !["chicha", "malta", "hot-tea"].includes(product.id);
@@ -386,7 +387,7 @@ function ProductConfigurator({
     <div className="modal-backdrop">
       <section
         className="configurator"
-        data-layout={isHotOnlyDrink ? "hot-only-drink" : undefined}
+        data-layout={isHotOnlyDrink ? "hot-only-drink" : isFood ? "food" : undefined}
         data-lenis-prevent
         role="dialog"
         aria-modal="true"

@@ -4852,6 +4852,84 @@ body.modal-open { touch-action: none; }
   .removal-option-group:first-of-type { margin-top: 0; padding-right: 0; }
   .option-group > div { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .add-row { position: sticky; bottom: 0; z-index: 4; margin: 26px -20px -32px; padding: 13px 20px calc(13px + env(safe-area-inset-bottom)); background: rgba(255,250,243,.96); box-shadow: 0 -10px 30px rgba(45,26,18,.08); backdrop-filter: blur(15px); }
+  /* Food items have a short, fixed set of choices. Fit that complete workflow
+     into one phone viewport so the customer never has to scroll the sheet just
+     to reach notes, quantity, or the order action. */
+  .configurator[data-layout="food"] {
+    display: grid;
+    grid-template-rows: minmax(220px, 35svh) minmax(0, 1fr);
+    overflow: hidden;
+  }
+  .configurator[data-layout="food"] .config-product {
+    min-height: 0;
+    height: auto;
+    padding: 16px 24px 12px;
+  }
+  .configurator[data-layout="food"] .config-product .product-visual {
+    width: min(100%, 280px);
+    height: min(22svh, 190px);
+    margin: 0 auto 3px;
+  }
+  .configurator[data-layout="food"] .config-product .product-food .product-photo {
+    max-width: min(100%, 230px);
+    max-height: min(100%, 230px);
+    transform: none;
+    border-radius: 17px;
+    clip-path: inset(0 round 17px);
+  }
+  .configurator[data-layout="food"] .config-product-info {
+    padding-top: 7px;
+  }
+  .configurator[data-layout="food"] .config-product h2 {
+    font-size: clamp(25px, 7vw, 30px);
+  }
+  .configurator[data-layout="food"] .config-product strong {
+    font-size: 21px;
+  }
+  .configurator[data-layout="food"] .config-options {
+    min-height: 0;
+    overflow: hidden;
+    padding: 12px 20px calc(9px + env(safe-area-inset-bottom));
+  }
+  .configurator[data-layout="food"] .option-group {
+    margin-bottom: 6px;
+  }
+  .configurator[data-layout="food"] .option-group legend,
+  .configurator[data-layout="food"] .notes-label > span {
+    margin-bottom: 4px;
+    font-size: 12.5px;
+  }
+  .configurator[data-layout="food"] .removal-option-group .syrup-grid {
+    gap: 6px;
+  }
+  .configurator[data-layout="food"] .removal-option-group .syrup-pill,
+  .configurator[data-layout="food"] .option-group button {
+    min-height: 39px;
+    padding: 5px 8px;
+    font-size: 12.5px;
+  }
+  .configurator[data-layout="food"] .notes-label {
+    margin-top: 0;
+    padding-top: 2px;
+  }
+  .configurator[data-layout="food"] .notes-label textarea {
+    min-height: 40px;
+    height: 40px;
+    padding: 9px 12px;
+    font-size: 12.5px;
+  }
+  .configurator[data-layout="food"] .add-row {
+    position: static;
+    margin: 7px 0 0;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+  .configurator[data-layout="food"] .quantity-control,
+  .configurator[data-layout="food"] .add-button {
+    min-height: 44px;
+  }
   .modal-backdrop { padding: 0; }
   .checkout-card, .confirmation-card { width: 100vw; max-height: 100dvh; min-height: 100dvh; border-radius: 0; padding: 62px 22px 30px; }
   .checkout-card h2, .confirmation-card h2 { font-size: 38px; }
