@@ -5114,7 +5114,24 @@ body.modal-open { touch-action: none; }
     display: none;
   }
   .menu-item-row {
+    position: relative;
     padding-right: 14px;
+  }
+  .menu-item-row .item-info {
+    min-width: 0;
+    max-width: none;
+    flex: 1 1 auto;
+  }
+  .menu-item-row .item-name-line {
+    min-width: 0;
+    flex-wrap: nowrap;
+  }
+  .menu-item-row .item-name-line strong {
+    display: block;
+    min-width: 0;
+    white-space: nowrap;
+    font-size: clamp(14px, 3.8vw, 16px);
+    letter-spacing: -0.025em;
   }
   .menu-item-row .item-leader {
     display: none;
@@ -5122,7 +5139,12 @@ body.modal-open { touch-action: none; }
   .menu-item-row.selected.has-mobile-actions {
     min-height: 82px;
     border-radius: 12px;
-    padding-right: 94px;
+    padding-right: 74px;
+  }
+  .menu-item-row.selected.has-mobile-actions .item-price-wrap {
+    position: absolute;
+    right: 74px;
+    bottom: 13px;
   }
   .item-selected-actions {
     position: absolute;
@@ -5131,7 +5153,7 @@ body.modal-open { touch-action: none; }
     right: 10px;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     padding: 0;
     background: transparent;
     transform: translateY(-50%);
@@ -5139,14 +5161,14 @@ body.modal-open { touch-action: none; }
   .item-selected-actions button,
   .item-selected-actions > a {
     position: relative;
-    width: 34px;
-    height: 34px;
-    min-height: 34px;
+    width: 25px;
+    height: 44px;
+    min-height: 44px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid rgba(255, 250, 243, 0.38);
-    border-radius: 50%;
+    border: 0;
+    border-radius: 0;
     padding: 0;
     background: transparent;
     color: var(--paper);
@@ -5158,12 +5180,12 @@ body.modal-open { touch-action: none; }
     color: var(--paper);
   }
   .item-pencil-icon {
-    width: 20px;
-    height: 20px;
+    width: 23px;
+    height: 23px;
   }
   .item-selected-cart .universal-cart-glyph {
-    width: 20px;
-    height: 20px;
+    width: 23px;
+    height: 23px;
   }
   .item-selected-cart .quick-add-plus {
     top: 3px;
