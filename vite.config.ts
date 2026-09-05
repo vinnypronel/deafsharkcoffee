@@ -35,6 +35,12 @@ const localBindingConfig = {
   main: "./worker/index.ts",
   compatibility_date: "2026-08-20",
   compatibility_flags: ["nodejs_compat"],
+  routes: deploymentTarget === "production"
+    ? [
+        { pattern: "deafsharkcoffee.com", custom_domain: true },
+        { pattern: "www.deafsharkcoffee.com", custom_domain: true },
+      ]
+    : [],
   // Runtime configuration is intentionally absent here. Values placed in
   // `vars` are copied into dist/server/wrangler.json. Use `.dev.vars` locally
   // and `wrangler secret put` / the Cloudflare dashboard for hosted values.

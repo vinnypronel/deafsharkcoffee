@@ -72,6 +72,11 @@ const worker = {
   async fetch(request: Request, env: WorkerEnv, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
+    if (url.hostname === "www.deafsharkcoffee.com") {
+      url.hostname = "deafsharkcoffee.com";
+      return withSecurityHeaders(request, Response.redirect(url.toString(), 301));
+    }
+
     if (url.pathname === "/_vinext/image") {
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];
       const response = await handleImageOptimization(request, {
