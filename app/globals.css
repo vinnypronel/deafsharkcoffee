@@ -4591,6 +4591,14 @@ body.modal-open { touch-action: none; }
     width: 0 !important;
     height: 0 !important;
   }
+  /* 100% stops at the layout viewport's scrollbar edge in some mobile/tablet
+     browsers, exposing a narrow strip of the page background beside the hero.
+     Use the visual viewport width so the video canvas and its espresso fallback
+     continue beneath that browser-owned lane. */
+  .scroll-hero-pin {
+    width: 100vw !important;
+    max-width: none;
+  }
 }
 
 @media (max-width: 780px) {
