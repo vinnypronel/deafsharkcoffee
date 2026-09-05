@@ -32,6 +32,37 @@ body::-webkit-scrollbar {
   width: 0;
   height: 0;
 }
+/* On full desktop layouts, reserve only a slim transparent scrollbar area and
+   reveal the brown thumb while scrolling. The track always stays invisible. */
+@media (min-width: 1181px) {
+  html {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+  html.is-scrolling {
+    scrollbar-color: #8c5835 transparent;
+  }
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+    background: transparent;
+  }
+  html::-webkit-scrollbar-track,
+  body::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  html::-webkit-scrollbar-thumb,
+  body::-webkit-scrollbar-thumb {
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+  }
+  html.is-scrolling::-webkit-scrollbar-thumb,
+  html.is-scrolling body::-webkit-scrollbar-thumb {
+    background: #8c5835;
+  }
+}
 html.lenis, html.lenis body { height: auto; }
 .lenis.lenis-smooth { scroll-behavior: auto !important; }
 .lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }

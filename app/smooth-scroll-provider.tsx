@@ -7,6 +7,35 @@ type WindowWithLenis = Window & { __lenis?: Lenis };
 
 export function SmoothScrollProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 1181px)");
+    const root = document.documentElement;
+    let hideTimer = 0;
+
+    const hideScrollbar = () => {
+      root.classList.remove("is-scrolling");
+    };
+    const showScrollbar = () => {
+      if (!desktop.matches) return;
+      root.classList.add("is-scrolling");
+      window.clearTimeout(hideTimer);
+      hideTimer = window.setTimeout(hideScrollbar, 650);
+    };
+    const handleViewportChange = () => {
+      if (!desktop.matches) hideScrollbar();
+    };
+
+    window.addEventListener("scroll", showScrollbar, { passive: true });
+    desktop.addEventListener("change", handleViewportChange);
+
+    return () => {
+      window.clearTimeout(hideTimer);
+      window.removeEventListener("scroll", showScrollbar);
+      desktop.removeEventListener("change", handleViewportChange);
+      hideScrollbar();
+    };
+  }, []);
+
+  useEffect(() => {
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const touchDevice = window.matchMedia("(max-width: 768px)").matches || "ontouchstart" in window;
     const dashboard = window.location.pathname.startsWith("/dashboard");
