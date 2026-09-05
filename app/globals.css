@@ -5143,20 +5143,22 @@ body.modal-open { touch-action: none; }
   }
   .menu-item-row.selected.has-mobile-actions .item-price-wrap {
     position: absolute;
-    right: 74px;
-    bottom: 13px;
+    right: 10px;
+    bottom: 9px;
+    width: 58px;
+    justify-content: center;
   }
   .item-selected-actions {
     position: absolute;
     z-index: 3;
-    top: 50%;
+    top: 5px;
     right: 10px;
     display: flex;
     align-items: center;
     gap: 8px;
     padding: 0;
     background: transparent;
-    transform: translateY(-50%);
+    transform: none;
   }
   .item-selected-actions button,
   .item-selected-actions > a {
