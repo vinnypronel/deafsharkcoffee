@@ -4953,9 +4953,9 @@ body.modal-open { touch-action: none; }
   .about-hero img { width: 100%; max-width: 470px; }
   .origin-media-story { height: auto; min-height: 0; max-height: none; display: block; overflow: visible; }
   .origin-nursery-photo { min-height: 62vh; }
-  .origin-roast-film { display: block; }
-  .origin-roast-film video { height: 70vh; min-height: 480px; }
-  .origin-roast-film > div { padding: 46px 22px 60px; }
+  .origin-roast-film { display: flex; flex-direction: column; }
+  .origin-roast-film video { order: 2; height: 70vh; min-height: 480px; }
+  .origin-roast-film > div { order: 1; padding: 38px 22px 42px; }
   .story-grid { display: block; padding: 0; }
   .story-grid article { min-height: auto; border-bottom: 1px solid rgba(255, 250, 243, 0.08); border-right: 0; padding: 48px 24px; }
   .story-grid article:last-child { border-bottom: 0; }
