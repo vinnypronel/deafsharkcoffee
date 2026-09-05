@@ -4775,7 +4775,7 @@ body.modal-open { touch-action: none; }
      videos were never seen. Let the carousel finish first here. */
   .order-section:not(.standalone-order) {
     margin-top: -72px;
-    padding-bottom: 24px;
+    padding-bottom: 0;
   }
   .standalone-order { padding-top: 54px; }
   .order-intro { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 0 7px; }
@@ -5130,12 +5130,13 @@ body.modal-open { touch-action: none; }
     max-height: none;
     aspect-ratio: auto;
     margin-bottom: 0;
-    box-shadow: 0 18px 46px rgba(45, 26, 18, 0.14);
+    box-shadow: none;
   }
   .order-section:not(.standalone-order) .menu-card-brand {
     z-index: 2;
-    min-height: 28px;
-    margin: 12px 0 0;
+    min-height: 32px;
+    margin: 12px 0;
+    padding-block: 2px;
     overflow: visible;
   }
   .order-section:not(.standalone-order) .menu-list-panel {
@@ -5245,7 +5246,7 @@ body.modal-open { touch-action: none; }
     z-index: 31;
     display: flex;
     justify-content: center;
-    margin-top: -52px;
+    margin-top: 0;
     padding: 10px 16px 24px;
     background: #faf2e4;
   }
