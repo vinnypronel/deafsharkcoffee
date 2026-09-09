@@ -19,7 +19,7 @@ const openSettings = {
   prepTimeMinutes: 15,
   paused: false,
   openTime: "06:00",
-  closeTime: "20:00",
+  closeTime: "18:30",
   cutoffMinutes: 30,
   schedulingEnabled: true,
   schedulingHorizonMinutes: 240,
@@ -220,6 +220,21 @@ test("refuses an ASAP order after the closing cutoff", async () => {
   const failure = await statusOf(() => resolveFulfillment({}, openSettings, afterClose));
   assert.equal(failure.status, 409);
   assert.equal(failure.code, "ordering_closed");
+});
+
+test("uses Saturday hours and keeps Sunday closed", async () => {
+  const saturdayNoon = new Date("2026-09-12T16:00:00Z");
+  const saturdayLate = new Date("2026-09-12T17:45:00Z");
+  const sundayNoon = new Date("2026-09-13T16:00:00Z");
+
+  assert.deepEqual(resolveFulfillment({}, openSettings, saturdayNoon), {
+    fulfillmentType: "asap",
+    scheduledFor: null,
+    pickupEta: "15 min",
+  });
+
+  assert.equal((await statusOf(() => resolveFulfillment({}, openSettings, saturdayLate))).code, "ordering_closed");
+  assert.equal((await statusOf(() => resolveFulfillment({}, openSettings, sundayNoon))).code, "ordering_closed");
 });
 
 test("validates scheduled pickup times against the scheduling window", async () => {

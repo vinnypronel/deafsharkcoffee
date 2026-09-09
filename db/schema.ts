@@ -182,7 +182,7 @@ export const storeSettings = sqliteTable("store_settings", {
   prepTimeMinutes: integer("prep_time_minutes").notNull().default(15),
   paused: integer("paused", { mode: "boolean" }).notNull().default(false),
   openTime: text("open_time").notNull().default("06:00"),
-  closeTime: text("close_time").notNull().default("20:00"),
+  closeTime: text("close_time").notNull().default("18:30"),
   cutoffMinutes: integer("cutoff_minutes").notNull().default(30),
   schedulingEnabled: integer("scheduling_enabled", { mode: "boolean" }).notNull().default(true),
   schedulingHorizonMinutes: integer("scheduling_horizon_minutes").notNull().default(240),

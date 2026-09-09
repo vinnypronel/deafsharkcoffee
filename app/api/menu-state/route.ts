@@ -9,7 +9,7 @@ const DEFAULT_SETTINGS = {
   prepTimeMinutes: 15,
   paused: false,
   openTime: "06:00",
-  closeTime: "20:00",
+  closeTime: "18:30",
   cutoffMinutes: 30,
   schedulingEnabled: true,
   schedulingHorizonMinutes: 240,
@@ -38,6 +38,7 @@ export async function GET() {
       hours: {
         openTime: hours.openTime,
         closeTime: hours.closeTime,
+        closed: hours.closed,
         cutoffMinutes: settings.cutoffMinutes,
       },
       scheduling: {

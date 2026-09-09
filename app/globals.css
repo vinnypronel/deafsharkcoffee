@@ -655,6 +655,14 @@ h1, h2, h3, p { margin-top: 0; }
   color: var(--paper);
   overflow: hidden;
 }
+.scroll-hero-wrap {
+  height: var(--hero-scroll-height, 300vh);
+  background: #1a0f0a;
+}
+@media (max-width: 767px) {
+  /* Finish the full animation with roughly 40% less pinned scrolling. */
+  .scroll-hero-wrap { height: 220vh; }
+}
 .scroll-hero-pin {
   position: sticky;
   top: 84px;
@@ -2146,7 +2154,7 @@ h1, h2, h3, p { margin-top: 0; }
   isolation: isolate;
   display: grid;
   grid-template-columns: .85fr 1.15fr;
-  min-height: 480px;
+  min-height: 400px;
   background: var(--orange);
   color: var(--espresso);
   overflow: hidden;
@@ -2155,8 +2163,8 @@ h1, h2, h3, p { margin-top: 0; }
   display: none;
 }
 .origin-section > * { position: relative; z-index: 1; }
-.origin-art { display: grid; place-items: center; overflow: hidden; padding: 36px 30px; }
-.origin-art img { width: min(100%, 420px); border-radius: 38% 38% 22px 22px; mix-blend-mode: multiply; box-shadow: 0 18px 45px rgba(66,28,11,.15); }
+.origin-art { display: grid; place-items: center; overflow: hidden; padding: 24px 30px; }
+.origin-art img { width: min(100%, 390px); border-radius: 38% 38% 22px 22px; mix-blend-mode: multiply; box-shadow: 0 18px 45px rgba(66,28,11,.15); }
 
 @media (max-width: 780px) {
   /* the stamp is decorative and there is no room to reserve a column for it here,
@@ -2165,14 +2173,21 @@ h1, h2, h3, p { margin-top: 0; }
   .menu-panel-header { padding-right: 0; }
   .scroll-hero-video { --hero-fit: 1; --hero-zoom: 1; --hero-focus-x: .5; }
 }
-.origin-copy { display: flex; flex-direction: column; justify-content: center; padding: 44px 5vw 44px 2vw; color: var(--espresso); }
+.origin-copy { display: flex; flex-direction: column; justify-content: center; padding: 34px 5vw 34px 2vw; color: var(--espresso); }
 .origin-copy .eyebrow { color: var(--espresso); opacity: 0.85; font-size: 11px; margin-bottom: 6px; }
 .origin-copy h2 { font-family: Georgia, serif; font-size: clamp(24px, 2.6vw, 38px); line-height: 1.15; margin: 0; color: var(--espresso); }
-.origin-copy p { max-width: 580px; margin: 16px 0 26px; font-size: 15.5px; line-height: 1.55; color: rgba(45, 26, 18, 0.92); }
+.origin-copy p { max-width: 580px; margin: 14px 0 22px; font-size: 15.5px; line-height: 1.55; color: rgba(45, 26, 18, 0.92); }
 .origin-profile {
   width: min(100%, 680px);
   padding-top: 18px;
   border-top: 1px solid rgba(45, 26, 18, .28);
+}
+.origin-profile-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  width: 100%;
 }
 .origin-profile > span {
   display: block;
@@ -2183,7 +2198,7 @@ h1, h2, h3, p { margin-top: 0; }
   letter-spacing: .17em;
   text-transform: uppercase;
 }
-.origin-profile > strong {
+.origin-profile-head > strong {
   display: block;
   font-family: Georgia, serif;
   font-size: clamp(28px, 2.5vw, 40px);
@@ -2211,8 +2226,50 @@ h1, h2, h3, p { margin-top: 0; }
   opacity: .58;
 }
 .origin-story-button {
-  align-self: flex-start;
-  margin-top: 22px;
+  flex: 0 0 auto;
+  position: relative;
+  overflow: visible;
+  padding-right: 30px;
+  transition: padding-right .34s cubic-bezier(.16, 1, .3, 1), transform .2s ease, background .2s ease, box-shadow .28s ease;
+}
+.origin-story-button::before,
+.origin-story-button::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  pointer-events: none;
+  opacity: 0;
+}
+.origin-story-button::before {
+  left: calc(100% - 38px);
+  width: 0;
+  height: 2px;
+  background: currentColor;
+  transform: translateY(-50%);
+  transition: width .34s cubic-bezier(.16, 1, .3, 1), opacity .18s ease;
+}
+.origin-story-button::after {
+  left: calc(100% - 40px);
+  width: 8px;
+  height: 8px;
+  border-top: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+  transform: translateY(-50%) rotate(45deg);
+  transition: left .34s cubic-bezier(.16, 1, .3, 1), opacity .18s ease;
+}
+.origin-story-button:hover,
+.origin-story-button:focus-visible {
+  padding-right: 64px;
+}
+.origin-story-button:hover::before,
+.origin-story-button:focus-visible::before {
+  width: 44px;
+  opacity: 1;
+}
+.origin-story-button:hover::after,
+.origin-story-button:focus-visible::after {
+  left: calc(100% - 5px);
+  opacity: 1;
 }
 
 /* In-Store Menu Boards Showcase */
@@ -2512,7 +2569,7 @@ h1, h2, h3, p { margin-top: 0; }
   width: clamp(118px, 9.6vw, 150px);
   height: clamp(118px, 9.6vw, 150px);
   object-fit: contain;
-  filter: drop-shadow(0 12px 28px rgba(45, 26, 18, 0.2));
+  clip-path: circle(50%);
   flex-shrink: 0;
   transition: transform 0.35s cubic-bezier(.22,1,.36,1);
 }
@@ -2547,6 +2604,23 @@ h1, h2, h3, p { margin-top: 0; }
   font-family: Georgia, serif;
   font-size: 18px;
   color: var(--espresso);
+}
+.business-hours {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+  font-weight: 400;
+}
+.business-hours .hours-line {
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.35;
+  font-weight: 400;
+}
+.business-hours .hours-line b {
+  color: var(--deep);
+  font-weight: 850;
 }
 .visit-card span {
   color: var(--muted);
@@ -3291,12 +3365,15 @@ h1, h2, h3, p { margin-top: 0; }
 .contact-grid p { margin: 0 0 24px; line-height: 1.5; flex-grow: 1; display: flex; flex-direction: column; }
 .contact-grid p strong { display: block; font-size: clamp(19px, 1.5vw, 23px); font-weight: 750; color: var(--deep); margin-bottom: 4px; }
 .contact-grid p span { display: block; font-size: 15px; font-weight: 400; color: var(--muted); }
+.contact-grid p.business-hours { gap: 5px; }
+.contact-grid p.business-hours span { font-size: 18px; }
+.contact-grid p.business-hours b { color: var(--deep); font-weight: 850; }
 .contact-note {
-  max-width: 800px;
   width: 100%;
   box-sizing: border-box;
   margin: 0 auto;
   padding: 24px 28px;
+  background: var(--paper);
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -3319,6 +3396,56 @@ h1, h2, h3, p { margin-top: 0; }
 .contact-message, .contact-form .primary-button, .contact-form-error { grid-column: 1 / -1; }
 .contact-form textarea { resize: vertical; min-height: 140px; }
 .contact-form .primary-button { justify-self: start; }
+.contact-submit-button {
+  position: relative;
+  overflow: visible;
+  padding-right: 30px;
+  transition: padding-right .34s cubic-bezier(.16, 1, .3, 1), transform .2s ease, background .2s ease, box-shadow .28s ease;
+}
+.contact-submit-button::before,
+.contact-submit-button::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  pointer-events: none;
+  opacity: 0;
+}
+.contact-submit-button::before {
+  left: calc(100% - 38px);
+  width: 0;
+  height: 2px;
+  background: currentColor;
+  transform: translateY(-50%);
+  transition: width .34s cubic-bezier(.16, 1, .3, 1), opacity .18s ease;
+}
+.contact-submit-button::after {
+  left: calc(100% - 42px);
+  width: 17px;
+  height: 13px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg width='17' height='13' viewBox='0 0 17 13' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1.4 1.1h14.2v10.8H1.4V1.1Zm.7.6 6.4 5.4 6.4-5.4M2 11.1l4.7-4M15 11.1l-4.7-4' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg width='17' height='13' viewBox='0 0 17 13' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1.4 1.1h14.2v10.8H1.4V1.1Zm.7.6 6.4 5.4 6.4-5.4M2 11.1l4.7-4M15 11.1l-4.7-4' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  transform: translateY(-50%);
+  transition: left .34s cubic-bezier(.16, 1, .3, 1), opacity .18s ease;
+}
+.contact-submit-button:not(:disabled):hover,
+.contact-submit-button:not(:disabled):focus-visible {
+  padding-right: 64px;
+}
+.contact-submit-button:not(:disabled):hover::before,
+.contact-submit-button:not(:disabled):focus-visible::before {
+  width: 44px;
+  opacity: 1;
+}
+.contact-submit-button:not(:disabled):hover::after,
+.contact-submit-button:not(:disabled):focus-visible::after {
+  left: calc(100% - 9px);
+  opacity: 1;
+}
+.contact-submit-button:disabled::before,
+.contact-submit-button:disabled::after {
+  opacity: 0;
+}
 .contact-form-success { grid-column: 1 / -1; text-align: center; display: flex; flex-direction: column; align-items: center; }
 /* Replaces the old "Message saved" eyebrow above the confirmation heading. */
 .contact-success-logo { width: 72px; height: 72px; margin-bottom: 6px; border-radius: 50%; object-fit: contain; }
@@ -4699,6 +4826,13 @@ body.modal-open { touch-action: none; }
      zoom < 1 frees vertical space, focus-y .18 keeps a gap under the header so it
      is close but not tucked against it, and mirror 0 fills with colour, not a
      mirrored copy of the footage. */
+  /* The sticky viewport follows Safari's toolbar. Its media surface covers
+     the largest viewport, so toolbar animation only clips it, never resizes
+     the canvas bitmap or exposes the page background. */
+  .scroll-hero-video,
+  .scroll-hero-poster {
+    height: calc(100lvh - 68px);
+  }
   .scroll-hero-video {
     --hero-focus-x: .5;
     --hero-focus-y: 0;
@@ -4827,13 +4961,21 @@ body.modal-open { touch-action: none; }
   .origin-copy { padding: 24px 22px 54px; }
   .origin-copy p { font-size: 17px; }
   .origin-profile { padding-top: 16px; }
-  .origin-profile > strong { font-size: 32px; }
+  .origin-profile-head { align-items: flex-start; flex-direction: column; gap: 16px; }
+  .origin-profile-head > strong { font-size: 32px; }
   .origin-profile > p { gap: 8px; font-size: 11.5px; }
   .visit-section { display: flex; flex-direction: column; align-items: stretch; gap: 26px; padding: 48px 20px; }
   /* Stacked in one column, the equal-height rows and the bottom-pinned buttons
      left big dead gaps. Let each card be exactly as tall as its content. */
   .visit-cards-row { grid-template-columns: 1fr; gap: 14px; grid-auto-rows: auto; }
   .visit-card { height: auto; min-height: 0; padding-top: 14px; }
+  .visit-hours-card {
+    display: grid;
+    grid-template-columns: minmax(0, max-content);
+    justify-content: end;
+    justify-items: start;
+    text-align: left;
+  }
   .visit-card a,
   .visit-card .visit-action-btn { margin-top: 12px; padding-top: 0; }
   .visit-map-container { min-height: 260px; }

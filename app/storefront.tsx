@@ -1655,7 +1655,10 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
           <h2>A cup with a place behind it.<br />One farm, one variety.</h2>
           <p>Our featured coffee comes from single-origin harvests in El Salvador. Red Bourbon beans are washed, roasted with care, and served here in Union.</p>
           <div className="origin-profile">
-            <strong>El Salvador</strong>
+            <div className="origin-profile-head">
+              <strong>El Salvador</strong>
+              <a href="/about" className="primary-button origin-story-button">Read our story</a>
+            </div>
             <p>
               <span>Red Bourbon</span>
               <i aria-hidden="true">-</i>
@@ -1664,7 +1667,6 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
               <span>Medium roast</span>
             </p>
           </div>
-          <a href="/about" className="primary-button origin-story-button">Read our story</a>
         </div>
       </section>}
 
@@ -1740,10 +1742,12 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
                   </svg>
                 </a>
               </div>
-              <div className="visit-card">
+              <div className="visit-card visit-hours-card">
                 <span className="visit-card-label">Hours</span>
-                <strong>6:00 AM – 5:00 PM</strong>
-                <span>Open daily</span>
+                <div className="business-hours">
+                  <span className="hours-line"><b>Mon–Fri:</b> 6:00 AM – 6:30 PM</span>
+                  <span className="hours-line"><b>Sat:</b> 8:00 AM – 2:00 PM · <b>Sun:</b> Closed</span>
+                </div>
                 <a className="primary-button visit-action-btn visit-order-btn" href="/menu">
                   <span>Order online</span>
                   <span className="btn-cart-glyph" aria-hidden="true" />

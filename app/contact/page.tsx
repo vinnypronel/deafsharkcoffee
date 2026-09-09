@@ -30,7 +30,10 @@ export default function ContactPage() {
         </article>
         <article>
           <h2>Hours</h2>
-          <p><strong>6:00 AM – 5:00 PM</strong><span>Open daily</span></p>
+          <p className="business-hours">
+            <span className="hours-line"><b>Mon–Fri:</b> 6:00 AM – 6:30 PM</span>
+            <span className="hours-line"><b>Sat:</b> 8:00 AM – 2:00 PM · <b>Sun:</b> Closed</span>
+          </p>
           <OrderOnlineLink className="primary-button visit-order-btn">
             <span>Order online</span>
             <span className="btn-cart-glyph" aria-hidden="true" />
@@ -47,7 +50,6 @@ export default function ContactPage() {
           </a>
         </article>
       </section>
-      <ContactForm />
       <section className="contact-map-section">
         <div className="contact-map-container">
           <iframe
@@ -79,6 +81,7 @@ export default function ContactPage() {
         </div>
       </section>
       <section className="contact-note"><span className="eyebrow">Good to know</span><h2>Pickup only for now.</h2></section>
+      <ContactForm />
       <SiteFooter />
     </main>
   );

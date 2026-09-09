@@ -72,6 +72,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             __html:
               "(function(){try{" +
               "var mobile=window.matchMedia('(max-width: 767px)').matches;" +
+              "if(mobile||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;" +
               "var src=mobile?'/hero-scrub-mobile.mp4':'/hero-scrub.mp4';" +
               "var v=document.createElement('video');" +
               "v.muted=true;v.playsInline=true;v.autoplay=false;v.loop=false;v.preload='auto';v.src=src;v.load();v.pause();" +

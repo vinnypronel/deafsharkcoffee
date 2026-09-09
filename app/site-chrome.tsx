@@ -1056,7 +1056,14 @@ export function SiteFooter() {
             <ul>
               <li><a href="/contact">Catering &amp; Inquiries</a></li>
               <li><a href="/contact">Location &amp; Hours</a></li>
-              <li><a href="https://maps.google.com/?q=900+Green+Lane+Union+NJ+07083" target="_blank" rel="noopener noreferrer">Get Directions ↗</a></li>
+              <li>
+                <a href="https://maps.google.com/?q=900+Green+Lane+Union+NJ+07083" target="_blank" rel="noopener noreferrer">
+                  Get Directions{" "}
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: "inline-block", verticalAlign: "middle" }}>
+                    <path d="M4 12 12 4M4 4h8v8" />
+                  </svg>
+                </a>
+              </li>
               <li><a href="tel:9084818884">(908) 481-8884</a></li>
               <li><a href="mailto:help@deafsharkcoffee.com">help@deafsharkcoffee.com</a></li>
             </ul>

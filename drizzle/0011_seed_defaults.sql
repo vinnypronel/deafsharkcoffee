@@ -1,7 +1,7 @@
 INSERT OR IGNORE INTO `store_settings` (
 	`id`, `prep_time_minutes`, `paused`, `open_time`, `close_time`, `cutoff_minutes`,
 	`scheduling_enabled`, `scheduling_horizon_minutes`, `slot_minutes`, `updated_at`
-) VALUES (1, 15, false, '06:00', '20:00', 30, true, 240, 15, unixepoch());
+) VALUES (1, 15, false, '06:00', '18:30', 30, true, 240, 15, unixepoch());
 --> statement-breakpoint
 INSERT OR IGNORE INTO `featured_content` (`slot`, `product_id`, `category_label`, `title`, `button_label`, `price_cents`, `media_url`, `updated_at`) VALUES
 	(1, 'strawberry-matcha', 'Beverages', 'Strawberry Matcha', 'Order online', 775, '/featured-strawberry-matcha.mp4', unixepoch()),

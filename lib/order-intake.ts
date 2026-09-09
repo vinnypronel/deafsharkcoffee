@@ -309,6 +309,13 @@ export function resolveFulfillment(
   }
 
   const hours = effectiveOrderingHours(settings, now);
+  if (hours.closed) {
+    throw new OrderRequestError(
+      "Online ordering is closed today. Please order during store hours.",
+      409,
+      "ordering_closed",
+    );
+  }
   const openMinutes = clockMinutes(hours.openTime);
   const closingCutoff = clockMinutes(hours.closeTime) - settings.cutoffMinutes;
   const fulfillmentType = payload.fulfillmentType === "scheduled" ? "scheduled" : "asap";

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { startMobileHeroFrames } from "./mobile-hero-frames";
 
 type ScrollHeroProps = {
   src?: string;
@@ -154,14 +155,8 @@ export default function ScrollHero({
 
     // Matches the preload links in the document head, so the picked file is the
     // one already in the HTTP cache. Resolved once so a resize never refetches.
-    const chosenSrc = window.matchMedia("(max-width: 767px)").matches ? mobileSrc : src;
-
-    // Use cached video off-DOM so browser keeps decode cache and extensions cannot detect it
-    const video = getSharedVideo(chosenSrc);
-    if (!video) return;
-    videoRef.current = video;
-    video.pause();
-    try { video.currentTime = 0; } catch { /* Metadata may not be ready yet. */ }
+    const mobile = window.matchMedia("(max-width: 767px)").matches;
+    const chosenSrc = mobile ? mobileSrc : src;
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
@@ -176,8 +171,8 @@ export default function ScrollHero({
     if (!posterImg.src) posterImg.src = poster;
 
     const resizeCanvas = () => {
-      const rect = pin.getBoundingClientRect();
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const rect = (mobile ? canvas : pin).getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, mobile ? 1.5 : 2);
       const w = Math.round(rect.width * dpr);
       const h = Math.round(rect.height * dpr);
       if (canvas.width !== w || canvas.height !== h) {
@@ -214,7 +209,7 @@ export default function ScrollHero({
     };
     refreshVars();
 
-    const drawSource = (source: CanvasImageSource, sw: number, sh: number) => {
+    const drawSource = (source: CanvasImageSource, sw: number, sh: number, sx = 0, sy = 0) => {
       if (!sw || !sh) return;
       resizeCanvas();
       const cw = canvas.width;
@@ -244,7 +239,7 @@ export default function ScrollHero({
         ctx.save();
         ctx.translate(flipX ? dxD + dwD : dxD, flipY ? dyD + dhD : dyD);
         ctx.scale(flipX ? -1 : 1, flipY ? -1 : 1);
-        ctx.drawImage(source, sxS, syS, swS, shS, -0.5, -0.5, dwD + 1, dhD + 1);
+        ctx.drawImage(source, sx + sxS, sy + syS, swS, shS, -0.5, -0.5, dwD + 1, dhD + 1);
         ctx.restore();
       };
 
@@ -266,7 +261,7 @@ export default function ScrollHero({
         ctx.fillStyle = BACKDROP;
         ctx.fillRect(0, 0, cw, ch);
       }
-      ctx.drawImage(source, dx, dy, dw, dh);
+      ctx.drawImage(source, sx, sy, sw, sh, dx, dy, dw, dh);
 
       /* Fade the bottom edge of the footage into the backdrop so the frame does
          not end on a hard line when the espresso fills the space below it. */
@@ -296,6 +291,17 @@ export default function ScrollHero({
         }
       }
     };
+
+    if (mobile && mobileSrc === "/hero-scrub-mobile.mp4") {
+      return startMobileHeroFrames(wrap, pin, drawSource, refreshVars, posterImg, reduced);
+    }
+
+    // Use cached video off-DOM so browser keeps decode cache and extensions cannot detect it
+    const video = getSharedVideo(chosenSrc);
+    if (!video) return;
+    videoRef.current = video;
+    video.pause();
+    try { video.currentTime = 0; } catch { /* Metadata may not be ready yet. */ }
 
     /* Browsers drop readyState below HAVE_CURRENT_DATA while a seek is in flight.
        The scrub seeks on nearly every scroll frame, so falling back to the poster
@@ -419,7 +425,7 @@ export default function ScrollHero({
 
       const pinRect = pin.getBoundingClientRect();
 
-      const dprNow = Math.min(window.devicePixelRatio || 1, 2);
+      const dprNow = Math.min(window.devicePixelRatio || 1, mobile ? 1.5 : 2);
       const wantW = Math.round(pinRect.width * dprNow);
       const wantH = Math.round(pinRect.height * dprNow);
       if (wantW > 0 && wantH > 0 && (canvas.width !== wantW || canvas.height !== wantH)) {
@@ -558,8 +564,8 @@ export default function ScrollHero({
   return (
     <div
       ref={wrapRef}
-      className="relative w-full"
-      style={{ height: `${scrollHeights * 100}vh` }}
+      className="scroll-hero-wrap relative w-full"
+      style={{ "--hero-scroll-height": `${scrollHeights * 100}vh` } as React.CSSProperties}
     >
       <div
         ref={pinRef}

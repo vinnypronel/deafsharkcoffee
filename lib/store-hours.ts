@@ -1,20 +1,22 @@
 const STORE_TIME_ZONE = "America/New_York";
-const SEPTEMBER_HOURS_START = "2026-09-01";
 
 type StoredHours = { openTime: string; closeTime: string };
+type EffectiveOrderingHours = { openTime: string; closeTime: string; closed: boolean };
 
-function storeDateKey(date: Date) {
+function storeWeekday(date: Date) {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: STORE_TIME_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
+    weekday: "short",
   }).format(date);
 }
 
-export function effectiveOrderingHours(settings: StoredHours, date = new Date()) {
-  if (storeDateKey(date) < SEPTEMBER_HOURS_START) {
-    return { openTime: "06:00", closeTime: "17:00" };
+export function effectiveOrderingHours(settings: StoredHours, date = new Date()): EffectiveOrderingHours {
+  const weekday = storeWeekday(date);
+  if (weekday === "Sun") {
+    return { openTime: "00:00", closeTime: "00:00", closed: true };
   }
-  return { openTime: settings.openTime, closeTime: settings.closeTime };
+  if (weekday === "Sat") {
+    return { openTime: "08:00", closeTime: "14:00", closed: false };
+  }
+  return { openTime: settings.openTime, closeTime: settings.closeTime, closed: false };
 }

@@ -107,7 +107,7 @@ export default function ContactForm() {
         <label className={`contact-message${fieldErrors.message ? " has-error" : ""}`}><span>Message *</span><textarea name="message" rows={6} minLength={10} maxLength={3000} aria-invalid={fieldErrors.message ? true : undefined} aria-describedby={fieldErrors.message ? "contact-message-error" : undefined} /><FieldError id="contact-message-error">{fieldErrors.message}</FieldError></label>
         <TurnstileWidget action="contact" onToken={setTurnstileToken} resetKey={turnstileResetKey} />
         {error && <p className="form-error contact-form-error" role="alert">{error}</p>}
-        <button className="primary-button" type="submit" disabled={submitting}>{submitting ? "Saving message..." : "Send message"}</button>
+        <button className="primary-button contact-submit-button" type="submit" disabled={submitting}>{submitting ? "Saving message..." : "Send message"}</button>
       </form>
     </section>
   );
