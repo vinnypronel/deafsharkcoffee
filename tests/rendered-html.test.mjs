@@ -22,7 +22,8 @@ test("server-renders the Deaf Shark storefront", async () => {
   assert.match(html, /Deaf Shark Coffee/);
   assert.match(html, /Coffee from El Salvador/i);
   assert.match(html, /<b>Mon.Fri:<\/b>\s*6:00 AM . 6:30 PM/i);
-  assert.match(html, /<b>Sat:<\/b>\s*8:00 AM . 2:00 PM . <b>Sun:<\/b>\s*Closed/i);
+  assert.match(html, /<b>Sat:<\/b>\s*8:00 AM . 2:00 PM/i);
+  assert.match(html, /<b>Sun:<\/b>\s*Closed/i);
   assert.match(html, /Order online/i);
   assert.doesNotMatch(html, /codex-preview/);
   assert.doesNotMatch(html, /Your site is taking shape/);

@@ -1746,7 +1746,8 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
                 <span className="visit-card-label">Hours</span>
                 <div className="business-hours">
                   <span className="hours-line"><b>Mon–Fri:</b> 6:00 AM – 6:30 PM</span>
-                  <span className="hours-line"><b>Sat:</b> 8:00 AM – 2:00 PM · <b>Sun:</b> Closed</span>
+                  <span className="hours-line"><b>Sat:</b> 8:00 AM – 2:00 PM</span>
+                  <span className="hours-line"><b>Sun:</b> Closed</span>
                 </div>
                 <a className="primary-button visit-action-btn visit-order-btn" href="/menu">
                   <span>Order online</span>

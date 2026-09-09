@@ -32,7 +32,8 @@ export default function ContactPage() {
           <h2>Hours</h2>
           <p className="business-hours">
             <span className="hours-line"><b>Mon–Fri:</b> 6:00 AM – 6:30 PM</span>
-            <span className="hours-line"><b>Sat:</b> 8:00 AM – 2:00 PM · <b>Sun:</b> Closed</span>
+            <span className="hours-line"><b>Sat:</b> 8:00 AM – 2:00 PM</span>
+            <span className="hours-line"><b>Sun:</b> Closed</span>
           </p>
           <OrderOnlineLink className="primary-button visit-order-btn">
             <span>Order online</span>
