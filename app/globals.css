@@ -565,6 +565,15 @@ h1, h2, h3, p { margin-top: 0; }
 .account-modal::-webkit-scrollbar { display: none; }
 @keyframes account-backdrop-in { from { background: rgba(20,11,8,0); backdrop-filter: blur(0); } }
 @keyframes account-drawer-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+/* Closing slides the drawer back out to the right instead of vanishing. */
+@keyframes account-drawer-out { from { transform: translateX(0); } to { transform: translateX(100%); } }
+@keyframes account-backdrop-out { to { background: rgba(20,11,8,0); backdrop-filter: blur(0); } }
+.account-backdrop[data-closing="true"] { animation: account-backdrop-out .3s ease both; }
+.account-modal[data-closing="true"] { animation: account-drawer-out .3s cubic-bezier(.4,0,.6,1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .account-backdrop, .account-modal,
+  .account-backdrop[data-closing="true"], .account-modal[data-closing="true"] { animation-duration: .01ms; }
+}
 .account-modal > img { width: 62px; height: 42px; object-fit: contain; margin: 0 auto 16px; filter: brightness(0); opacity: .92; }
 .account-modal h2 { margin-bottom: 10px; font-family: Georgia, serif; font-size: clamp(30px, 3.8vw, 42px); line-height: 1.05; }
 .account-modal > p { color: var(--muted); line-height: 1.5; font-size: 14.5px; }
@@ -3869,6 +3878,8 @@ body.modal-open { touch-action: none; }
 }
 .checkout-card > .primary-button { width: 100%; }
 .checkout-account-note { color: var(--muted); font-size: 14px; }
+.auth-required-note { margin: -2px 0 0; color: var(--muted); font-size: 12.5px; }
+.auth-required-note b { color: var(--ink); }
 .hours-note { font-style: italic; }
 .admin-hours-grid { display: grid; gap: 10px; margin: 18px 0; }
 .admin-hours-row { display: grid; grid-template-columns: 130px 110px minmax(0, 1fr) minmax(0, 1fr); align-items: end; gap: 14px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }

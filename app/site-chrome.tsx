@@ -82,6 +82,9 @@ export function BrandMark({ dark = false }: { dark?: boolean }) {
 export function CustomerHeader({ active, action }: { active?: string; action?: ReactNode }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  /* Kept mounted for the exit animation so the drawer slides back out to the
+     right instead of disappearing. */
+  const [profileClosing, setProfileClosing] = useState(false);
   const [trackingOrder, setTrackingOrder] = useState<string | null>(null);
   const [recentOrders, setRecentOrders] = useState<Array<{ orderNumber: string; status: string; totalCents: number }>>([]);
   const [query, setQuery] = useState("");
@@ -152,6 +155,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
       const number = (event as CustomEvent<{ orderNumber?: string }>).detail?.orderNumber;
       if (!number) return;
       setProfileOpen(false);
+      setProfileClosing(false);
       setTrackingOrder(number);
     };
     window.addEventListener("deaf-shark-open-account", openAccount);
@@ -162,8 +166,21 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
     };
   }, []);
 
+  const ACCOUNT_DRAWER_EXIT_MS = 300;
+
+  function closeProfile() {
+    if (profileClosing) return;
+    const reducedMotion = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    setProfileClosing(true);
+    window.setTimeout(() => {
+      setProfileOpen(false);
+      setProfileClosing(false);
+    }, reducedMotion ? 0 : ACCOUNT_DRAWER_EXIT_MS);
+  }
+
   async function openProfile() {
     setSearchOpen(false);
+    setProfileClosing(false);
     setProfileOpen(true);
     setAuthError("");
     setAuthNotice("");
@@ -532,7 +549,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
             className={`nav-hamburger ${mobileMenuOpen ? "open" : ""}`}
             onClick={() => {
               setSearchOpen(false);
-              setProfileOpen(false);
+              if (profileOpen) closeProfile();
               setMobileMenuOpen((prev) => !prev);
             }}
             aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
@@ -741,18 +758,19 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
       {profileOpen && (
         <div
           className="account-backdrop"
+          data-closing={profileClosing ? "true" : undefined}
           role="button"
           tabIndex={-1}
           aria-label="Close customer account"
           onClick={(event) => {
-            if (event.target === event.currentTarget) setProfileOpen(false);
+            if (event.target === event.currentTarget) closeProfile();
           }}
           onKeyDown={(event) => {
-            if (event.key === "Escape") setProfileOpen(false);
+            if (event.key === "Escape") closeProfile();
           }}
         >
-          <section className="account-modal" data-auth-mode={profile?.authenticated ? "profile" : authMode} data-lenis-prevent role="dialog" aria-modal="true" aria-label="Customer account">
-            <button className="account-close" onClick={() => setProfileOpen(false)} aria-label="Close account">
+          <section className="account-modal" data-auth-mode={profile?.authenticated ? "profile" : authMode} data-closing={profileClosing ? "true" : undefined} data-lenis-prevent role="dialog" aria-modal="true" aria-label="Customer account">
+            <button className="account-close" onClick={closeProfile} aria-label="Close account">
               <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8" /></svg>
             </button>
             <img src="/favicon.png" alt="" />
@@ -793,8 +811,9 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                           maxLength={40}
                           value={authFirstName}
                           onChange={(e) => setAuthFirstName(e.target.value)}
-                          placeholder="First name"
-                          aria-label="First name"
+                          placeholder="First name *"
+                          aria-label="First name, required"
+                          aria-required="true"
                           autoComplete="given-name"
                           className="auth-email-input"
                         />
@@ -803,8 +822,9 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                           maxLength={40}
                           value={authLastName}
                           onChange={(e) => setAuthLastName(e.target.value)}
-                          placeholder="Last name"
-                          aria-label="Last name"
+                          placeholder="Last name *"
+                          aria-label="Last name, required"
+                          aria-required="true"
                           autoComplete="family-name"
                           className="auth-email-input"
                         />
@@ -838,7 +858,9 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                     type="email"
                     value={authEmail}
                     onChange={(e) => setAuthEmail(e.target.value)}
-                    placeholder="Enter your email address"
+                    placeholder="Enter your email address *"
+                    aria-label="Email address, required"
+                    aria-required="true"
                     autoComplete="email"
                     className="auth-email-input"
                   />
@@ -849,7 +871,8 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                       maxLength={128}
                       value={authPassword}
                       onChange={(e) => setAuthPassword(e.target.value)}
-                      placeholder="Password (8 characters minimum)"
+                      placeholder="Password (8 characters minimum) *"
+                      aria-required="true"
                       autoComplete={authMode === "signup" ? "new-password" : "current-password"}
                       className="auth-email-input"
                     />
@@ -878,6 +901,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                     </button>
                   </div>
                   {authMode === "signup" && <p className="auth-password-guidance">Use at least 8 characters. A longer, unique password is safer.</p>}
+                  {authMode === "signup" && <p className="auth-required-note">Fields marked <b>*</b> are required.</p>}
                   {authMode === "signup" && (
                     <div className="auth-consents">
                       <label>
@@ -951,7 +975,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                 </>}
                 <div className="account-points-activity"><strong>Your recent orders</strong>
                   {recentOrders.length === 0 && <p>No orders yet.</p>}
-                  {recentOrders.map((order) => <button key={order.orderNumber} type="button" className="account-mode-toggle" onClick={() => { setProfileOpen(false); setTrackingOrder(order.orderNumber); }}>{order.orderNumber} · {order.status} · ${(order.totalCents / 100).toFixed(2)}</button>)}
+                  {recentOrders.map((order) => <button key={order.orderNumber} type="button" className="account-mode-toggle" onClick={() => { setProfileOpen(false); setProfileClosing(false); setTrackingOrder(order.orderNumber); }}>{order.orderNumber} · {order.status} · ${(order.totalCents / 100).toFixed(2)}</button>)}
                 </div>
                 <form className="account-profile-form" onSubmit={saveProfile} noValidate>
                   <label>Name<input value={profileName} onChange={(e) => { setProfileName(e.target.value); setProfileMessage(""); }} maxLength={80} autoComplete="name" /></label>
