@@ -18,10 +18,13 @@ if (result.errors.length) process.exit(1);
 
 const npx = process.platform === "win32" ? "npx.cmd" : "npx";
 function run(command, commandArgs) {
-  /* Node 20.12+ refuses to spawn Windows .cmd shims (npm, npx) without a shell.
-     Without this the spawn fails with a null status and the deploy aborts
-     silently, with nothing printed to explain why. */
-  const outcome = spawnSync(command, commandArgs, { stdio: "inherit", env: process.env, shell: process.platform === "win32" });
+  /* Node 20.12+ refuses to spawn Windows .cmd shims (npm, npx) without a shell,
+     and without one the spawn fails with a null status and no explanation. A
+     shell also re-parses the command, so an executable path containing spaces
+     (C:\Program Files\nodejs\node.exe) must not go through one. Use a shell for
+     the .cmd shims only. */
+  const needsShell = process.platform === "win32" && /\.(cmd|bat)$/i.test(command);
+  const outcome = spawnSync(command, commandArgs, { stdio: "inherit", env: process.env, shell: needsShell });
   if (outcome.error) {
     console.error(`ERROR: ${command} could not be started: ${outcome.error.message}`);
     process.exit(1);
