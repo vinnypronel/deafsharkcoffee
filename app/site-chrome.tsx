@@ -5,6 +5,7 @@ import Lenis from "lenis";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { menuProducts, type Product } from "./menu-data";
 import { OfferBarcode } from "./offer-barcode";
+import { PHONE_INPUT_MAX_LENGTH, formatPhoneInput } from "../lib/phone-format";
 import { OrderOnlineLink } from "./order-online-link";
 import { OrderStatus } from "./order-status";
 type ProfileResponse = { authenticated: boolean; profile?: { displayName: string; email: string; phone?: string | null; points: number; lifetimePoints: number; activity?: Array<{ id: number; pointsChange: number; balanceAfter: number; reason: string; createdAt: string }>; welcomeOffer?: { id: number; code: string; status: string; issuedAt: string; redeemedAt?: string | null } | null } };
@@ -831,9 +832,10 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                       </div>
                       <input
                         type="tel"
-                        maxLength={24}
+                        inputMode="tel"
+                        maxLength={PHONE_INPUT_MAX_LENGTH}
                         value={authPhone}
-                        onChange={(e) => setAuthPhone(e.target.value)}
+                        onChange={(e) => setAuthPhone(formatPhoneInput(e.target.value))}
                         placeholder="Mobile number (optional)"
                         aria-label="Mobile number, optional"
                         autoComplete="tel"
@@ -979,7 +981,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                 </div>
                 <form className="account-profile-form" onSubmit={saveProfile} noValidate>
                   <label>Name<input value={profileName} onChange={(e) => { setProfileName(e.target.value); setProfileMessage(""); }} maxLength={80} autoComplete="name" /></label>
-                  <label>Mobile number<input value={profilePhone} onChange={(e) => { setProfilePhone(e.target.value); setProfileMessage(""); }} type="tel" autoComplete="tel" placeholder="Used to find your rewards in store" /></label>
+                  <label>Mobile number<input value={profilePhone} onChange={(e) => { setProfilePhone(formatPhoneInput(e.target.value)); setProfileMessage(""); }} type="tel" inputMode="tel" maxLength={PHONE_INPUT_MAX_LENGTH} autoComplete="tel" placeholder="(908)-555-0123" /></label>
                   <button type="submit" className="primary-button">Save profile</button>
                   {profileMessage && <small className={`account-form-message${profileMessage === "Saved." ? "" : " error"}`} role="status">{profileMessage}</small>}
                 </form>
