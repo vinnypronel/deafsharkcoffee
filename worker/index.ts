@@ -46,6 +46,9 @@ function withSecurityHeaders(request: Request, response: Response): Response {
     "frame-src https://challenges.cloudflare.com https://www.cloudflare.com https://maps.google.com https://www.google.com",
   ].join("; "));
   const pathname = new URL(request.url).pathname;
+  if (pathname.startsWith("/api/") || pathname === "/dashboard" || pathname.startsWith("/kds/")) {
+    headers.set("Cache-Control", "no-store");
+  }
   if (/\.(?:avif|gif|ico|jpe?g|png|svg|webp|mp4|webm|woff2?)$/i.test(pathname)) {
     headers.set("Cache-Control", pathname.startsWith("/_assets/")
       ? "public, max-age=31536000, immutable"

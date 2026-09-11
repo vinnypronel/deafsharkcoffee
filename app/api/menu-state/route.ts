@@ -2,7 +2,8 @@ import { desc, eq } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../db";
 import { menuAvailability, menuContent, storeSettings } from "../../../db/schema";
 import { requireStaff } from "../../../lib/staff-auth";
-import { effectiveOrderingHours } from "../../../lib/store-hours";
+import { effectiveOrderingHours, validateWeeklyHours } from "../../../lib/store-hours";
+import { readStoreHours, StoreHoursMigrationError, writeStoreHours } from "../../../lib/store-hours-store";
 
 const DEFAULT_SETTINGS = {
   id: 1,
@@ -24,12 +25,13 @@ async function readSettings() {
 export async function GET() {
   try {
     await ensureSchema();
-    const [items, content, settings] = await Promise.all([
+    const [items, content, settings, storeHours] = await Promise.all([
       getDb().select().from(menuAvailability).orderBy(desc(menuAvailability.updatedAt)),
       getDb().select().from(menuContent).orderBy(desc(menuContent.updatedAt)),
       readSettings(),
+      readStoreHours(),
     ]);
-    const hours = effectiveOrderingHours(settings);
+    const hours = effectiveOrderingHours({ ...settings, weeklyHours: storeHours.weeklyHours });
     return Response.json({
       availability: Object.fromEntries(items.map((item) => [item.productId, item.available])),
       menu: content,
@@ -41,6 +43,8 @@ export async function GET() {
         closed: hours.closed,
         cutoffMinutes: settings.cutoffMinutes,
       },
+      weeklyHours: storeHours.weeklyHours,
+      hoursNote: storeHours.hoursNote,
       scheduling: {
         enabled: settings.schedulingEnabled,
         horizonMinutes: settings.schedulingHorizonMinutes,
@@ -63,6 +67,8 @@ export async function PATCH(request: Request) {
       available?: boolean;
       prepTime?: number;
       paused?: boolean;
+      weeklyHours?: unknown;
+      hoursNote?: unknown;
     };
 
     const settingsUpdate: { prepTimeMinutes?: number; paused?: boolean; updatedAt: Date } = { updatedAt: new Date() };
@@ -79,6 +85,16 @@ export async function PATCH(request: Request) {
       }).onConflictDoUpdate({ target: storeSettings.id, set: settingsUpdate });
     }
 
+    if (payload.weeklyHours !== undefined) {
+      const weeklyHours = validateWeeklyHours(payload.weeklyHours);
+      if (!weeklyHours) {
+        return Response.json({ error: "Check the hours. Each open day needs a closing time later than its opening time." }, { status: 400 });
+      }
+      const hoursNote = typeof payload.hoursNote === "string" ? payload.hoursNote.trim().slice(0, 160) : "";
+      await getDb().insert(storeSettings).values({ ...DEFAULT_SETTINGS, updatedAt: new Date() }).onConflictDoNothing({ target: storeSettings.id });
+      await writeStoreHours(weeklyHours, hoursNote);
+    }
+
     if (payload.productId && typeof payload.available === "boolean") {
       await getDb()
         .insert(menuAvailability)
@@ -93,15 +109,18 @@ export async function PATCH(request: Request) {
         });
     }
 
-    const settings = await readSettings();
+    const [settings, storeHours] = await Promise.all([readSettings(), readStoreHours()]);
     return Response.json({
       success: true,
       prepTime: settings.prepTimeMinutes,
       paused: settings.paused,
       productId: payload.productId,
       available: payload.available,
+      weeklyHours: storeHours.weeklyHours,
+      hoursNote: storeHours.hoursNote,
     });
   } catch (error) {
+    if (error instanceof StoreHoursMigrationError) return Response.json({ error: error.message }, { status: 503 });
     const message = error instanceof Error ? error.message : "Unable to update menu state";
     return Response.json({ error: message }, { status: 500 });
   }

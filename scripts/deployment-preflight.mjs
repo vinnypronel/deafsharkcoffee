@@ -18,8 +18,18 @@ if (result.errors.length) process.exit(1);
 
 const npx = process.platform === "win32" ? "npx.cmd" : "npx";
 function run(command, commandArgs) {
-  const outcome = spawnSync(command, commandArgs, { stdio: "inherit", env: process.env, shell: false });
-  if (outcome.status !== 0) process.exit(outcome.status ?? 1);
+  /* Node 20.12+ refuses to spawn Windows .cmd shims (npm, npx) without a shell.
+     Without this the spawn fails with a null status and the deploy aborts
+     silently, with nothing printed to explain why. */
+  const outcome = spawnSync(command, commandArgs, { stdio: "inherit", env: process.env, shell: process.platform === "win32" });
+  if (outcome.error) {
+    console.error(`ERROR: ${command} could not be started: ${outcome.error.message}`);
+    process.exit(1);
+  }
+  if (outcome.status !== 0) {
+    console.error(`ERROR: ${command} ${commandArgs.join(" ")} exited with ${outcome.status ?? "no status"}.`);
+    process.exit(outcome.status ?? 1);
+  }
 }
 run(process.platform === "win32" ? "npm.cmd" : "npm", ["run", "build"]);
 run(process.execPath, ["scripts/check-generated-worker-config.mjs", "dist/server/wrangler.json"]);

@@ -20,6 +20,7 @@ interface DeafSharkRuntimeSecrets {
   RESEND_API_KEY?: string;
   AUTH_EMAIL_FROM?: string;
   CLOUDFLARE_EMAIL_ENABLED?: string;
+  LOYALTY_ENABLED?: string;
   EMAIL?: SendEmail;
   /* Order-ready text messages. See lib/sms.ts. */
   TWILIO_ACCOUNT_SID?: string;

@@ -28,15 +28,20 @@ test("accepts a complete production launch configuration", () => {
   assert.deepEqual(validateLaunchConfig(valid).errors, []);
 });
 
-test("allows launch without hosted ordering while the provider link is unavailable", () => {
+test("reports that website ordering is closed", () => {
   const result = validateLaunchConfig({ ...valid, NEXT_PUBLIC_ORDERING_URL: "" });
   assert.deepEqual(result.errors, []);
-  assert.ok(result.warnings.some((warning) => warning.includes("online ordering will remain unavailable")));
+  assert.ok(result.warnings.some((warning) => warning.includes("Website checkout is closed")));
 });
 
-test("requires a URL before the ordering launch switch can be enabled", () => {
+test("first-party ordering does not require a hosted provider URL", () => {
   const result = validateLaunchConfig({ ...valid, NEXT_PUBLIC_ORDERING_URL: "", NEXT_PUBLIC_ORDERING_ENABLED: "true" });
-  assert.ok(result.errors.some((error) => error.includes("NEXT_PUBLIC_ORDERING_ENABLED")));
+  assert.deepEqual(result.errors, []);
+});
+
+test("rejects public Turnstile test keys for launch", () => {
+  const result = validateLaunchConfig({ ...valid, TURNSTILE_SITE_KEY: "1x00000000000000000000AA" });
+  assert.ok(result.errors.some((error) => error.includes("test credentials")));
 });
 
 test("accepts Cloudflare Email Service without a Resend key", () => {

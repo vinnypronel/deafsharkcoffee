@@ -22,6 +22,8 @@ import {
 } from "../../../lib/order-intake";
 import type { MenuContentOverride } from "../../menu-data";
 import { CUSTOM_CHECKOUT_ENABLED } from "../../ordering";
+import { requirePickupAccount } from "../../../lib/checkout-policy";
+import { readStoreHours } from "../../../lib/store-hours-store";
 
 export async function GET(request: Request) {
   try {
@@ -71,7 +73,7 @@ export async function POST(request: Request) {
 
   if (!CUSTOM_CHECKOUT_ENABLED) {
     return Response.json(
-      { error: "Direct website checkout is not available. Please use the online-ordering link.", reference },
+      { error: "Online ordering is not open yet. Please call the shop or order at the counter.", reference },
       { status: 503 },
     );
   }
@@ -96,6 +98,9 @@ export async function POST(request: Request) {
 
     await ensureSchema();
 
+    const session = await getCustomerSession(request);
+    const customerUserId = requirePickupAccount(payload.paymentMethod, session?.user);
+
     /* A retried or double-clicked submit resolves to the order already stored
        for this checkout session instead of creating a second ticket. */
     const [alreadyPlaced] = await getDb()
@@ -104,17 +109,20 @@ export async function POST(request: Request) {
       .where(eq(orders.idempotencyKey, idempotencyKey))
       .limit(1);
     if (alreadyPlaced) {
+      if (alreadyPlaced.customerUserId !== customerUserId) throw new OrderRequestError("Please start a new checkout.", 409, "checkout_conflict");
       logOrderEvent("replayed", { reference, orderId: alreadyPlaced.id, status: 200 });
       return orderResponse(alreadyPlaced, 200, reference);
     }
 
-    const [settingsRow, availabilityRows, menuRows] = await Promise.all([
+    const [settingsRow, availabilityRows, menuRows, storeHours] = await Promise.all([
       getDb().select().from(storeSettings).limit(1),
       getDb().select().from(menuAvailability),
       getDb().select().from(menuContent),
+      readStoreHours(),
     ]);
-    const settings = settingsRow[0] as OrderSettings | undefined;
-    if (!settings) throw new Error("Store settings row is missing.");
+    const storedSettings = settingsRow[0] as OrderSettings | undefined;
+    if (!storedSettings) throw new Error("Store settings row is missing.");
+    const settings: OrderSettings = { ...storedSettings, weeklyHours: storeHours.weeklyHours };
 
     const availability = new Map(availabilityRows.map((item) => [item.productId, item.available]));
     const overrides = new Map<string, MenuContentOverride>(
@@ -126,8 +134,6 @@ export async function POST(request: Request) {
     const { fulfillmentType, scheduledFor, pickupEta } = resolveFulfillment(payload, settings);
     const { hasCoffeeItems, hasKitchenItems } = stationFlags(orderItems);
 
-    const session = await getCustomerSession(request);
-    const customerUserId = session?.user.id ?? null;
     if (session) {
       await getDb().insert(customerProfiles).values({
         userId: session.user.id,
@@ -173,6 +179,7 @@ export async function POST(request: Request) {
         .where(eq(orders.idempotencyKey, idempotencyKey))
         .limit(1);
       if (!raced) throw error;
+      if (raced.customerUserId !== customerUserId) throw new OrderRequestError("Please start a new checkout.", 409, "checkout_conflict");
       logOrderEvent("replayed", { reference, orderId: raced.id, status: 200 });
       return orderResponse(raced, 200, reference);
     }
@@ -203,7 +210,6 @@ export async function POST(request: Request) {
       status: 500,
       cause: error instanceof Error ? error.name : "unknown",
     });
-    console.error(`Order ${reference} failed:`, error);
     return Response.json(
       { error: "We could not place that order. Please try again or call the shop.", reference },
       { status: 500 },

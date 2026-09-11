@@ -13,7 +13,7 @@ export function OrderOnlineLink({
   children: ReactNode;
   className?: string;
   ariaLabel?: string;
-  onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
+  onClick?: (event: MouseEvent<HTMLElement>) => void;
   tabIndex?: number;
 }) {
   const integrated = orderingAdapter.mode === "integrated";
@@ -35,24 +35,21 @@ export function OrderOnlineLink({
 
   return (
     <>
-      <a
+      {unavailable ? <button
+        type="button"
+        className={`${className ?? ""} online-order-link ordering-unavailable`.trim()}
+        aria-label={`${ariaLabel} (coming soon)`}
+        tabIndex={tabIndex}
+        onClick={(event) => { setShowComingSoon(true); onClick?.(event); }}
+      >{children}</button> : <a
         className={`${className ?? ""} online-order-link${unavailable ? " ordering-unavailable" : ""}`.trim()}
-        href={unavailable ? undefined : (integrated ? "/menu" : orderingAdapter.hostedUrl ?? "/contact")}
-        role={unavailable ? "button" : undefined}
-        aria-label={unavailable ? `${ariaLabel} (coming soon)` : ariaLabel}
-        aria-disabled={unavailable || undefined}
-        tabIndex={tabIndex ?? (unavailable ? 0 : undefined)}
-        title={unavailable ? "Online ordering is coming soon!" : undefined}
-        onClick={(event) => {
-          if (unavailable) {
-            event.preventDefault();
-            setShowComingSoon(true);
-          }
-          onClick?.(event);
-        }}
+        href={integrated ? "/menu" : orderingAdapter.hostedUrl ?? "/contact"}
+        aria-label={ariaLabel}
+        tabIndex={tabIndex}
+        onClick={onClick}
       >
         {children}
-      </a>
+      </a>}
 
       {showComingSoon && (
         <div

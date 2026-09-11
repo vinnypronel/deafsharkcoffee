@@ -1,8 +1,19 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../db";
 import { orders } from "../../../db/schema";
 import { getCustomerSession } from "../../../lib/auth";
 import { serveOwnedCustomerOrder } from "../../../lib/customer-order-access";
+
+export async function GET(request: Request) {
+  const session = await getCustomerSession(request);
+  if (!session) return Response.json({ error: "Sign in to view your orders." }, { status: 401 });
+  await ensureSchema();
+  const recent = await getDb().select({
+    orderNumber: orders.orderNumber, status: orders.status, totalCents: orders.totalCents,
+    createdAt: orders.createdAt, pickupEta: orders.pickupEta,
+  }).from(orders).where(eq(orders.customerUserId, session.user.id)).orderBy(desc(orders.createdAt)).limit(10);
+  return Response.json({ orders: recent }, { headers: { "Cache-Control": "no-store" } });
+}
 
 export async function POST(request: Request) {
   try {

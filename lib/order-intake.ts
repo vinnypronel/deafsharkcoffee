@@ -7,7 +7,7 @@ import {
   type PrepStation,
   type ProductSelection,
 } from "../app/menu-data.ts";
-import { effectiveOrderingHours } from "./store-hours.ts";
+import { effectiveOrderingHours, type WeeklyHours } from "./store-hours.ts";
 
 /* Pure validation and pricing for public pickup orders.
 
@@ -59,6 +59,8 @@ export type OrderSettings = {
   schedulingEnabled: boolean;
   schedulingHorizonMinutes: number;
   slotMinutes: number;
+  /** Admin-edited hours per weekday. When absent, the legacy fixed schedule applies. */
+  weeklyHours?: WeeklyHours | null;
 };
 
 const STORE_TIME_ZONE = "America/New_York";

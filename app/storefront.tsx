@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { StoreHours } from "./store-hours";
 import ScrollHero from "./scroll-hero";
 import {
   categories,
@@ -720,6 +721,23 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   );
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
+  /* The cart survives sign-in and email verification, which reload the page.
+     The server re-prices every item, so a stored unitPrice is display only. */
+  const cartRestored = useRef(false);
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("deaf-shark-cart") ?? "null") as { savedAt: number; items: CartItem[] } | null;
+      if (saved && Date.now() - saved.savedAt < 12 * 60 * 60_000 && Array.isArray(saved.items)) setCart(saved.items);
+    } catch { /* storage unavailable */ }
+    cartRestored.current = true;
+  }, []);
+  useEffect(() => {
+    if (!cartRestored.current) return;
+    try {
+      if (cart.length) localStorage.setItem("deaf-shark-cart", JSON.stringify({ savedAt: Date.now(), items: cart }));
+      else localStorage.removeItem("deaf-shark-cart");
+    } catch { /* storage unavailable */ }
+  }, [cart]);
   const [justAdded, setJustAdded] = useState<string | null>(null);
   const justAddedTimer = useRef<number | undefined>(undefined);
   const [cartOpen, setCartOpen] = useState(false);
@@ -1744,11 +1762,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
               </div>
               <div className="visit-card visit-hours-card">
                 <span className="visit-card-label">Hours</span>
-                <div className="business-hours">
-                  <span className="hours-line"><b>Mon–Fri:</b> 6:00 AM – 6:30 PM</span>
-                  <span className="hours-line"><b>Sat:</b> 8:00 AM – 2:00 PM</span>
-                  <span className="hours-line"><b>Sun:</b> Closed</span>
-                </div>
+                <StoreHours />
                 <a className="primary-button visit-action-btn visit-order-btn" href="/menu">
                   <span>Order online</span>
                   <span className="btn-cart-glyph" aria-hidden="true" />
@@ -2190,7 +2204,33 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onC
   /* One key per checkout session. A retry or a double-click reuses it, so the
      server resolves the second request to the order it already stored. */
   const [idempotencyKey] = useState(createIdempotencyKey);
+  /* Launch policy: pay at pickup requires a signed-in account. Guest checkout
+     opens once online payment is live. */
+  const [account, setAccount] = useState<"loading" | "guest" | "member" | "error">("loading");
   const tax = subtotal * 0.06625;
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadAccount() {
+      try {
+        const response = await fetch("/api/profile", { credentials: "include", cache: "no-store" });
+        if (!response.ok) throw new Error("profile");
+        const data = await response.json() as { authenticated: boolean; profile?: { displayName: string; phone?: string | null } };
+        if (cancelled) return;
+        if (!data.authenticated) { setAccount("guest"); return; }
+        setAccount("member");
+        if (data.profile) {
+          setName((current) => current || data.profile!.displayName);
+          if (data.profile.phone) setPhone((current) => current || formatPhoneInput(data.profile!.phone!));
+        }
+      } catch {
+        if (!cancelled) setAccount("error");
+      }
+    }
+    void loadAccount();
+    window.addEventListener("deaf-shark-session-changed", loadAccount);
+    return () => { cancelled = true; window.removeEventListener("deaf-shark-session-changed", loadAccount); };
+  }, []);
 
   function localInputValue(date: Date) {
     const offset = date.getTimezoneOffset() * 60_000;
@@ -2238,6 +2278,7 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onC
         error?: string;
         order: { orderNumber: string; pickupEta: string };
       };
+      if (response.status === 401) setAccount("guest");
       if (!response.ok) throw new Error(data.error ?? "Unable to place order");
       onComplete(data.order.orderNumber, data.order.pickupEta, phone);
     } catch (caught) {
@@ -2255,6 +2296,14 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onC
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8" /></svg>
         </button>
         <h2>Finish your order</h2>
+        {account === "loading" && <p className="checkout-account-note" role="status">Checking your account...</p>}
+        {(account === "guest" || account === "error") && <div className="checkout-account-gate">
+          <strong>{account === "error" ? "We could not check your account" : "Sign in to place your order"}</strong>
+          <p>{account === "error" ? "Please check your connection and try again." : "Online orders are paid at pickup and need a free Deaf Shark account. Guest checkout with online payment is coming soon."}</p>
+          <p>Your cart will be saved while you sign in.</p>
+          <button type="button" className="primary-button" onClick={() => window.dispatchEvent(new Event("deaf-shark-open-account"))}>Sign in or create account</button>
+        </div>}
+        {account === "member" && <>
         <label className={fieldErrors.name ? "has-error" : undefined}><span>Name for the order</span><input value={name} onChange={(event) => { setName(event.target.value); if (fieldErrors.name) setFieldErrors((current) => ({ ...current, name: undefined })); }} placeholder="Your name" aria-invalid={fieldErrors.name ? true : undefined} aria-describedby={fieldErrors.name ? "checkout-name-error" : undefined} />{fieldErrors.name && <small className="checkout-field-error" id="checkout-name-error" role="alert"><i aria-hidden="true">!</i>{fieldErrors.name}</small>}</label>
         <label className={fieldErrors.phone ? "has-error" : undefined}><span>Mobile number</span><input type="tel" value={phone} onChange={(event) => { setPhone(formatPhoneInput(event.target.value)); if (fieldErrors.phone) setFieldErrors((current) => ({ ...current, phone: undefined })); }} placeholder="(908)-555-0123" maxLength={PHONE_INPUT_MAX_LENGTH} aria-invalid={fieldErrors.phone ? true : undefined} aria-describedby={fieldErrors.phone ? "checkout-phone-error checkout-phone-note" : "checkout-phone-note"} />{fieldErrors.phone && <small className="checkout-field-error" id="checkout-phone-error" role="alert"><i aria-hidden="true">!</i>{fieldErrors.phone}</small>}<small className="field-note" id="checkout-phone-note">The shop can use this number if there is a question about your order.</small></label>
         <fieldset className="payment-options pickup-options">
@@ -2279,6 +2328,7 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onC
         <TurnstileWidget action="order" onToken={setTurnstileToken} resetKey={turnstileResetKey} />
         {error && <p className="form-error">{error}</p>}
         <button className="primary-button" disabled={submitting || ordersPaused || !turnstileToken}>{submitting ? "Sending order..." : ordersPaused ? "Online ordering paused" : `Place pickup order · ${money(subtotal + tax)}`}</button>
+        </>}
       </form>
     </div>
   );

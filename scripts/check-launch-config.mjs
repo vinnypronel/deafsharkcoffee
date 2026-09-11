@@ -35,13 +35,9 @@ export function validateLaunchConfig(values, options = {}) {
   const orderingEnabled = values.NEXT_PUBLIC_ORDERING_ENABLED?.trim().toLowerCase() === "true";
   if (orderingUrl) {
     publicHttpsUrl(orderingUrl, "NEXT_PUBLIC_ORDERING_URL", errors);
-  } else {
-    warnings.push("NEXT_PUBLIC_ORDERING_URL is not configured; hosted online ordering will remain unavailable.");
   }
-  if (orderingEnabled && !orderingUrl) {
-    errors.push("NEXT_PUBLIC_ORDERING_ENABLED cannot be true until NEXT_PUBLIC_ORDERING_URL is configured.");
-  } else if (orderingUrl && !orderingEnabled) {
-    warnings.push("Hosted ordering is configured but remains safely disabled until NEXT_PUBLIC_ORDERING_ENABLED is true.");
+  if (!orderingEnabled) {
+    warnings.push("Website checkout is closed until NEXT_PUBLIC_ORDERING_ENABLED is true in the release build.");
   }
   if (orderingUrl) {
     try {
@@ -73,6 +69,9 @@ export function validateLaunchConfig(values, options = {}) {
 
   if (!values.TURNSTILE_SITE_KEY?.trim()) errors.push("TURNSTILE_SITE_KEY is required.");
   if (!values.TURNSTILE_SECRET_KEY?.trim()) errors.push("TURNSTILE_SECRET_KEY is required.");
+  if (/^[123]x0{10,}/.test(values.TURNSTILE_SITE_KEY ?? "") || /^[123]x0{10,}/.test(values.TURNSTILE_SECRET_KEY ?? "")) {
+    errors.push("Turnstile test credentials cannot be used for a customer launch.");
+  }
   const hostnames = (values.TURNSTILE_HOSTNAMES ?? "").split(",").map((value) => value.trim().toLowerCase()).filter(Boolean);
   if (hostnames.length === 0) errors.push("TURNSTILE_HOSTNAMES must contain the production hostname.");
   if (hostnames.some((hostname) => ["localhost", "127.0.0.1", "::1"].includes(hostname))) {

@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { CustomerHeader, SiteFooter } from "../site-chrome";
 import { OrderOnlineLink } from "../order-online-link";
 import ContactForm from "./contact-form";
+import { StoreHours } from "../store-hours";
+import { CUSTOM_CHECKOUT_ENABLED } from "../ordering";
 
 export const metadata: Metadata = {
   title: "Visit Us | Deaf Shark Coffee",
@@ -13,7 +15,7 @@ export default function ContactPage() {
     <main className="content-page">
       <CustomerHeader active="/contact" />
       <section className="page-hero contact-hero">
-        <div><span className="eyebrow">Visit the shop</span><h1>Come see us,<br />in Union!</h1><p>Stop in for coffee, breakfast, sandwiches, and bites. Online ordering is coming soon.</p></div>
+        <div><span className="eyebrow">Visit the shop</span><h1>Come see us,<br />in Union!</h1><p>Stop in for coffee, breakfast, sandwiches, and bites. {CUSTOM_CHECKOUT_ENABLED ? "Or order ahead online for pickup." : "Online ordering is coming soon."}</p></div>
         <div className="contact-hero-photo"><img src="/grand-opening.jpg" alt="Deaf Shark Coffee grand opening ribbon cutting ceremony" /></div>
       </section>
       <section className="contact-grid">
@@ -30,11 +32,7 @@ export default function ContactPage() {
         </article>
         <article>
           <h2>Hours</h2>
-          <p className="business-hours">
-            <span className="hours-line"><b>Mon–Fri:</b> 6:00 AM – 6:30 PM</span>
-            <span className="hours-line"><b>Sat:</b> 8:00 AM – 2:00 PM</span>
-            <span className="hours-line"><b>Sun:</b> Closed</span>
-          </p>
+          <StoreHours />
           <OrderOnlineLink className="primary-button visit-order-btn">
             <span>Order online</span>
             <span className="btn-cart-glyph" aria-hidden="true" />

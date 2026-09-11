@@ -177,6 +177,9 @@ export const menuContent = sqliteTable("menu_content", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
 
+/* Migration 0017 adds weekly_hours and hours_note. They are read and written
+   with raw SQL in lib/store-hours-store.ts, not declared here, so this schema
+   keeps working against a database where 0017 has not run yet. */
 export const storeSettings = sqliteTable("store_settings", {
   id: integer("id").primaryKey().default(1),
   prepTimeMinutes: integer("prep_time_minutes").notNull().default(15),

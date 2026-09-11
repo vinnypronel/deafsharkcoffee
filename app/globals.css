@@ -3868,6 +3868,21 @@ body.modal-open { touch-action: none; }
   flex-shrink: 0;
 }
 .checkout-card > .primary-button { width: 100%; }
+.checkout-account-note { color: var(--muted); font-size: 14px; }
+.hours-note { font-style: italic; }
+.admin-hours-grid { display: grid; gap: 10px; margin: 18px 0; }
+.admin-hours-row { display: grid; grid-template-columns: 130px 110px minmax(0, 1fr) minmax(0, 1fr); align-items: end; gap: 14px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+.admin-hours-row > strong { align-self: center; }
+.admin-hours-row .admin-check { align-self: center; }
+.admin-hours-row.is-closed { opacity: .7; }
+.admin-hours-note { display: grid; gap: 6px; max-width: 640px; }
+@media (max-width: 640px) {
+  .admin-hours-row { grid-template-columns: 1fr 1fr; }
+}
+.checkout-account-gate { display: grid; gap: 8px; margin-top: 18px; padding: 18px; border-radius: 14px; background: rgba(217, 131, 36, 0.08); border: 1px solid rgba(217, 131, 36, 0.22); color: var(--ink); }
+.checkout-account-gate strong { font-size: 17px; }
+.checkout-account-gate p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--muted); }
+.checkout-account-gate .primary-button { width: 100%; margin-top: 8px; }
 .form-error { color: #a43d2e; font-size: 13px; }
 .staff-access-page { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px; text-align: center; background: var(--paper); color: var(--deep); }
 .staff-access-page img { width: 76px; height: 76px; object-fit: contain; margin-bottom: 20px; }

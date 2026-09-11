@@ -8,5 +8,6 @@ export async function GET() {
     emailEnabled,
     emailVerificationEnabled: emailEnabled,
     passwordRecoveryEnabled: emailEnabled,
+    loyaltyEnabled: env.LOYALTY_ENABLED === "true",
   });
 }

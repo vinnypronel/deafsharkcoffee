@@ -1,6 +1,8 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import { env } from "cloudflare:workers";
 import { ensureSchema, getDb } from "../../../../db";
-import { customerProfiles, loyaltyTransactions, orders } from "../../../../db/schema";
+import { orders } from "../../../../db/schema";
+import { loyaltyChangeStatements } from "../../../../lib/loyalty-ledger";
 import { requireStaff } from "../../../../lib/staff-auth";
 import { notifyOrderReady } from "../../../../lib/sms";
 
@@ -47,6 +49,9 @@ export async function PATCH(
 
     const [existing] = await getDb().select().from(orders).where(eq(orders.id, orderId)).limit(1);
     if (!existing) return Response.json({ error: "Order not found." }, { status: 404 });
+    if ((existing.status === "complete" || existing.status === "cancelled") && payload.status !== existing.status) {
+      return Response.json({ error: "This order is already closed." }, { status: 409 });
+    }
 
     let update: Partial<typeof orders.$inferInsert>;
     if (payload.station && payload.stationStatus) {
@@ -86,53 +91,39 @@ export async function PATCH(
       return Response.json({ error: "Invalid order update." }, { status: 400 });
     }
 
-    const [updated] = await getDb()
+    const updateQuery = getDb()
       .update(orders)
       .set(update)
-      .where(eq(orders.id, orderId))
-      .returning();
-
-    if (!updated) {
-      return Response.json({ error: "Order not found." }, { status: 404 });
+      .where(and(
+        eq(orders.id, orderId), eq(orders.status, existing.status),
+        eq(orders.coffeeStatus, existing.coffeeStatus), eq(orders.kitchenStatus, existing.kitchenStatus),
+      ))
+      .returning({ id: orders.id }).toSQL();
+    const statements = [env.DB.prepare(updateQuery.sql).bind(...updateQuery.params)];
+    const earnedPoints = Math.floor(existing.subtotalCents / 100);
+    if (env.LOYALTY_ENABLED === "true" && update.status === "complete" && existing.customerUserId && earnedPoints > 0) {
+      statements.push(...loyaltyChangeStatements({
+        userId: existing.customerUserId, orderId: existing.id,
+        reference: `order:${existing.id}`, points: earnedPoints,
+        reason: "completed_order", lifetimeCredit: true, requirePreviousChange: true,
+      }).map((statement) => env.DB.prepare(statement.sql).bind(...statement.values)));
     }
+    // Completing the ticket, writing its credit, and updating the balance either
+    // all commit or all roll back. A lost response is safe to retry.
+    const [result] = await env.DB.batch(statements);
+
+    if (!result.results.length) {
+      return Response.json({ error: "Another station updated this order. Refresh and try again." }, { status: 409 });
+    }
+    const updated = { ...existing, ...update };
 
     if (existing.status !== "ready" && updated.status === "ready" && updated.phone) {
       await notifyOrderReady(updated.phone, updated.orderNumber);
     }
 
-    if (updated.status === "complete" && updated.customerUserId) {
-      const earnedPoints = Math.floor(updated.subtotalCents / 100);
-
-      if (earnedPoints > 0) {
-        const [profile] = await getDb()
-          .select()
-          .from(customerProfiles)
-          .where(eq(customerProfiles.userId, updated.customerUserId))
-          .limit(1);
-
-        if (profile) {
-          const [ledgerEntry] = await getDb().insert(loyaltyTransactions).values({
-            userId: updated.customerUserId,
-            orderId: updated.id,
-            pointsChange: earnedPoints,
-            balanceAfter: profile.points + earnedPoints,
-            reason: "completed_order",
-          }).onConflictDoNothing({ target: loyaltyTransactions.orderId }).returning();
-
-          if (ledgerEntry) {
-            await getDb().update(customerProfiles).set({
-              points: sql`${customerProfiles.points} + ${earnedPoints}`,
-              lifetimePoints: sql`${customerProfiles.lifetimePoints} + ${earnedPoints}`,
-              updatedAt: new Date(),
-            }).where(eq(customerProfiles.userId, updated.customerUserId));
-          }
-        }
-      }
-    }
-
     return Response.json({ order: updated });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to update order";
-    return Response.json({ error: message }, { status: 500 });
+    console.error(JSON.stringify({ event: "order_update_failed", errorType: error instanceof Error ? error.name : "UnknownError" }));
+    return Response.json({ error: "Unable to finish updating this order. Refresh and retry the same action." }, { status: 500 });
   }
 }

@@ -64,7 +64,7 @@ export function Dashboard() {
   const [availability, setAvailability] = useState<Record<string, boolean>>({});
   const [prepTime, setPrepTime] = useState(15);
   const [paused, setPaused] = useState(false);
-  const [activeView, setActiveView] = useState<"orders" | "menu" | "website" | "events" | "forms" | "history" | "loyalty">("orders");
+  const [activeView, setActiveView] = useState<"orders" | "menu" | "website" | "hours" | "events" | "forms" | "history" | "loyalty">("orders");
   const [mobileColumn, setMobileColumn] = useState<Order["status"]>("new");
   const [connection, setConnection] = useState<"live" | "waiting">("waiting");
   const [soundArmed, setSoundArmed] = useState(false);
@@ -203,6 +203,7 @@ export function Dashboard() {
           <a href="/kds/kitchen" target="_blank" rel="noreferrer">Kitchen screen</a>
           <button className={activeView === "menu" ? "active" : ""} onClick={() => setActiveView("menu")}>Menu</button>
           <button className={activeView === "website" ? "active" : ""} onClick={() => setActiveView("website")}>Homepage</button>
+          <button className={activeView === "hours" ? "active" : ""} onClick={() => setActiveView("hours")}>Hours</button>
           <button className={activeView === "events" ? "active" : ""} onClick={() => setActiveView("events")}>Events</button>
           <button className={activeView === "forms" ? "active" : ""} onClick={() => setActiveView("forms")}>Forms</button>
           <button className={activeView === "loyalty" ? "active" : ""} onClick={() => setActiveView("loyalty")}>Loyalty</button>

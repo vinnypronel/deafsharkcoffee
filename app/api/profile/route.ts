@@ -2,6 +2,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../db";
 import { customerProfiles, loyaltyTransactions, memberOffers } from "../../../db/schema";
 import { getCustomerSession } from "../../../lib/auth";
+import { env } from "cloudflare:workers";
 
 const SIGNUP_BONUS_POINTS = 25;
 const WELCOME_OFFER_TYPE = "signup_half_off_coffee";
@@ -16,6 +17,7 @@ async function ensureWelcomeBenefits(user: { id: string; email: string; name: st
 
   const [current] = await db.select().from(customerProfiles).where(eq(customerProfiles.userId, user.id)).limit(1);
   if (!current) throw new Error("Customer profile could not be created.");
+  if (env.LOYALTY_ENABLED !== "true") return;
 
   if (!current.signupBonusAwarded) {
     const balanceAfter = current.points + SIGNUP_BONUS_POINTS;

@@ -4,8 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { categories as menuCategories, menuProducts } from "../menu-data";
 import { OfferBarcode } from "../offer-barcode";
+import { DISPLAY_WEEK, WEEKDAY_NAMES, parseWeeklyHours, type DayHours, type Weekday, type WeeklyHours } from "../../lib/store-hours";
 
-type View = "menu" | "website" | "events" | "forms" | "history" | "loyalty";
+type View = "menu" | "website" | "hours" | "events" | "forms" | "history" | "loyalty";
 type Featured = { slot: number; productId: string; categoryLabel: string; title: string; buttonLabel: string; priceCents: number; mediaUrl: string };
 type MenuDraft = { productId: string; name: string; category: string; description: string; priceCents: number; photoUrl: string };
 type EventDraft = { id?: number; title: string; description: string; dateLabel: string; timeLabel: string; location: string; entryLabel: string; details: string; buttonLabel: string; buttonHref: string; imageLeftUrl: string; imageRightUrl: string; imageCaption: string | null; published: boolean; sortOrder: number; createdAt?: string };
@@ -127,6 +128,8 @@ export function AdminPanels({ view }: { view: View }) {
     </AdminSection>
   );
 
+  if (view === "hours") return <HoursManager />;
+
   if (view === "events") return (
     <AdminSection eyebrow="Events manager" title="Upcoming events" description="Add, edit, hide, or remove events. Published events appear in the same two-image format on the Events page.">
       {message && <AdminNotice>{message}</AdminNotice>}
@@ -242,7 +245,7 @@ function LoyaltyManager({ data, message, setMessage, reload }: { data: LoyaltyDa
   }
 
   return (
-    <AdminSection eyebrow="Customer rewards" title="Loyalty members" description="Every new member receives 25 welcome points and one in-store half-off coffee offer. Review balances, redeem welcome offers, and make traceable corrections here.">
+    <AdminSection eyebrow="Customer rewards" title="Loyalty members" description="Review member balances, redeem welcome offers, and make traceable points corrections here. Customer-facing rewards stay hidden until the loyalty program is switched on.">
       {message && <AdminNotice>{message}</AdminNotice>}
       <div className="record-summary"><span><strong>{data.members.length}</strong> members</span><span><strong>{data.members.reduce((total, member) => total + member.points, 0)}</strong> active points</span><span><strong>{data.offers.filter((offer) => offer.status === "active").length}</strong> active welcome offers</span></div>
       <label className="loyalty-search">Scan a coupon or find a member<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Scan barcode or search name, email, or phone" /></label>
@@ -267,6 +270,56 @@ function LoyaltyManager({ data, message, setMessage, reload }: { data: LoyaltyDa
         {members.length === 0 && <p className="empty-records">No matching loyalty members.</p>}
       </div>
       <section className="records-block"><h2>Recent points activity</h2><div className="admin-table-wrap"><table className="admin-table loyalty-ledger"><thead><tr><th>Date</th><th>Customer</th><th>Change</th><th>Balance</th><th>Reason</th></tr></thead><tbody>{data.transactions.map((entry) => <tr key={entry.id}><td>{when(entry.createdAt)}</td><td>{memberNames.get(entry.userId) || "Customer"}</td><td><strong className={entry.pointsChange >= 0 ? "points-positive" : "points-negative"}>{entry.pointsChange >= 0 ? "+" : ""}{entry.pointsChange}</strong></td><td>{entry.balanceAfter}</td><td>{entry.reason === "completed_order" ? `Completed order${entry.orderId ? ` #${entry.orderId}` : ""}` : entry.reason === "signup_bonus" ? "New member bonus" : entry.reason.replace(/^staff_adjustment:/, "Staff: ")}</td></tr>)}</tbody></table></div></section>
+    </AdminSection>
+  );
+}
+
+function HoursManager() {
+  const [weekly, setWeekly] = useState<WeeklyHours | null>(null);
+  const [note, setNote] = useState("");
+  const [message, setMessage] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/menu-state", { cache: "no-store" })
+      .then((response) => response.json() as Promise<{ weeklyHours?: unknown; hoursNote?: string }>)
+      .then((data) => { setWeekly(parseWeeklyHours(data.weeklyHours)); setNote(data.hoursNote ?? ""); })
+      .catch(() => setMessage("Hours could not be loaded. Refresh to try again."));
+  }, []);
+
+  const update = (day: Weekday, changes: Partial<DayHours>) => setWeekly((current) => current && { ...current, [day]: { ...current[day], ...changes } });
+
+  async function saveHours() {
+    if (!weekly) return;
+    setSaving(true);
+    setMessage("Saving…");
+    try {
+      const response = await fetch("/api/menu-state", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ weeklyHours: weekly, hoursNote: note }) });
+      const data = await response.json() as { error?: string; weeklyHours?: unknown; hoursNote?: string };
+      if (!response.ok) { setMessage(data.error || "Could not save hours."); return; }
+      setWeekly(parseWeeklyHours(data.weeklyHours));
+      setNote(data.hoursNote ?? "");
+      setMessage("Hours published. The website and online ordering now use these hours.");
+    } catch {
+      setMessage("Connection interrupted. Your hours were not saved.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <AdminSection eyebrow="Store hours" title="Opening hours" description="These hours appear on the homepage and the Visit page. Online ordering only accepts orders during these hours and stops taking orders 30 minutes before closing. For a surprise closure, use Pause online orders on the Live orders screen.">
+      {message && <AdminNotice>{message}</AdminNotice>}
+      {!weekly ? <p className="empty-records">Loading hours…</p> : <div className="admin-hours-grid">
+        {DISPLAY_WEEK.map((day) => <div className={`admin-hours-row${weekly[day].closed ? " is-closed" : ""}`} key={day}>
+          <strong>{WEEKDAY_NAMES[day]}</strong>
+          <label className="admin-check"><input type="checkbox" checked={weekly[day].closed} onChange={(event) => update(day, { closed: event.target.checked })} /> Closed</label>
+          <label>Opens<input type="time" step={900} value={weekly[day].open} disabled={weekly[day].closed} onChange={(event) => update(day, { open: event.target.value })} /></label>
+          <label>Closes<input type="time" step={900} value={weekly[day].close} disabled={weekly[day].closed} onChange={(event) => update(day, { close: event.target.value })} /></label>
+        </div>)}
+      </div>}
+      <label className="admin-hours-note">Special note (optional, shown under the hours)<input value={note} maxLength={160} onChange={(event) => setNote(event.target.value)} placeholder="Example: Closed Thursday, November 26 for Thanksgiving" /></label>
+      <div className="admin-editor-actions"><button className="admin-save" disabled={saving || !weekly} onClick={saveHours}>{saving ? "Saving…" : "Save hours"}</button></div>
     </AdminSection>
   );
 }

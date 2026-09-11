@@ -64,23 +64,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         />
         <link rel="preload" as="image" href="/hero-scrub-poster.jpg" fetchPriority="high" />
         <link rel="preload" as="image" href="/drink-strawberry-matcha.webp" fetchPriority="high" />
-        {/* Start the hero scrub download while the document is still parsing, so the
-            footage is buffered before React hydrates and the first scroll happens.
-            ScrollHero picks these same elements up instead of creating its own. */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html:
-              "(function(){try{" +
-              "var mobile=window.matchMedia('(max-width: 767px)').matches;" +
-              "if(mobile||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;" +
-              "var src=mobile?'/hero-scrub-mobile.mp4':'/hero-scrub.mp4';" +
-              "var v=document.createElement('video');" +
-              "v.muted=true;v.playsInline=true;v.autoplay=false;v.loop=false;v.preload='auto';v.src=src;v.load();v.pause();" +
-              "window.__heroScrubVideo=v;window.__heroScrubSrc=src;" +
-              "var p=new Image();p.src='/hero-scrub-poster.jpg';window.__heroScrubPoster=p;" +
-              "}catch(e){}})();",
-          }}
-        />
       </head>
       <body className={geist.variable} suppressHydrationWarning>
         <PageTransition />

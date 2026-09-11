@@ -6,8 +6,9 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { menuProducts, type Product } from "./menu-data";
 import { OfferBarcode } from "./offer-barcode";
 import { OrderOnlineLink } from "./order-online-link";
+import { OrderStatus } from "./order-status";
 type ProfileResponse = { authenticated: boolean; profile?: { displayName: string; email: string; phone?: string | null; points: number; lifetimePoints: number; activity?: Array<{ id: number; pointsChange: number; balanceAfter: number; reason: string; createdAt: string }>; welcomeOffer?: { id: number; code: string; status: string; issuedAt: string; redeemedAt?: string | null } | null } };
-type AuthConfig = { googleEnabled: boolean; emailEnabled: boolean; emailVerificationEnabled: boolean; passwordRecoveryEnabled: boolean };
+type AuthConfig = { googleEnabled: boolean; emailEnabled: boolean; emailVerificationEnabled: boolean; passwordRecoveryEnabled: boolean; loyaltyEnabled?: boolean };
 type LenisController = { start: () => void; stop: () => void; scrollTo: (target: number, options?: Record<string, unknown>) => void };
 type WindowWithLenis = Window & { __lenis?: LenisController };
 
@@ -81,6 +82,8 @@ export function BrandMark({ dark = false }: { dark?: boolean }) {
 export function CustomerHeader({ active, action }: { active?: string; action?: ReactNode }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [trackingOrder, setTrackingOrder] = useState<string | null>(null);
+  const [recentOrders, setRecentOrders] = useState<Array<{ orderNumber: string; status: string; totalCents: number }>>([]);
   const [query, setQuery] = useState("");
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [authConfig, setAuthConfig] = useState<AuthConfig>({
@@ -126,7 +129,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
   const searchResultsLenisRef = useRef<Lenis | null>(null);
 
   useEffect(() => {
-    if (searchOpen || profileOpen) {
+    if (searchOpen || profileOpen || trackingOrder) {
       document.body.classList.add("modal-open");
       (window as WindowWithLenis).__lenis?.stop();
     } else {
@@ -141,7 +144,23 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
         (window as WindowWithLenis).__lenis?.start();
       }
     };
-  }, [searchOpen, profileOpen]);
+  }, [searchOpen, profileOpen, trackingOrder]);
+
+  useEffect(() => {
+    const openAccount = () => { setMobileMenuOpen(false); void openProfile(); };
+    const openOrder = (event: Event) => {
+      const number = (event as CustomEvent<{ orderNumber?: string }>).detail?.orderNumber;
+      if (!number) return;
+      setProfileOpen(false);
+      setTrackingOrder(number);
+    };
+    window.addEventListener("deaf-shark-open-account", openAccount);
+    window.addEventListener("deaf-shark-open-order", openOrder);
+    return () => {
+      window.removeEventListener("deaf-shark-open-account", openAccount);
+      window.removeEventListener("deaf-shark-open-order", openOrder);
+    };
+  }, []);
 
   async function openProfile() {
     setSearchOpen(false);
@@ -189,7 +208,12 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
       if (nextProfile.profile) {
         setProfileName(nextProfile.profile.displayName);
         setProfilePhone(nextProfile.profile.phone ?? "");
+        try {
+          const response = await fetchWithTimeout("/api/customer-orders", { cache: "no-store" });
+          if (response.ok) setRecentOrders(((await response.json()) as { orders?: typeof recentOrders }).orders ?? []);
+        } catch { setRecentOrders([]); }
       }
+      window.dispatchEvent(new Event("deaf-shark-session-changed"));
     } else {
       setProfile({ authenticated: false });
       setAuthError("We could not load your saved profile. Please try opening your account again.");
@@ -207,7 +231,8 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
         setPasswordFlow("reset");
         void openProfile();
       }, 0);
-    } else if (params.get("account") === "signin") {
+    } else if (params.get("account") === "signin" || params.get("account") === "signup") {
+      if (params.get("account") === "signup") setAuthMode("signup");
       window.setTimeout(() => void openProfile(), 0);
     }
     // This deep link is used by the protected admin page.
@@ -255,7 +280,9 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
 
   function requestedReturnTo() {
     const value = new URLSearchParams(window.location.search).get("returnTo") || "";
-    return value.startsWith("/") && !value.startsWith("//") ? value : "";
+    if (!value.startsWith("/") || value.includes("\\")) return "";
+    const target = new URL(value, window.location.origin);
+    return target.origin === window.location.origin ? `${target.pathname}${target.search}${target.hash}` : "";
   }
 
   async function handleGoogleSignIn() {
@@ -418,8 +445,13 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
     e.preventDefault();
     setAuthBusy(true);
     try {
-      await fetch("/api/auth/sign-out", { method: "POST", credentials: "include" });
+      const response = await fetchWithTimeout("/api/auth/sign-out", { method: "POST", credentials: "include" });
+      if (!response.ok) throw new Error("Unable to sign out.");
       setProfile({ authenticated: false });
+      setRecentOrders([]);
+      window.dispatchEvent(new Event("deaf-shark-session-changed"));
+    } catch {
+      setProfileMessage("Unable to sign out. Please try again.");
     } finally {
       setAuthBusy(false);
     }
@@ -436,19 +468,23 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
       setProfileMessage("Enter a complete 10-digit mobile number.");
       return;
     }
-    const response = await fetch("/api/profile", {
-      method: "PATCH",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ displayName: profileName, phone: profilePhone }),
-    });
-    const data = await response.json() as { error?: string; profile?: ProfileResponse["profile"] };
-    if (!response.ok || !data.profile) {
-      setProfileMessage(data.error || "Your profile could not be saved.");
-      return;
+    try {
+      const response = await fetchWithTimeout("/api/profile", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ displayName: profileName, phone: profilePhone }),
+      });
+      const data = await response.json() as { error?: string; profile?: ProfileResponse["profile"] };
+      if (!response.ok || !data.profile) {
+        setProfileMessage(data.error || "Your profile could not be saved.");
+        return;
+      }
+      setProfile({ authenticated: true, profile: data.profile });
+      setProfileMessage("Saved.");
+    } catch {
+      setProfileMessage("Your profile could not be saved. Check your connection and try again.");
     }
-    setProfile({ authenticated: true, profile: data.profile });
-    setProfileMessage("Saved.");
   }
 
   const normalizedQuery = normalizeSearchText(query);
@@ -475,6 +511,9 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
+          </button>
+          <button className="header-icon-button" onClick={() => { setMobileMenuOpen(false); void openProfile(); }} aria-label="Your account">
+            <svg className="header-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 22v-2a8 8 0 0 1 16 0v2" /></svg>
           </button>
           {action ?? (
             <OrderOnlineLink className="header-cart header-cart-fallback" ariaLabel="Order online">
@@ -612,7 +651,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
           if (event.target === event.currentTarget) setSearchOpen(false);
         }}
         onKeyDown={(event) => {
-          if (event.key === "Escape" || event.key === "Enter" || event.key === " ") setSearchOpen(false);
+          if (event.key === "Escape") setSearchOpen(false);
         }}
       >
         <aside
@@ -709,7 +748,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
             if (event.target === event.currentTarget) setProfileOpen(false);
           }}
           onKeyDown={(event) => {
-            if (event.key === "Escape" || event.key === "Enter" || event.key === " ") setProfileOpen(false);
+            if (event.key === "Escape") setProfileOpen(false);
           }}
         >
           <section className="account-modal" data-auth-mode={profile?.authenticated ? "profile" : authMode} data-lenis-prevent role="dialog" aria-modal="true" aria-label="Customer account">
@@ -721,9 +760,9 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
             {profile && !profile.authenticated && (
               <>
                 <h2>{passwordFlow === "reset" ? "Choose a new password" : passwordFlow === "request" ? "Reset your password" : "Sign in or create your account"}</h2>
-                <p>{passwordFlow === "reset" ? "Enter a new password for your Deaf Shark Coffee account." : passwordFlow === "request" ? "We will email you a secure, one-hour reset link." : "Create your free account to receive 25 welcome points and a one-time 50% off coffee offer for your next in-store visit."}</p>
+                <p>{passwordFlow === "reset" ? "Enter a new password for your Deaf Shark Coffee account." : passwordFlow === "request" ? "We will email you a secure, one-hour reset link." : "Sign in to place pickup orders, follow your order status, and manage your profile."}</p>
 
-                {passwordFlow === "credentials" && <div className="social-auth-buttons">
+                {passwordFlow === "credentials" && authConfig.googleEnabled && <div className="social-auth-buttons">
                   <button
                     type="button"
                     className="social-auth-btn social-google"
@@ -851,7 +890,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                       </label>
                     </div>
                   )}
-                  <button type="submit" className="primary-button auth-email-btn">
+                  <button type="submit" className="primary-button auth-email-btn" disabled={authBusy}>
                     {authBusy ? "Please wait..." : authMode === "signup" ? "Create account" : "Sign in with email"}
                   </button>
                 </form>}
@@ -871,6 +910,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                   </form>
                 )}
                 {authError && <p className="account-form-message error" role="alert">{authError}</p>}
+                {!authConfig.emailEnabled && !authConfig.googleEnabled && <p role="status">Account sign-in is currently unavailable. Please try again later or call the shop.</p>}
                 {authNotice && <p className="account-form-message" role="status">{authNotice}</p>}
                 {passwordFlow === "credentials" && authConfig.emailEnabled && <button type="button" className="account-mode-toggle" onClick={() => { setAuthMode(authMode === "signin" ? "signup" : "signin"); setAuthError(""); setAuthNotice(""); }}>
                   {authMode === "signin" ? "New here? Create an account" : "Already have an account? Sign in"}
@@ -886,7 +926,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                 <span className="account-welcome">Welcome back</span>
                 <h2>{profile.profile.displayName}</h2>
                 <p>{profile.profile.email}</p>
-                <div className="loyalty-card">
+                {authConfig.loyaltyEnabled && <><div className="loyalty-card">
                   <span>Deaf Shark Rewards</span>
                   <strong>{profile.profile.points} points</strong>
                   <div><i style={{ width: `${Math.min(100, profile.profile.points)}%` }} /></div>
@@ -908,6 +948,11 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                     {profile.profile.activity.slice(0, 3).map((entry) => <div key={entry.id}><span>{entry.reason === "completed_order" ? "Completed order" : entry.reason === "signup_bonus" ? "Welcome bonus" : entry.reason.replace(/^staff_adjustment:/, "Staff adjustment: ")}</span><b className={entry.pointsChange >= 0 ? "points-positive" : "points-negative"}>{entry.pointsChange >= 0 ? "+" : ""}{entry.pointsChange}</b></div>)}
                   </div>
                 )}
+                </>}
+                <div className="account-points-activity"><strong>Your recent orders</strong>
+                  {recentOrders.length === 0 && <p>No orders yet.</p>}
+                  {recentOrders.map((order) => <button key={order.orderNumber} type="button" className="account-mode-toggle" onClick={() => { setProfileOpen(false); setTrackingOrder(order.orderNumber); }}>{order.orderNumber} · {order.status} · ${(order.totalCents / 100).toFixed(2)}</button>)}
+                </div>
                 <form className="account-profile-form" onSubmit={saveProfile} noValidate>
                   <label>Name<input value={profileName} onChange={(e) => { setProfileName(e.target.value); setProfileMessage(""); }} maxLength={80} autoComplete="name" /></label>
                   <label>Mobile number<input value={profilePhone} onChange={(e) => { setProfilePhone(e.target.value); setProfileMessage(""); }} type="tel" autoComplete="tel" placeholder="Used to find your rewards in store" /></label>
@@ -922,6 +967,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
           </section>
         </div>
       )}
+      {trackingOrder && <OrderStatus orderNumber={trackingOrder} onClose={() => setTrackingOrder(null)} />}
     </>
   );
 }
@@ -939,7 +985,7 @@ export function SiteFooter() {
           <div className="newsletter-form-wrap">
             <div className="newsletter-coming-soon-wrapper">
               <span className="newsletter-coming-soon-badge" aria-hidden="true">Coming soon!</span>
-              <form className="newsletter-form newsletter-disabled" onSubmit={(e) => e.preventDefault()} noValidate aria-disabled="true">
+              <form className="newsletter-form newsletter-disabled" onSubmit={(e) => e.preventDefault()} noValidate>
                 <label htmlFor="footer-email">E-MAIL</label>
                 <div className="newsletter-input-row is-disabled">
                   <input
