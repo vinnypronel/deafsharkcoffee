@@ -119,8 +119,19 @@ export async function sendStaffNotification(channel: StaffNotificationChannel, s
   }
 }
 
+/* Absolute and hardcoded on purpose: mail clients cannot resolve relative paths,
+   and BETTER_AUTH_URL points at localhost during development. These two files
+   ship with the site, so the template and the assets must deploy together. */
+const EMAIL_ASSET_ORIGIN = "https://deafsharkcoffee.com";
+
+/* Tables, not flex or grid: Outlook ignores modern layout. The fin is a darkened
+   copy of the site mark, because the pale original disappears on cream. */
+function emailHeader() {
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 28px"><tr><td align="left" style="vertical-align:middle"><img src="${EMAIL_ASSET_ORIGIN}/email-logo-badge.png" width="56" height="56" alt="Deaf Shark Coffee" style="display:block;border:0;outline:none;width:56px;height:56px" /></td><td align="right" style="vertical-align:middle"><img src="${EMAIL_ASSET_ORIGIN}/email-logo-fin.png" width="66" alt="" style="display:block;border:0;outline:none;width:66px;height:auto" /></td></tr></table>`;
+}
+
 function emailShell(title: string, body: string, actionLabel: string, actionUrl: string) {
-  return `<!doctype html><html><body style="margin:0;background:#f7efe2;color:#28140c;font-family:Arial,sans-serif"><div style="max-width:560px;margin:0 auto;padding:40px 24px"><h1 style="font-family:Georgia,serif;font-size:32px">${title}</h1><p style="font-size:16px;line-height:1.6">${body}</p><p style="margin:30px 0"><a href="${actionUrl}" style="display:inline-block;padding:14px 22px;border-radius:8px;background:#32190f;color:#fff;text-decoration:none;font-weight:700">${actionLabel}</a></p><p style="font-size:13px;line-height:1.5;color:#715f55">If you did not request this, you can ignore this email. This link expires in one hour.</p></div></body></html>`;
+  return `<!doctype html><html><body style="margin:0;background:#f7efe2;color:#28140c;font-family:Arial,sans-serif"><div style="max-width:560px;margin:0 auto;padding:40px 24px">${emailHeader()}<h1 style="font-family:Georgia,serif;font-size:32px">${title}</h1><p style="font-size:16px;line-height:1.6">${body}</p><p style="margin:30px 0"><a href="${actionUrl}" style="display:inline-block;padding:14px 22px;border-radius:8px;background:#32190f;color:#fff;text-decoration:none;font-weight:700">${actionLabel}</a></p><p style="font-size:13px;line-height:1.5;color:#715f55">If you did not request this, you can ignore this email. This link expires in one hour.</p></div></body></html>`;
 }
 
 export async function sendVerificationEmail(to: string, url: string) {
