@@ -8,6 +8,7 @@ import { OfferBarcode } from "./offer-barcode";
 import { PHONE_INPUT_MAX_LENGTH, formatPhoneInput } from "../lib/phone-format";
 import { OrderOnlineLink } from "./order-online-link";
 import { OrderStatus } from "./order-status";
+import TurnstileWidget from "./turnstile-widget";
 type ProfileResponse = { authenticated: boolean; profile?: { displayName: string; email: string; phone?: string | null; points: number; lifetimePoints: number; activity?: Array<{ id: number; pointsChange: number; balanceAfter: number; reason: string; createdAt: string }>; welcomeOffer?: { id: number; code: string; status: string; issuedAt: string; redeemedAt?: string | null } | null } };
 type AuthConfig = { googleEnabled: boolean; emailEnabled: boolean; emailVerificationEnabled: boolean; passwordRecoveryEnabled: boolean; loyaltyEnabled?: boolean };
 type LenisController = { start: () => void; stop: () => void; scrollTo: (target: number, options?: Record<string, unknown>) => void };
@@ -117,6 +118,10 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
   const [authBirthdayMonth, setAuthBirthdayMonth] = useState("");
   const [authBirthdayDay, setAuthBirthdayDay] = useState("");
   const [authPoliciesAccepted, setAuthPoliciesAccepted] = useState(false);
+  /* Signup sends a real email per attempt, so it carries the same bot check as
+     the other public forms. */
+  const [signupTurnstileToken, setSignupTurnstileToken] = useState("");
+  const [signupTurnstileResetKey, setSignupTurnstileResetKey] = useState(0);
   const [authMarketingOptIn, setAuthMarketingOptIn] = useState(false);
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
   const [authBusy, setAuthBusy] = useState(false);
@@ -397,15 +402,25 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
             policiesAccepted: authPoliciesAccepted,
             marketingOptIn: authMarketingOptIn,
             callbackURL: window.location.href,
+            turnstileToken: signupTurnstileToken,
           }),
         });
-        const signupData = await response.json() as { error?: string };
-        if (!response.ok) throw new Error(signupData.error || "We could not create that account.");
+        const signupData = await response.json() as { error?: string; emailSent?: boolean };
+        if (!response.ok) {
+          /* A token is single use, so a rejected attempt needs a fresh one. */
+          setSignupTurnstileToken("");
+          setSignupTurnstileResetKey((current) => current + 1);
+          throw new Error(signupData.error || "We could not create that account.");
+        }
         setAuthPassword("");
         setAuthMode("signin");
         setVerifyEmail(authEmail.trim());
         setPasswordFlow("verify");
-        setAuthNotice("");
+        /* Say so when the account exists but the link could not be sent, rather
+           than pointing them at an inbox that has nothing in it. */
+        setAuthNotice(signupData.emailSent === false
+          ? "Your account was created, but we could not send the verification email just now. Use Send the link again in a moment."
+          : "");
         return;
       }
 
@@ -945,7 +960,8 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                       </label>
                     </div>
                   )}
-                  <button type="submit" className="primary-button auth-email-btn" disabled={authBusy}>
+                  {authMode === "signup" && <TurnstileWidget action="signup" onToken={setSignupTurnstileToken} resetKey={signupTurnstileResetKey} />}
+                  <button type="submit" className="primary-button auth-email-btn" disabled={authBusy || (authMode === "signup" && !signupTurnstileToken)}>
                     {authBusy ? "Please wait..." : authMode === "signup" ? "Create account" : "Sign in with email"}
                   </button>
                 </form>}

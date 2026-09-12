@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../../db";
 import { customerProfiles, newsletterSubscriptions, users } from "../../../../db/schema";
 import { getAuth } from "../../../../lib/auth";
+import { verifyPublicForm } from "../../../../lib/public-form";
 
 /* Account creation and profile capture in one server request.
 
@@ -29,10 +30,31 @@ type SignupPayload = {
   policiesAccepted?: boolean;
   marketingOptIn?: boolean;
   callbackURL?: string;
+  turnstileToken?: string;
 };
 
 function badRequest(error: string) {
   return Response.json({ error }, { status: 400, headers: { "Cache-Control": "no-store" } });
+}
+
+/* Sends the verification link and answers identically on every path.
+
+   The send is awaited rather than left to sign-up's background task, so a mail
+   outage is reported instead of leaving the customer waiting for a link that
+   never arrives. The response shape never varies: a repeat signup on an
+   existing address must look exactly like a new one, or the reply becomes a way
+   to discover which addresses have accounts. */
+async function sendLinkAndRespond(request: Request, email: string, callbackURL?: string) {
+  let emailSent = true;
+  try {
+    await getAuth().api.sendVerificationEmail({
+      body: { email, ...(callbackURL ? { callbackURL } : {}) },
+      headers: request.headers,
+    });
+  } catch {
+    emailSent = false;
+  }
+  return Response.json({ success: true, emailSent }, { status: 201, headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(request: Request) {
@@ -71,6 +93,13 @@ export async function POST(request: Request) {
     return badRequest("Accept the Terms and Privacy Policy to create an account.");
   }
 
+  /* Account creation sends a real email on every attempt, so it needs the same
+     bot check the other public forms carry. Verified before anything is
+     written, so a failed challenge costs nothing. */
+  if (!(await verifyPublicForm(request, payload.turnstileToken, "signup"))) {
+    return badRequest("Please complete the security check and try again.");
+  }
+
   await ensureSchema();
 
   try {
@@ -92,7 +121,7 @@ export async function POST(request: Request) {
          indistinguishable from a new one, so that strangers cannot discover
          which addresses have accounts. Saying "that email is taken" here would
          undo exactly that protection. */
-      return Response.json({ success: true }, { status: 201, headers: { "Cache-Control": "no-store" } });
+      return sendLinkAndRespond(request, email, payload.callbackURL);
     }
     return Response.json(
       { error: "We could not create that account. Please try again or call the shop." },
@@ -108,14 +137,16 @@ export async function POST(request: Request) {
   const [account] = await getDb().select({ id: users.id, email: users.email })
     .from(users).where(eq(users.email, email)).limit(1);
   if (!account) {
-    return Response.json({ success: true }, { status: 201, headers: { "Cache-Control": "no-store" } });
+    return sendLinkAndRespond(request, email, payload.callbackURL);
   }
 
   const [existingProfile] = await getDb().select({ userId: customerProfiles.userId })
     .from(customerProfiles).where(eq(customerProfiles.userId, account.id)).limit(1);
   if (existingProfile) {
-    /* An established account signing up again. Leave their saved details alone. */
-    return Response.json({ success: true }, { status: 201, headers: { "Cache-Control": "no-store" } });
+    /* An established account signing up again. Leave their saved details alone,
+       but still send a link: someone repeating signup usually never received
+       the first one. */
+    return sendLinkAndRespond(request, account.email, payload.callbackURL);
   }
 
   const now = new Date();
@@ -147,5 +178,5 @@ export async function POST(request: Request) {
     });
   }
 
-  return Response.json({ success: true }, { status: 201, headers: { "Cache-Control": "no-store" } });
+  return sendLinkAndRespond(request, account.email, payload.callbackURL);
 }

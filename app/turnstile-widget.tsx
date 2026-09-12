@@ -25,7 +25,7 @@ const scriptId = "cloudflare-turnstile-script";
 const scriptSource = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
 
 type TurnstileWidgetProps = {
-  action: "contact" | "newsletter" | "employment" | "order";
+  action: "contact" | "newsletter" | "employment" | "order" | "signup";
   onToken: (token: string) => void;
   resetKey: number;
   theme?: "light" | "dark";

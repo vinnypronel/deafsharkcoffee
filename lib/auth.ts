@@ -34,7 +34,11 @@ function createAuth() {
     },
     emailVerification: {
       sendVerificationEmail: async ({ user, url }) => sendVerificationEmail(user.email, url),
-      sendOnSignUp: true,
+      /* Off because sign-up fires this as a background task, so a failed send
+         could not be reported and the customer was told to check an inbox that
+         would never receive anything. POST /api/profile/signup sends it itself
+         and awaits the result, so a mail outage is surfaced instead of hidden. */
+      sendOnSignUp: false,
       sendOnSignIn: true,
       autoSignInAfterVerification: true,
       expiresIn: 60 * 60,
