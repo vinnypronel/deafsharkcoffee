@@ -206,7 +206,7 @@ export function Dashboard() {
           <button className={activeView === "hours" ? "active" : ""} onClick={() => setActiveView("hours")}>Hours</button>
           <button className={activeView === "events" ? "active" : ""} onClick={() => setActiveView("events")}>Events</button>
           <button className={activeView === "forms" ? "active" : ""} onClick={() => setActiveView("forms")}>Forms</button>
-          <button className={activeView === "loyalty" ? "active" : ""} onClick={() => setActiveView("loyalty")}>Loyalty</button>
+          <button className={activeView === "loyalty" ? "active" : ""} onClick={() => setActiveView("loyalty")}>Customers</button>
           <button className={activeView === "history" ? "active" : ""} onClick={() => setActiveView("history")}>Order history</button>
         </div>
         <div className="dashboard-status-cluster">

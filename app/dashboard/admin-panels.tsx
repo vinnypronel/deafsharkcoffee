@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { categories as menuCategories, menuProducts } from "../menu-data";
 import { OfferBarcode } from "../offer-barcode";
+import { PHONE_INPUT_MAX_LENGTH, formatPhoneInput } from "../../lib/phone-format";
 import { DISPLAY_WEEK, WEEKDAY_NAMES, parseWeeklyHours, type DayHours, type Weekday, type WeeklyHours } from "../../lib/store-hours";
 
 type View = "menu" | "website" | "hours" | "events" | "forms" | "history" | "loyalty";
@@ -198,6 +199,9 @@ function LoyaltyManager({ data, message, setMessage, reload }: { data: LoyaltyDa
   const [changes, setChanges] = useState<Record<string, string>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<string | null>(null);
+  /* Customers cannot change their own name or number once the account exists,
+     so staff need a way to correct a mistyped digit. */
+  const [details, setDetails] = useState<Record<string, { displayName: string; phone: string }>>({});
   const query = search.trim().toLowerCase();
   const memberNames = new Map(data.members.map((member) => [member.userId, member.displayName]));
   const offersByMember = new Map(data.offers.map((offer) => [offer.userId, offer]));
@@ -228,6 +232,31 @@ function LoyaltyManager({ data, message, setMessage, reload }: { data: LoyaltyDa
     await reload();
   }
 
+  function detailsFor(member: LoyaltyMember) {
+    return details[member.userId] ?? { displayName: member.displayName, phone: member.phone ?? "" };
+  }
+
+  async function saveDetails(member: LoyaltyMember) {
+    const draft = detailsFor(member);
+    if (!draft.displayName.trim()) return setMessage("Enter the customer's name.");
+    if (draft.phone.trim() && draft.phone.replace(/D/g, "").length < 10) {
+      return setMessage("Enter a complete phone number or leave it blank.");
+    }
+    setSaving(`details:${member.userId}`);
+    setMessage("Saving customer details…");
+    const response = await fetch("/api/admin/customers", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: member.userId, displayName: draft.displayName, phone: draft.phone }),
+    });
+    const result = await response.json() as { error?: string };
+    setSaving(null);
+    if (!response.ok) return setMessage(result.error || "Could not update those details.");
+    setDetails((current) => { const next = { ...current }; delete next[member.userId]; return next; });
+    setMessage(`${draft.displayName} updated.`);
+    await reload();
+  }
+
   async function redeem(member: LoyaltyMember, offer: MemberOffer) {
     if (!window.confirm(`Mark ${member.displayName}'s 50% off coffee offer as redeemed?`)) return;
     setSaving(`offer:${offer.id}`);
@@ -245,7 +274,7 @@ function LoyaltyManager({ data, message, setMessage, reload }: { data: LoyaltyDa
   }
 
   return (
-    <AdminSection eyebrow="Customer rewards" title="Loyalty members" description="Review member balances, redeem welcome offers, and make traceable points corrections here. Customer-facing rewards stay hidden until the loyalty program is switched on.">
+    <AdminSection eyebrow="Customer rewards" title="Customers" description="Correct a customer's name or phone number, review balances, redeem welcome offers, and make traceable points corrections. Customers cannot change their own name or number, so a mistyped one is fixed here.">
       {message && <AdminNotice>{message}</AdminNotice>}
       <div className="record-summary"><span><strong>{data.members.length}</strong> members</span><span><strong>{data.members.reduce((total, member) => total + member.points, 0)}</strong> active points</span><span><strong>{data.offers.filter((offer) => offer.status === "active").length}</strong> active welcome offers</span></div>
       <label className="loyalty-search">Scan a coupon or find a member<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Scan barcode or search name, email, or phone" /></label>
@@ -260,6 +289,11 @@ function LoyaltyManager({ data, message, setMessage, reload }: { data: LoyaltyDa
               <div><strong>50% off one coffee</strong><OfferBarcode value={offer.code} compact /><small>{offer.status === "active" ? "In-store offer ready" : `Redeemed ${when(offer.redeemedAt)}`}</small></div>
               {offer.status === "active" && <button className="admin-save" disabled={saving === `offer:${offer.id}`} onClick={() => redeem(member, offer)}>{saving === `offer:${offer.id}` ? "Saving…" : "Mark redeemed"}</button>}
             </div>}
+            <div className="loyalty-adjustment customer-details-edit">
+              <label>Name<input value={detailsFor(member).displayName} onChange={(event) => setDetails((current) => ({ ...current, [member.userId]: { ...detailsFor(member), displayName: event.target.value } }))} maxLength={80} /></label>
+              <label>Mobile number<input value={detailsFor(member).phone} onChange={(event) => setDetails((current) => ({ ...current, [member.userId]: { ...detailsFor(member), phone: formatPhoneInput(event.target.value) } }))} type="tel" inputMode="tel" maxLength={PHONE_INPUT_MAX_LENGTH} placeholder="(908)-555-0123" /></label>
+              <button className="admin-save" disabled={saving === `details:${member.userId}`} onClick={() => saveDetails(member)}>{saving === `details:${member.userId}` ? "Saving…" : "Save details"}</button>
+            </div>
             <div className="loyalty-adjustment">
               <label>Points<input type="number" step="1" value={changes[member.userId] ?? ""} onChange={(event) => setChanges((current) => ({ ...current, [member.userId]: event.target.value }))} placeholder="+25 or -25" /></label>
               <label>Reason<input value={reasons[member.userId] ?? ""} onChange={(event) => setReasons((current) => ({ ...current, [member.userId]: event.target.value }))} maxLength={120} placeholder="Customer service correction" /></label>
