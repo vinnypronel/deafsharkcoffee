@@ -908,7 +908,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                     <div className="auth-consents">
                       <label>
                         <input type="checkbox" checked={authPoliciesAccepted} onChange={(e) => setAuthPoliciesAccepted(e.target.checked)} />
-                        <span>I agree to the <Link href="/terms" target="_blank">Terms</Link> and acknowledge the <Link href="/privacy" target="_blank">Privacy Policy</Link>. <b>Required</b></span>
+                        <span>I agree to the <Link href="/terms" target="_blank">Terms</Link> and acknowledge the <Link href="/privacy" target="_blank">Privacy Policy</Link>. <b className="consent-required" aria-label="required">*</b></span>
                       </label>
                       <label>
                         <input type="checkbox" checked={authMarketingOptIn} onChange={(e) => setAuthMarketingOptIn(e.target.checked)} />

@@ -612,6 +612,9 @@ h1, h2, h3, p { margin-top: 0; }
 .auth-consents input { flex: 0 0 auto; margin-top: 2px; accent-color: var(--espresso); }
 .auth-consents a { color: var(--espresso); font-weight: 800; text-decoration: underline; text-underline-offset: 2px; }
 .auth-consents b { color: var(--muted); font-size: 9.5px; letter-spacing: .04em; text-transform: uppercase; }
+/* The lone asterisk needs to read at the same weight as the ones on the fields,
+   not as the small uppercase tag the word "Optional" uses. */
+.auth-consents b.consent-required { color: var(--ink); font-size: 13px; letter-spacing: 0; text-transform: none; }
 
 .account-modal > small { display: block; color: var(--muted); line-height: 1.5; margin-top: 4px; }
 .account-welcome { display: block; margin-bottom: 8px; color: var(--gold); font-size: 11px; font-weight: 850; letter-spacing: .15em; text-transform: uppercase; }
