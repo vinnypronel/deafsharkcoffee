@@ -224,15 +224,18 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
 
     if (profileResult.status === "fulfilled") {
       let nextProfile = profileResult.value;
+      /* Signup stores the profile server-side, so there is nothing to apply
+         here. Older accounts created before that change may still have a
+         pending blob; drain it once so their details are not stranded. */
       if (nextProfile.authenticated) {
-        const pendingSignup = window.localStorage.getItem("deaf-shark-pending-signup");
-        if (pendingSignup) {
+        const strandedSignup = window.localStorage.getItem("deaf-shark-pending-signup");
+        if (strandedSignup) {
           try {
             const onboardingResponse = await fetch("/api/profile/onboarding", {
               method: "POST",
               credentials: "include",
               headers: { "Content-Type": "application/json" },
-              body: pendingSignup,
+              body: strandedSignup,
             });
             if (onboardingResponse.ok) {
               window.localStorage.removeItem("deaf-shark-pending-signup");
@@ -240,7 +243,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
               if (refreshed.ok) nextProfile = await refreshed.json() as ProfileResponse;
             }
           } catch {
-            // Keep the pending profile locally and retry the next time the account opens.
+            // Leave it in place and retry the next time the account opens.
           }
         }
       }
@@ -374,47 +377,46 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
     setAuthBusy(true);
     setAuthError("");
     try {
-      const response = await fetch(`/api/auth/${authMode === "signup" ? "sign-up" : "sign-in"}/email`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(authMode === "signup"
-          ? { name: `${authFirstName.trim()} ${authLastName.trim()}`, email: authEmail.trim(), password: authPassword, callbackURL: window.location.href }
-          : { email: authEmail.trim(), password: authPassword, callbackURL: window.location.href }),
-      });
-      const data = await response.json() as { message?: string };
-      if (!response.ok) throw new Error(data.message || "We could not complete that request.");
       if (authMode === "signup") {
-        const pendingSignup = JSON.stringify({
-          firstName: authFirstName.trim(),
-          lastName: authLastName.trim(),
-          phone: authPhone,
-          birthdayMonth: authBirthdayMonth ? Number(authBirthdayMonth) : null,
-          birthdayDay: authBirthdayDay ? Number(authBirthdayDay) : null,
-          policiesAccepted: authPoliciesAccepted,
-          marketingOptIn: authMarketingOptIn,
-        });
-        if (authConfig.emailVerificationEnabled) {
-          /* localStorage, not sessionStorage: the verification link opens a new
-             tab, which starts with empty session storage and would silently
-             discard the phone number and birthday collected here. */
-          window.localStorage.setItem("deaf-shark-pending-signup", pendingSignup);
-          setAuthPassword("");
-          setAuthMode("signin");
-          setVerifyEmail(authEmail.trim());
-          setPasswordFlow("verify");
-          setAuthNotice("");
-          return;
-        }
-        const onboardingResponse = await fetch("/api/profile/onboarding", {
+        /* One server request creates the account and stores the profile,
+           including the consent timestamps. Nothing is left in the browser for
+           the verification step to carry, so the details survive verifying on
+           another device, another browser, or a new tab. */
+        const response = await fetch("/api/profile/signup", {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: pendingSignup,
+          body: JSON.stringify({
+            firstName: authFirstName.trim(),
+            lastName: authLastName.trim(),
+            email: authEmail.trim(),
+            password: authPassword,
+            phone: authPhone,
+            birthdayMonth: authBirthdayMonth ? Number(authBirthdayMonth) : null,
+            birthdayDay: authBirthdayDay ? Number(authBirthdayDay) : null,
+            policiesAccepted: authPoliciesAccepted,
+            marketingOptIn: authMarketingOptIn,
+            callbackURL: window.location.href,
+          }),
         });
-        const onboardingData = await onboardingResponse.json() as { error?: string };
-        if (!onboardingResponse.ok) throw new Error(onboardingData.error || "Your account was created, but your profile details could not be saved.");
+        const signupData = await response.json() as { error?: string };
+        if (!response.ok) throw new Error(signupData.error || "We could not create that account.");
+        setAuthPassword("");
+        setAuthMode("signin");
+        setVerifyEmail(authEmail.trim());
+        setPasswordFlow("verify");
+        setAuthNotice("");
+        return;
       }
+
+      const response = await fetch("/api/auth/sign-in/email", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: authEmail.trim(), password: authPassword, callbackURL: window.location.href }),
+      });
+      const data = await response.json() as { message?: string };
+      if (!response.ok) throw new Error(data.message || "We could not complete that request.");
       setAuthPassword("");
       const returnTo = requestedReturnTo();
       if (returnTo) { window.location.href = returnTo; return; }
