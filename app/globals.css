@@ -597,7 +597,14 @@ h1, h2, h3, p { margin-top: 0; }
 .auth-email-input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(220,168,107,.2); }
 .auth-email-input:disabled { cursor: not-allowed; opacity: .55; }
 .auth-email-btn { width: 100%; min-height: 44px; }
-.account-modal[data-auth-mode="signup"] { justify-content: flex-start; padding-top: 36px; padding-bottom: 36px; }
+/* Signup is the tallest state, so it needs room under the last line. Without it
+   the closing "Already have an account? Sign in" toggle and its underline sit
+   flush against the bottom edge and read as cut off. */
+.account-modal[data-auth-mode="signup"] { justify-content: flex-start; padding-top: 36px; padding-bottom: 72px; }
+.account-modal[data-auth-mode="signup"] .auth-consents { margin-bottom: 4px; }
+/* Scoped to the auth toggles so the recent-order buttons keep their own spacing. */
+.account-modal[data-auth-mode="signup"] .account-mode-toggle,
+.account-modal[data-auth-mode="signin"] .account-mode-toggle { display: inline-block; margin-top: 10px; }
 .account-modal[data-auth-mode="signup"] > img { margin-bottom: 7px; }
 .account-modal[data-auth-mode="signup"] h2 { font-size: clamp(28px, 3.2vw, 36px); }
 .account-modal[data-auth-mode="signup"] .social-auth-buttons { margin: 10px 0 5px; }
