@@ -102,6 +102,29 @@ html.lenis, html.lenis body { height: auto; }
 .cart-items::-webkit-scrollbar-thumb:hover {
   background: #5c341e !important;
 }
+/* Windows Chrome draws stepper arrows at each end of a styled scrollbar, and
+   they sat outside these rounded cards. Hidden, and the track is inset by the
+   corner radius so the bar starts and ends inside the curve rather than
+   running past it. */
+::-webkit-scrollbar-button,
+.checkout-card::-webkit-scrollbar-button,
+.cart-drawer::-webkit-scrollbar-button,
+.confirmation-card::-webkit-scrollbar-button,
+.configurator::-webkit-scrollbar-button,
+.cart-items::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+.checkout-card::-webkit-scrollbar-track,
+.confirmation-card::-webkit-scrollbar-track,
+.configurator::-webkit-scrollbar-track {
+  margin: 26px 0 !important;
+}
+.cart-drawer::-webkit-scrollbar-track,
+.cart-items::-webkit-scrollbar-track {
+  margin: 16px 0 !important;
+}
 body {
   margin: 0;
   background: var(--cream);
