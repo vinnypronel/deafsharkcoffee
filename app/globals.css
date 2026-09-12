@@ -4248,7 +4248,9 @@ body.modal-open { touch-action: none; }
 .dashboard-header { height: 76px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 30px; padding: 0 28px; background: var(--deep); color: white; }
 .dashboard-brand { display: flex; align-items: center; gap: 10px; }
 .dashboard-brand img { width: 42px; height: 29px; object-fit: contain; }
+/* One line: the name wrapping to two lines pushed the header out of line. */
 .dashboard-brand span { display: flex; flex-direction: column; }
+.dashboard-brand strong { white-space: nowrap; }
 .dashboard-brand small { color: rgba(255,255,255,.52); font-size: 11px; }
 .dashboard-tabs { display: flex; gap: 5px; padding: 5px; border-radius: 12px; background: rgba(255,255,255,.08); }
 /* The station links sit in the same row as the tabs, so they are built from
@@ -4385,23 +4387,29 @@ body.modal-open { touch-action: none; }
 .column-preparing .column-header { box-shadow: inset 4px 0 var(--gold); }
 .column-ready .column-header { box-shadow: inset 4px 0 var(--teal); }
 .column-orders { display: flex; flex-direction: column; gap: 12px; padding: 12px; }
-.order-card { border: 1px solid rgba(45,26,18,.1); border-radius: 16px; padding: 16px; background: white; box-shadow: 0 8px 28px rgba(45,26,18,.06); }
+/* Tightened so more tickets fit on one screen during a rush. */
+.order-card { border: 1px solid rgba(45,26,18,.1); border-radius: 14px; padding: 12px 13px; background: white; box-shadow: 0 6px 20px rgba(45,26,18,.05); }
 .order-card-top, .customer-line, .payment-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .order-card-top > div { display: flex; align-items: center; gap: 8px; }
 .order-card-top time { color: var(--muted); font-size: 12px; white-space: nowrap; }
 .source-badge { display: inline-flex; min-height: 24px; align-items: center; border-radius: 999px; padding: 0 8px; background: var(--teal); color: white; font-size: 10px; font-weight: 850; text-transform: uppercase; letter-spacing: .06em; }
-.customer-line { margin: 16px 0 12px; }
-.customer-line strong { font-size: 17px; }
+.customer-line { margin: 9px 0 8px; }
+.customer-line strong { font-size: 15.5px; }
 .customer-line span { color: var(--muted); font-size: 11px; }
-.order-items { border-block: 1px solid var(--line); padding: 8px 0; }
-.order-items > div { display: grid; grid-template-columns: 26px 1fr; gap: 7px; padding: 8px 0; }
+.order-items { border-block: 1px solid var(--line); padding: 5px 0; }
+.order-items > div { display: grid; grid-template-columns: 24px 1fr; gap: 7px; padding: 5px 0; }
 .order-items b { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 7px; background: var(--cream); font-size: 11px; }
 .order-items span { display: flex; flex-direction: column; gap: 2px; }
 .order-items small { color: var(--muted); font-size: 11px; line-height: 1.4; }
-.payment-line { padding: 13px 0; font-size: 12px; }
+.payment-line { padding: 9px 0; font-size: 12px; }
 .payment-line span { color: var(--muted); }
-.advance-button { width: 100%; min-height: 48px; border: 0; border-radius: 12px; background: var(--teal); color: white; font-weight: 850; cursor: pointer; }
-.cancel-order { width: 100%; border: 0; padding: 12px 0 0; background: transparent; color: #a33c2b; font-size: 11px; cursor: pointer; }
+.advance-button { width: 100%; min-height: 42px; border: 0; border-radius: 11px; background: var(--teal); color: white; font-weight: 850; cursor: pointer; }
+.cancel-order { width: 100%; border: 0; padding: 8px 0 0; background: transparent; color: #a33c2b; font-size: 11px; cursor: pointer; }
+/* Long orders collapse so one ticket cannot fill the column. */
+.order-items-more { width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 2px; border: 0; padding: 6px 0 2px; background: transparent; color: var(--teal); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+.order-items-more svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; transition: transform .18s ease; }
+.order-items-more[aria-expanded="true"] svg { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) { .order-items-more svg { transition: none; } }
 .empty-orders { min-height: 280px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--muted); text-align: center; }
 .empty-orders img { width: 72px; opacity: .12; margin-bottom: 18px; }
 .empty-orders strong { color: var(--ink); }

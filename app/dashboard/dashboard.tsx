@@ -330,13 +330,26 @@ export function Dashboard() {
   );
 }
 
+/* Past this many lines a single ticket starts filling the column, so the rest
+   collapse behind a toggle. Every item is still one tap away. */
+const ORDER_ITEMS_VISIBLE = 3;
+
 function OrderCard({ order, onAdvance, onCancel }: { order: Order; onAdvance: () => void; onCancel: () => void }) {
+  const [expanded, setExpanded] = useState(false);
+  const overflowCount = Math.max(0, order.items.length - ORDER_ITEMS_VISIBLE);
+  const visibleItems = expanded || overflowCount === 0 ? order.items : order.items.slice(0, ORDER_ITEMS_VISIBLE);
   return (
     <article className="order-card">
       <div className="order-card-top"><div><span className={`source-badge source-${order.source}`}>{order.source === "website" ? "Website" : order.source}</span><strong>#{order.orderNumber.replace("DS", "")}</strong></div><time dateTime={order.createdAt}>{formatDateTime(order.createdAt)}</time></div>
       <div className="customer-line"><strong>{order.customerName}</strong><span>{order.fulfillmentType === "scheduled" ? "Scheduled" : "ASAP"} pickup · {order.pickupEta}</span></div>
       <div className="order-items">
-        {order.items.map((item, index) => <div key={`${item.id}-${index}`}><b>{item.quantity}</b><span><strong>{item.name}</strong>{(item.prepStation || (item.options && item.options.length > 0)) && <small>{[item.prepStation ? `${item.prepStation.toLowerCase()} station` : "", ...(item.options ?? [])].filter(Boolean).join(" · ")}</small>}</span></div>)}
+        {visibleItems.map((item, index) => <div key={`${item.id}-${index}`}><b>{item.quantity}</b><span><strong>{item.name}</strong>{(item.prepStation || (item.options && item.options.length > 0)) && <small>{[item.prepStation ? `${item.prepStation.toLowerCase()} station` : "", ...(item.options ?? [])].filter(Boolean).join(" · ")}</small>}</span></div>)}
+        {overflowCount > 0 && (
+          <button type="button" className="order-items-more" aria-expanded={expanded} onClick={() => setExpanded((current) => !current)}>
+            {expanded ? "Show less" : `${overflowCount} more ${overflowCount === 1 ? "item" : "items"}`}
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+          </button>
+        )}
       </div>
       <div className="payment-line"><span>{order.paymentMethod === "pickup" ? "Pay at pickup" : "Paid online"}</span><strong>${(order.totalCents / 100).toFixed(2)}</strong></div>
       <button className="advance-button" onClick={onAdvance}>{nextLabel[order.status]}</button>
