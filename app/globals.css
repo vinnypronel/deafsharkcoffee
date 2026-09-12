@@ -5944,3 +5944,9 @@ video:-moz-full-screen {
    supplies its own chrome, so the embedded copy drops the full-screen frame. */
 .kds-embedded { min-height: 0; background: transparent; padding-top: 0; }
 .kds-embedded .kds-summary { margin-top: 0; }
+
+/* Menu page: the circular badge sits beside the title rather than floating
+   at the top right of the category bar. */
+.menu-panel-heading { display: flex; align-items: center; gap: 14px; }
+.menu-heading-badge { width: 54px; height: 54px; flex: 0 0 auto; border-radius: 50%; object-fit: cover; box-shadow: 0 6px 18px rgba(20,11,8,.18); }
+@media (max-width: 720px) { .menu-panel-heading { gap: 10px; } .menu-heading-badge { width: 40px; height: 40px; } }

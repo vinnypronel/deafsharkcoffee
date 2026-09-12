@@ -318,6 +318,13 @@ export function priceProductSelection(product: Product, input: ProductSelection 
   if (product.bases?.length && !product.bases.includes(base)) {
     throw new Error(`Invalid smoothie base for ${product.name}.`);
   }
+  /* A smoothie blended with milk takes a milk choice like any other drink. With
+     water there is no milk, so any milk sent alongside is ignored. */
+  const smoothieUsesMilk = isSmoothie && base === "Milk";
+  const smoothieMilk = smoothieUsesMilk ? (input.milk && input.milk !== "None" ? input.milk : "Whole") : "";
+  if (smoothieUsesMilk && !MILK_OPTIONS.includes(smoothieMilk as (typeof MILK_OPTIONS)[number])) {
+    throw new Error(`Invalid milk choice for ${product.name}.`);
+  }
 
   const hasSyrupOptions = isDrink && !isSmoothie && product.id !== "hot-tea";
   const syrups = [...new Set(input.syrups ?? [])];
@@ -371,6 +378,7 @@ export function priceProductSelection(product: Product, input: ProductSelection 
     if (availableTemperatures.length > 1 && temperature) options.push(temperature);
     if (hasMilkOptions) options.push(milk === "None" ? "No milk" : milk);
     if (isSmoothie && base) options.push(`${base} base`);
+    if (smoothieMilk) options.push(smoothieMilk);
     if (size) options.push(size);
     if (syrups.length) options.push(`Syrup: ${syrups.join(", ")}`);
   }
@@ -384,7 +392,7 @@ export function priceProductSelection(product: Product, input: ProductSelection 
   return {
     unitPrice,
     options,
-    selection: { temperature, size, milk, flavor, base, extraShot, syrups, modifiers, notes },
+    selection: { temperature, size, milk: isSmoothie ? (smoothieMilk || undefined) : milk, flavor, base, extraShot, syrups, modifiers, notes },
   };
 }
 

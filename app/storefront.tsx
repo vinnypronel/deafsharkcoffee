@@ -452,7 +452,16 @@ function ProductConfigurator({
               label="Blended with"
               values={product.bases as string[]}
               selected={config.base}
-              onSelect={(value) => setConfig({ ...config, base: value })}
+              onSelect={(value) => setConfig({ ...config, base: value, milk: value === "Milk" && config.milk === "None" ? "Whole" : config.milk })}
+            />
+          )}
+          {/* Only when blended with milk: a water smoothie has no milk to choose. */}
+          {isSmoothie && config.base === "Milk" && (
+            <OptionGroup
+              label="Milk"
+              values={MILK_OPTIONS as unknown as string[]}
+              selected={config.milk === "None" ? "Whole" : config.milk}
+              onSelect={(value) => setConfig({ ...config, milk: value as MilkChoice })}
             />
           )}
           {hasMilkOptions && (
@@ -1508,9 +1517,12 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
         {!isMenuPage && renderHeroProductPanel("hero-product-mobile")}
 
         <section className={`order-section ${isMenuPage ? "standalone-order" : ""}`} id="menu">
-        <div className="order-section-badge-wrap" aria-hidden="true">
-          <img src="/deafshark-logo-640.webp" alt="Deaf Shark Coffee" className="order-section-badge" decoding="async" />
-        </div>
+        {/* The menu page carries the badge beside its title instead. */}
+        {!isMenuPage && (
+          <div className="order-section-badge-wrap" aria-hidden="true">
+            <img src="/deafshark-logo-640.webp" alt="Deaf Shark Coffee" className="order-section-badge" decoding="async" />
+          </div>
+        )}
         <div className="menu-showcase-grid" ref={menuRowsRef}>
           {/* Left Column: Title + Clean Product Card + Brand Tag (Sticky) */}
           <aside className="menu-product-card-wrap">
@@ -1519,7 +1531,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
                 {/* The menu page is its own document, so its title is the h1 there.
                     On the home page this block sits under the hero h1 and stays an h2. */}
                 {isMenuPage
-                  ? <h1 className="menu-panel-heading">The Full Deaf Shark Menu</h1>
+                  ? <h1 className="menu-panel-heading"><img src="/deafshark-logo-640.webp" alt="" className="menu-heading-badge" decoding="async" />The Full Deaf Shark Menu</h1>
                   : <h2>Salvadoran roasts, poured fresh.</h2>}
               </div>
               <div className="menu-product-card-sticky-mask">
