@@ -74,26 +74,66 @@ export function Dashboard() {
   const lastNewCount = useRef(0);
   const audioContext = useRef<AudioContext | null>(null);
 
-  /* Browsers block audio until a real gesture, so nothing can sound until a staff
-     member taps Enable sound once. The banner below makes an unarmed board obvious. */
+  /* The washing-machine style chime: the opening of Schubert's Die Forelle, the
+     public domain melody Samsung's end-of-cycle tune is taken from. Played as
+     soft struck tones rather than beeps so it carries across a room without
+     sounding like an alarm clock. */
+  const CHIME_NOTES = useMemo(() => [
+    { hz: 587.33, at: 0.00, len: 0.30 },
+    { hz: 587.33, at: 0.22, len: 0.30 },
+    { hz: 659.25, at: 0.44, len: 0.30 },
+    { hz: 739.99, at: 0.66, len: 0.34 },
+    { hz: 880.00, at: 0.94, len: 0.42 },
+    { hz: 739.99, at: 1.30, len: 0.30 },
+    { hz: 659.25, at: 1.52, len: 0.30 },
+    { hz: 587.33, at: 1.74, len: 0.62 },
+  ], []);
+
   const playAlert = useCallback(() => {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     const context = audioContext.current ?? new AudioContextClass();
     audioContext.current = context;
     if (context.state === "suspended") void context.resume();
-    const start = context.currentTime;
-    [0, 0.2, 0.4].forEach((offset, index) => {
-      const oscillator = context.createOscillator();
+    /* Still suspended means no one has touched the page yet and the browser is
+       holding audio back. Nothing to play; the banner still shows. */
+    if (context.state !== "running") return;
+    const start = context.currentTime + 0.02;
+    for (const note of CHIME_NOTES) {
+      const tone = context.createOscillator();
+      const bell = context.createOscillator();
       const gain = context.createGain();
-      oscillator.frequency.value = index === 1 ? 880 : 660;
-      gain.gain.setValueAtTime(0.0001, start + offset);
-      gain.gain.exponentialRampToValueAtTime(0.28, start + offset + 0.015);
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + offset + 0.16);
-      oscillator.connect(gain).connect(context.destination);
-      oscillator.start(start + offset);
-      oscillator.stop(start + offset + 0.17);
-    });
-  }, []);
+      tone.type = "triangle";
+      bell.type = "sine";
+      tone.frequency.value = note.hz;
+      bell.frequency.value = note.hz * 2;
+      const at = start + note.at;
+      gain.gain.setValueAtTime(0.0001, at);
+      gain.gain.exponentialRampToValueAtTime(0.34, at + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, at + note.len);
+      tone.connect(gain);
+      bell.connect(gain);
+      gain.connect(context.destination);
+      tone.start(at); bell.start(at);
+      tone.stop(at + note.len + 0.02); bell.stop(at + note.len + 0.02);
+    }
+  }, [CHIME_NOTES]);
+
+  /* Audio cannot start until the page has been interacted with, so rather than
+     asking staff to press a button, the first click, key or tap anywhere on the
+     dashboard arms it. In practice that happens within seconds of opening. */
+  useEffect(() => {
+    if (soundArmed) return;
+    const arm = () => {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      const context = audioContext.current ?? new AudioContextClass();
+      audioContext.current = context;
+      void context.resume().then(() => setSoundArmed(true)).catch(() => {});
+    };
+    const events = ["pointerdown", "keydown", "touchstart"];
+    events.forEach((name) => window.addEventListener(name, arm, { once: true }));
+    arm();
+    return () => events.forEach((name) => window.removeEventListener(name, arm));
+  }, [soundArmed]);
 
   const loadData = useCallback(async () => {
     try {
@@ -141,7 +181,7 @@ export function Dashboard() {
     [orders],
   );
   const unacknowledged = newOrderIds.filter((id) => !acknowledgedIds.includes(id));
-  const alarmActive = soundArmed && unacknowledged.length > 0;
+  const alarmActive = unacknowledged.length > 0;
 
   /* Repeats until acknowledged. A later order that arrives after an acknowledge
      is not in the acknowledged list, so the alarm starts again on its own. */
@@ -156,13 +196,6 @@ export function Dashboard() {
     setAcknowledgedIds(newOrderIds);
   }
 
-  async function enableSound() {
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    const context = audioContext.current ?? new AudioContextClass();
-    audioContext.current = context;
-    await context.resume();
-    setSoundArmed(true);
-  }
 
   const todayTotal = useMemo(() => orders.filter((order) => order.status !== "cancelled").reduce((sum, order) => sum + order.totalCents, 0) / 100, [orders]);
 
@@ -215,15 +248,6 @@ export function Dashboard() {
         </div>
       </header>
 
-      {!soundArmed && (
-        <section className="order-alert-bar is-unarmed">
-          <div className="order-alert-copy">
-            <strong>New order sound is off</strong>
-            <span>Tap once to turn it on. Until then this screen makes no noise when an order arrives.</span>
-          </div>
-          <button type="button" className="order-alert-action" onClick={enableSound}>Enable sound</button>
-        </section>
-      )}
 
       {alarmActive && (
         <section className="order-alert-bar is-alarming" role="alert">
