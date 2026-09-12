@@ -4824,7 +4824,8 @@ body.modal-open { touch-action: none; }
     from { transform: translateX(-1px) rotate(-9deg) scaleX(.9); }
     to { transform: translateX(1px) rotate(10deg) scaleX(1.08); }
   }
-  body.modal-open .mobile-scroll-progress { opacity: 0; }
+  body.modal-open .mobile-scroll-progress,
+  body:has(.nav-fullscreen-takeover.open) .mobile-scroll-progress { opacity: 0; }
   .site-header { height: 68px; grid-template-columns: 1fr auto; padding: 0 16px; border-bottom: 0; }
   .header-brand { grid-column: 1; justify-self: start; }
   .header-action { grid-column: 2; gap: 8px; }
