@@ -9,7 +9,7 @@ import { PHONE_INPUT_MAX_LENGTH, formatPhoneInput } from "../lib/phone-format";
 import { OrderOnlineLink } from "./order-online-link";
 import { OrderStatus } from "./order-status";
 import TurnstileWidget from "./turnstile-widget";
-type ProfileResponse = { authenticated: boolean; profile?: { displayName: string; email: string; phone?: string | null; points: number; lifetimePoints: number; activity?: Array<{ id: number; pointsChange: number; balanceAfter: number; reason: string; createdAt: string }>; welcomeOffer?: { id: number; code: string; status: string; issuedAt: string; redeemedAt?: string | null } | null } };
+type ProfileResponse = { authenticated: boolean; profile?: { displayName: string; email: string; phone?: string | null; points: number; lifetimePoints: number; activity?: Array<{ id: number; pointsChange: number; balanceAfter: number; reason: string; createdAt: string }>; welcomeOffer?: { id: number; code: string; status: string; issuedAt: string; redeemedAt?: string | null } | null; studentVerified?: boolean; studentEmail?: string | null; rewards?: { available: { points: number; valueCents: number; label: string } | null; progress: { tier: { points: number; valueCents: number; label: string }; pointsAway: number; percent: number; atTop: boolean } } } };
 type AuthConfig = { googleEnabled: boolean; emailEnabled: boolean; emailVerificationEnabled: boolean; passwordRecoveryEnabled: boolean; loyaltyEnabled?: boolean };
 type LenisController = { start: () => void; stop: () => void; scrollTo: (target: number, options?: Record<string, unknown>) => void };
 type WindowWithLenis = Window & { __lenis?: LenisController };
@@ -132,6 +132,9 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
   const [verifyEmail, setVerifyEmail] = useState("");
   const [resetToken, setResetToken] = useState("");
   const [signOutError, setSignOutError] = useState("");
+  const [studentEmail, setStudentEmail] = useState("");
+  const [studentMessage, setStudentMessage] = useState("");
+  const [studentBusy, setStudentBusy] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchResultsRef = useRef<HTMLDivElement>(null);
   const searchResultsContentRef = useRef<HTMLDivElement>(null);
@@ -182,6 +185,32 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
       setProfileOpen(false);
       setProfileClosing(false);
     }, reducedMotion ? 0 : ACCOUNT_DRAWER_EXIT_MS);
+  }
+
+  async function requestStudentDiscount(e: React.FormEvent) {
+    e.preventDefault();
+    setStudentMessage("");
+    if (!/@(?:[a-z0-9-]+\.)*kean\.edu$/i.test(studentEmail.trim())) {
+      setStudentMessage("Enter your Kean address, ending in kean.edu.");
+      return;
+    }
+    setStudentBusy(true);
+    try {
+      const response = await fetch("/api/profile/student", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: studentEmail.trim() }),
+      });
+      const data = await response.json() as { error?: string };
+      setStudentMessage(response.ok
+        ? "Check your Kean inbox and tap the link to switch the discount on."
+        : data.error || "We could not send that email.");
+    } catch {
+      setStudentMessage("Check your connection and try again.");
+    } finally {
+      setStudentBusy(false);
+    }
   }
 
   async function resendVerificationEmail() {
@@ -984,37 +1013,43 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                 <span className="account-welcome">Welcome back</span>
                 <h2>{profile.profile.displayName}</h2>
                 <p>{profile.profile.email}</p>
-                {/* Shown before the programme launches so the rewards area is
-                    visible on the profile, without claiming rules nobody has
-                    agreed yet or implying points are being earned. */}
-                {!authConfig.loyaltyEnabled && <div className="loyalty-card loyalty-card-preview">
+                {profile.profile.rewards && <div className="loyalty-card">
                   <span>Deaf Shark Rewards</span>
                   <strong>{profile.profile.points} points</strong>
-                  <div><i style={{ width: "0%" }} /></div>
+                  <div><i style={{ width: `${profile.profile.rewards.progress.percent}%` }} /></div>
+                  <small>{profile.profile.rewards.progress.atTop
+                    ? `Your ${profile.profile.rewards.progress.tier.label} is ready to use.`
+                    : `${profile.profile.rewards.progress.pointsAway} points until your ${profile.profile.rewards.progress.tier.label}`}</small>
+                  {profile.profile.rewards.available && <p className="loyalty-ready">{profile.profile.rewards.available.label} ready at checkout</p>}
                 </div>}
-                {authConfig.loyaltyEnabled && <><div className="loyalty-card">
-                  <span>Deaf Shark Rewards</span>
-                  <strong>{profile.profile.points} points</strong>
-                  <div><i style={{ width: `${Math.min(100, profile.profile.points)}%` }} /></div>
-                  <small>{Math.max(0, 100 - profile.profile.points)} points until your next $5 reward</small>
-                </div>
-                <p className="loyalty-note">Your 25-point welcome bonus is ready. Purchase-point earning will begin when the store connection is enabled.</p>
-                {profile.profile.welcomeOffer && (
-                  <div className={`welcome-offer welcome-offer-${profile.profile.welcomeOffer.status}`}>
-                    <span>{profile.profile.welcomeOffer.status === "active" ? "New member offer" : "Offer used"}</span>
-                    <strong>50% off one coffee</strong>
-                    <p>{profile.profile.welcomeOffer.status === "active" ? "Show this barcode to a team member when ordering in store." : "This one-time welcome offer has been redeemed."}</p>
-                    <OfferBarcode value={profile.profile.welcomeOffer.code} />
-                    <small>In store only · One prepared coffee drink · Base drink only · Cannot be combined with another offer</small>
+
+                {profile.profile.welcomeOffer?.status === "active" && <div className="welcome-offer welcome-offer-active">
+                  <span>New member offer</span>
+                  <strong>50% off one drink</strong>
+                  <p>Use it at checkout on any drink. One drink, one time.</p>
+                </div>}
+
+                {profile.profile.studentVerified ? (
+                  <div className="student-status">
+                    <strong>Kean student discount active</strong>
+                    <small>10% off every order{profile.profile.studentEmail ? `, verified with ${profile.profile.studentEmail}` : ""}</small>
                   </div>
+                ) : (
+                  <form className="student-form" onSubmit={requestStudentDiscount} noValidate>
+                    <label>Kean student? Get 10% off for good
+                      <input type="email" value={studentEmail} onChange={(e) => { setStudentEmail(e.target.value); setStudentMessage(""); }} placeholder="you@kean.edu" autoComplete="email" inputMode="email" />
+                    </label>
+                    <button type="submit" className="primary-button" disabled={studentBusy}>{studentBusy ? "Sending..." : "Verify my Kean email"}</button>
+                    {studentMessage && <small role="status">{studentMessage}</small>}
+                  </form>
                 )}
+
                 {profile.profile.activity && profile.profile.activity.length > 0 && (
                   <div className="account-points-activity">
                     <strong>Recent points</strong>
-                    {profile.profile.activity.slice(0, 3).map((entry) => <div key={entry.id}><span>{entry.reason === "completed_order" ? "Completed order" : entry.reason === "signup_bonus" ? "Welcome bonus" : entry.reason.replace(/^staff_adjustment:/, "Staff adjustment: ")}</span><b className={entry.pointsChange >= 0 ? "points-positive" : "points-negative"}>{entry.pointsChange >= 0 ? "+" : ""}{entry.pointsChange}</b></div>)}
+                    {profile.profile.activity.slice(0, 3).map((entry) => <div key={entry.id}><span>{entry.reason === "completed_order" ? "Completed order" : entry.reason === "reward_redeemed" ? "Reward redeemed" : entry.reason.replace(/^staff_adjustment:/, "Staff adjustment: ")}</span><b className={entry.pointsChange >= 0 ? "points-positive" : "points-negative"}>{entry.pointsChange >= 0 ? "+" : ""}{entry.pointsChange}</b></div>)}
                   </div>
                 )}
-                </>}
                 <div className="account-points-activity"><strong>Your recent orders</strong>
                   {recentOrders.length === 0 && <p>No orders yet.</p>}
                   {recentOrders.map((order) => <button key={order.orderNumber} type="button" className="account-mode-toggle" onClick={() => { setProfileOpen(false); setProfileClosing(false); setTrackingOrder(order.orderNumber); }}>{order.orderNumber} · {order.status} · ${(order.totalCents / 100).toFixed(2)}</button>)}

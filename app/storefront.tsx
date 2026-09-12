@@ -2271,7 +2271,29 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onC
   /* Launch policy: pay at pickup requires a signed-in account. Guest checkout
      opens once online payment is live. */
   const [account, setAccount] = useState<"loading" | "guest" | "member" | "error">("loading");
-  const tax = subtotal * 0.06625;
+  type RewardTierInfo = { points: number; valueCents: number; label: string };
+  const [rewardOffer, setRewardOffer] = useState<RewardTierInfo | null>(null);
+  const [studentVerified, setStudentVerified] = useState(false);
+  const [welcomeOfferReady, setWelcomeOfferReady] = useState(false);
+  const [discountChoice, setDiscountChoice] = useState<"none" | "reward" | "student" | "welcome">("none");
+
+  /* Shown so the customer can see what they will pay. The server recalculates
+     all of this from their own record before the order is stored. */
+  const subtotalCents = Math.round(subtotal * 100);
+  const dearestDrinkCents = cart.reduce((most, item) => {
+    const product = menuProducts.find((candidate) => candidate.id === item.id);
+    if (!product || !DRINK_CATEGORIES.includes(product.category)) return most;
+    return Math.max(most, Math.round(item.unitPrice * 100));
+  }, 0);
+  const discountCents = discountChoice === "reward" && rewardOffer
+    ? Math.min(rewardOffer.valueCents, subtotalCents)
+    : discountChoice === "student" && studentVerified
+      ? Math.floor((subtotalCents * 10) / 100)
+      : discountChoice === "welcome" && welcomeOfferReady
+        ? Math.min(Math.floor((dearestDrinkCents * 50) / 100), subtotalCents)
+        : 0;
+  const discount = discountCents / 100;
+  const tax = (subtotal - discount) * 0.06625;
 
   useEffect(() => {
     let cancelled = false;
@@ -2279,13 +2301,16 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onC
       try {
         const response = await fetch("/api/profile", { credentials: "include", cache: "no-store" });
         if (!response.ok) throw new Error("profile");
-        const data = await response.json() as { authenticated: boolean; profile?: { displayName: string; phone?: string | null } };
+        const data = await response.json() as { authenticated: boolean; profile?: { displayName: string; phone?: string | null; studentVerified?: boolean; welcomeOffer?: { status: string } | null; rewards?: { available: RewardTierInfo | null } } };
         if (cancelled) return;
         if (!data.authenticated) { setAccount("guest"); return; }
         setAccount("member");
         if (data.profile) {
           setName((current) => current || data.profile!.displayName);
           if (data.profile.phone) setPhone((current) => current || formatPhoneInput(data.profile!.phone!));
+          setRewardOffer(data.profile.rewards?.available ?? null);
+          setStudentVerified(Boolean(data.profile.studentVerified));
+          setWelcomeOfferReady(data.profile.welcomeOffer?.status === "active");
         }
       } catch {
         if (!cancelled) setAccount("error");
@@ -2335,6 +2360,9 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onC
           scheduledFor: fulfillmentType === "scheduled" ? new Date(scheduledFor).toISOString() : undefined,
           turnstileToken,
           idempotencyKey,
+          discount: discountChoice === "reward" && rewardOffer
+            ? { kind: "reward", points: rewardOffer.points }
+            : { kind: discountChoice },
           items: cart.map((item) => ({ id: item.id, quantity: item.quantity, selection: item.selection })),
         }),
       });
@@ -2377,10 +2405,21 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onC
         </fieldset>
         {fulfillmentType === "scheduled" && <label className={fieldErrors.scheduledFor ? "has-error" : undefined}><span>Scheduled pickup</span><input type="datetime-local" value={scheduledFor} min={localInputValue(firstScheduledDate)} max={localInputValue(lastScheduledDate)} step={scheduling.slotMinutes * 60} onChange={(event) => { setScheduledFor(event.target.value); if (fieldErrors.scheduledFor) setFieldErrors((current) => ({ ...current, scheduledFor: undefined })); }} aria-invalid={fieldErrors.scheduledFor ? true : undefined} aria-describedby={fieldErrors.scheduledFor ? "checkout-schedule-error" : undefined} />{fieldErrors.scheduledFor && <small className="checkout-field-error" id="checkout-schedule-error" role="alert"><i aria-hidden="true">!</i>{fieldErrors.scheduledFor}</small>}</label>}
         <div className="checkout-pickup-info"><strong>Payment due at pickup</strong><span>No card information is collected on this website.</span></div>
+        {(rewardOffer || studentVerified || welcomeOfferReady) && (
+          <fieldset className="checkout-rewards">
+            <legend>Rewards and discounts</legend>
+            <p className="checkout-rewards-note">One per order.</p>
+            <label htmlFor="discount-none"><input id="discount-none" type="radio" name="discount" checked={discountChoice === "none"} onChange={() => setDiscountChoice("none")} /><span>No discount</span></label>
+            {rewardOffer && <label htmlFor="discount-reward"><input id="discount-reward" type="radio" name="discount" checked={discountChoice === "reward"} onChange={() => setDiscountChoice("reward")} /><span>Redeem {rewardOffer.label}<small>Uses {rewardOffer.points} points</small></span></label>}
+            {welcomeOfferReady && <label htmlFor="discount-welcome"><input id="discount-welcome" type="radio" name="discount" checked={discountChoice === "welcome"} onChange={() => setDiscountChoice("welcome")} disabled={dearestDrinkCents === 0} /><span>50% off one drink<small>{dearestDrinkCents === 0 ? "Add a drink to use this" : "New member offer, one time"}</small></span></label>}
+            {studentVerified && <label htmlFor="discount-student"><input id="discount-student" type="radio" name="discount" checked={discountChoice === "student"} onChange={() => setDiscountChoice("student")} /><span>10% Kean student discount</span></label>}
+          </fieldset>
+        )}
         <div className="checkout-total">
           <div><span>Subtotal</span><strong>{money(subtotal)}</strong></div>
+          {discount > 0 && <div><span>Discount</span><strong>-{money(discount)}</strong></div>}
           <div><span>Estimated tax</span><strong>{money(tax)}</strong></div>
-          <div><span>Total</span><strong>{money(subtotal + tax)}</strong></div>
+          <div><span>Total</span><strong>{money(subtotal - discount + tax)}</strong></div>
         </div>
         <div className="checkout-pickup-info">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -2391,7 +2430,7 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onC
         </div>
         <TurnstileWidget action="order" onToken={setTurnstileToken} resetKey={turnstileResetKey} />
         {error && <p className="form-error">{error}</p>}
-        <button className="primary-button" disabled={submitting || ordersPaused || !turnstileToken}>{submitting ? "Sending order..." : ordersPaused ? "Online ordering paused" : `Place pickup order · ${money(subtotal + tax)}`}</button>
+        <button className="primary-button" disabled={submitting || ordersPaused || !turnstileToken}>{submitting ? "Sending order..." : ordersPaused ? "Online ordering paused" : `Place pickup order · ${money(subtotal - discount + tax)}`}</button>
         </>}
       </form>
     </div>

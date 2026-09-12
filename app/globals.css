@@ -675,6 +675,16 @@ h1, h2, h3, p { margin-top: 0; }
 .loyalty-card > div { height: 9px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.14); }
 .loyalty-card > div i { height: 100%; display: block; border-radius: inherit; background: var(--gold); }
 .loyalty-card small { color: rgba(255,250,243,.64); }
+/* Rewards card, student verification and the member coupon on the account panel. */
+.loyalty-ready { margin: 2px 0 0; color: #f0d7b4; font-size: 13px; font-weight: 800; }
+.student-form { display: grid; gap: 9px; margin: 0 0 18px; border: 1px solid var(--line); border-radius: 14px; padding: 15px 16px; text-align: left; }
+.student-form label { display: grid; gap: 6px; color: var(--ink); font-size: 12.5px; font-weight: 800; }
+.student-form input { width: 100%; min-height: 44px; box-sizing: border-box; border: 1px solid rgba(45,26,18,.16); border-radius: 12px; background: #fff; color: var(--ink); padding: 0 13px; font: inherit; }
+.student-form input:focus { outline: 2px solid rgba(156,101,51,.22); border-color: var(--gold); }
+.student-form small { color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.student-status { display: grid; gap: 4px; margin: 0 0 18px; border: 1px solid rgba(22,139,135,.28); border-radius: 14px; padding: 14px 16px; background: rgba(22,139,135,.07); text-align: left; }
+.student-status strong { color: var(--teal-dark, #0d5f5c); font-size: 14.5px; }
+.student-status small { color: var(--muted); font-size: 12.5px; }
 /* Shown before the rewards programme opens: balance and bar only. */
 .loyalty-card-preview > strong { color: rgba(255,250,243,.5); }
 .loyalty-note { font-size: 13px; }
@@ -3943,6 +3953,18 @@ body.modal-open { touch-action: none; }
 @media (prefers-reduced-motion: reduce) { .payment-options input::after { transition: none; } }
 .payment-options label span { display: flex; flex-direction: column; gap: 3px; }
 .payment-options small { color: var(--muted); font-weight: 400; }
+/* One discount per order, so these are radios rather than checkboxes. */
+.checkout-rewards { display: grid; gap: 8px; margin: 22px 0 0; border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
+.checkout-rewards legend { padding: 0 6px; font-weight: 800; font-size: 13.5px; }
+.checkout-rewards-note { margin: 0 0 2px; color: var(--muted); font-size: 12.5px; }
+.checkout-rewards label { display: grid; grid-template-columns: 20px 1fr; gap: 11px; align-items: start; cursor: pointer; }
+.checkout-rewards input { appearance: none; -webkit-appearance: none; width: 20px; height: 20px; margin: 1px 0 0; display: grid; place-items: center; border: 2px solid rgba(45,26,18,.28); border-radius: 50%; background: #fff; cursor: pointer; }
+.checkout-rewards input::after { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--teal); transform: scale(0); }
+.checkout-rewards input:checked { border-color: var(--teal); }
+.checkout-rewards input:checked::after { transform: scale(1); }
+.checkout-rewards input:disabled { opacity: .45; cursor: not-allowed; }
+.checkout-rewards label span { display: flex; flex-direction: column; gap: 2px; font-weight: 700; font-size: 14px; }
+.checkout-rewards label small { color: var(--muted); font-weight: 400; font-size: 12.5px; }
 .checkout-total { margin: 25px 0 16px; padding-top: 14px; border-top: 1px solid var(--line); }
 .checkout-total div { display: flex; justify-content: space-between; padding: 6px 0; }
 .checkout-total div:last-child { margin-top: 6px; font-size: 20px; }
