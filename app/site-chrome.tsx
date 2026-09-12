@@ -131,9 +131,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
   /* Email the verification link was sent to, shown on the verify screen. */
   const [verifyEmail, setVerifyEmail] = useState("");
   const [resetToken, setResetToken] = useState("");
-  const [profilePhone, setProfilePhone] = useState("");
-  const [profileName, setProfileName] = useState("");
-  const [profileMessage, setProfileMessage] = useState("");
+  const [signOutError, setSignOutError] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchResultsRef = useRef<HTMLDivElement>(null);
   const searchResultsContentRef = useRef<HTMLDivElement>(null);
@@ -254,8 +252,6 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
       }
       setProfile(nextProfile);
       if (nextProfile.profile) {
-        setProfileName(nextProfile.profile.displayName);
-        setProfilePhone(nextProfile.profile.phone ?? "");
         try {
           const response = await fetchWithTimeout("/api/customer-orders", { cache: "no-store" });
           if (response.ok) setRecentOrders(((await response.json()) as { orders?: typeof recentOrders }).orders ?? []);
@@ -513,39 +509,9 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
       setRecentOrders([]);
       window.dispatchEvent(new Event("deaf-shark-session-changed"));
     } catch {
-      setProfileMessage("Unable to sign out. Please try again.");
+      setSignOutError("Unable to sign out. Please try again.");
     } finally {
       setAuthBusy(false);
-    }
-  }
-
-  async function saveProfile(e: React.FormEvent) {
-    e.preventDefault();
-    setProfileMessage("");
-    if (!profileName.trim()) {
-      setProfileMessage("Enter the name you want shown on your account.");
-      return;
-    }
-    if (profilePhone.replace(/\D/g, "").length < 10) {
-      setProfileMessage("Enter a complete 10-digit mobile number.");
-      return;
-    }
-    try {
-      const response = await fetchWithTimeout("/api/profile", {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ displayName: profileName, phone: profilePhone }),
-      });
-      const data = await response.json() as { error?: string; profile?: ProfileResponse["profile"] };
-      if (!response.ok || !data.profile) {
-        setProfileMessage(data.error || "Your profile could not be saved.");
-        return;
-      }
-      setProfile({ authenticated: true, profile: data.profile });
-      setProfileMessage("Saved.");
-    } catch {
-      setProfileMessage("Your profile could not be saved. Check your connection and try again.");
     }
   }
 
@@ -1038,15 +1004,18 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                   {recentOrders.length === 0 && <p>No orders yet.</p>}
                   {recentOrders.map((order) => <button key={order.orderNumber} type="button" className="account-mode-toggle" onClick={() => { setProfileOpen(false); setProfileClosing(false); setTrackingOrder(order.orderNumber); }}>{order.orderNumber} · {order.status} · ${(order.totalCents / 100).toFixed(2)}</button>)}
                 </div>
-                <form className="account-profile-form" onSubmit={saveProfile} noValidate>
-                  <label>Name<input value={profileName} onChange={(e) => { setProfileName(e.target.value); setProfileMessage(""); }} maxLength={80} autoComplete="name" /></label>
-                  <label>Mobile number<input value={profilePhone} onChange={(e) => { setProfilePhone(formatPhoneInput(e.target.value)); setProfileMessage(""); }} type="tel" inputMode="tel" maxLength={PHONE_INPUT_MAX_LENGTH} autoComplete="tel" placeholder="(908)-555-0123" /></label>
-                  <button type="submit" className="primary-button">Save profile</button>
-                  {profileMessage && <small className={`account-form-message${profileMessage === "Saved." ? "" : " error"}`} role="status">{profileMessage}</small>}
-                </form>
+                {/* Name and number are captured at signup and shown read only: an
+                    order in the kitchen is matched to them, so they should not
+                    change underneath a ticket that is already being made. */}
+                <div className="account-details">
+                  <div><span>Name</span><strong>{profile.profile.displayName}</strong></div>
+                  <div><span>Mobile number</span><strong>{profile.profile.phone || "Not on file"}</strong></div>
+                  <small>To change your name or number, call the shop at <a href="tel:+19084818884">(908) 481-8884</a>.</small>
+                </div>
                 <button type="button" className="account-signout" onClick={handleSignOut} disabled={authBusy}>
                   Sign out
                 </button>
+                {signOutError && <small className="account-form-message error" role="alert">{signOutError}</small>}
               </>
             )}
           </section>

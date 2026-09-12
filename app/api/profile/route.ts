@@ -89,40 +89,9 @@ export async function GET(request: Request) {
   });
 }
 
-export async function PATCH(request: Request) {
-  const session = await getCustomerSession(request);
-  if (!session) return Response.json({ error: "Sign in to update your profile." }, { status: 401 });
-  await ensureSchema();
-
-  const payload = (await request.json()) as { displayName?: string; phone?: string };
-  const displayName = payload.displayName?.trim();
-  const phone = payload.phone?.replace(/[^0-9+()\- .]/g, "").trim();
-
-  if (!displayName || displayName.length > 80 || !phone || phone.length < 7 || phone.length > 24) {
-    return Response.json({ error: "Enter a name and a valid phone number." }, { status: 400 });
-  }
-
-  const [profile] = await getDb().insert(customerProfiles).values({
-    userId: session.user.id,
-    email: session.user.email,
-    displayName,
-    phone,
-  }).onConflictDoUpdate({
-    target: customerProfiles.userId,
-    set: { displayName, phone, email: session.user.email, updatedAt: new Date() },
-  }).returning();
-  await ensureWelcomeBenefits(session.user);
-  const refreshed = (await getDb().select().from(customerProfiles).where(eq(customerProfiles.userId, session.user.id)).limit(1))[0] ?? profile;
-  const welcomeOffer = await getWelcomeOffer(session.user.id);
-
-  return Response.json({
-    profile: {
-      displayName: refreshed.displayName,
-      email: refreshed.email,
-      phone: refreshed.phone,
-      points: refreshed.points,
-      lifetimePoints: refreshed.lifetimePoints,
-      welcomeOffer,
-    },
-  });
-}
+/* No PATCH here on purpose. Name and phone are captured at signup and are
+   deliberately not editable afterwards: a ticket in the kitchen is matched to
+   them, so they must not change underneath an order already being made. A
+   customer who needs them corrected calls the shop. Removing the endpoint
+   rather than only hiding the form means the rule cannot be bypassed by
+   posting to the API directly. */

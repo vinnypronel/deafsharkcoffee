@@ -674,6 +674,13 @@ h1, h2, h3, p { margin-top: 0; }
 .account-mode-toggle { border: 0; background: transparent; color: var(--espresso); font: inherit; font-size: 13px; font-weight: 750; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .account-form-message { margin: 0; color: #486247; font-size: 12px; font-weight: 700; }
 .account-form-message.error { color: #9a342c; }
+/* Account details are read only: captured at signup, corrected by the shop. */
+.account-details { display: grid; gap: 10px; margin: 16px 0; border: 1px solid rgba(34,18,12,.12); border-radius: 14px; padding: 14px 16px; text-align: left; }
+.account-details > div { display: grid; gap: 2px; }
+.account-details span { color: var(--muted); font-size: 11.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.account-details strong { color: var(--ink); font-size: 14.5px; }
+.account-details > small { color: var(--muted); font-size: 12px; line-height: 1.45; }
+.account-details a { color: var(--espresso); font-weight: 800; }
 .account-profile-form { display: grid; gap: 12px; margin: 16px 0; text-align: left; }
 .account-profile-form label { display: grid; gap: 6px; color: var(--ink); font-size: 12px; font-weight: 800; }
 .account-profile-form input { width: 100%; min-height: 44px; box-sizing: border-box; border: 1px solid rgba(45,26,18,.16); border-radius: 12px; background: #fff; color: var(--ink); padding: 0 13px; font: inherit; }
@@ -3901,7 +3908,14 @@ body.modal-open { touch-action: none; }
 .checkout-card input[type="text"], .checkout-card input[type="tel"], .checkout-card > label input { min-height: 52px; border: 1px solid var(--line); border-radius: 14px; padding: 0 14px; background: white; outline: none; }
 .payment-options { display: grid; gap: 8px; margin: 24px 0; border: 0; padding: 0; }
 .payment-options label { min-height: 74px; display: grid; grid-template-columns: 24px 1fr; align-items: center; gap: 12px; border: 1px solid var(--line); border-radius: 14px; padding: 12px 15px; background: white; cursor: pointer; }
-.payment-options input { width: 20px; height: 20px; accent-color: var(--teal); }
+/* Drawn rather than native: the browser's own radio paints a rounded square
+   behind the dot once checked. This is just a ring and a fill. */
+.payment-options input { appearance: none; -webkit-appearance: none; width: 20px; height: 20px; margin: 0; display: grid; place-items: center; border: 2px solid rgba(45,26,18,.28); border-radius: 50%; background: #fff; cursor: pointer; }
+.payment-options input::after { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--teal); transform: scale(0); transition: transform .15s ease; }
+.payment-options input:checked { border-color: var(--teal); }
+.payment-options input:checked::after { transform: scale(1); }
+.payment-options input:focus-visible { outline: 2px solid rgba(13,95,92,.45); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { .payment-options input::after { transition: none; } }
 .payment-options label span { display: flex; flex-direction: column; gap: 3px; }
 .payment-options small { color: var(--muted); font-weight: 400; }
 .checkout-total { margin: 25px 0 16px; padding-top: 14px; border-top: 1px solid var(--line); }
