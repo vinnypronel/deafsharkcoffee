@@ -503,7 +503,14 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
     e.preventDefault();
     setAuthBusy(true);
     try {
-      const response = await fetchWithTimeout("/api/auth/sign-out", { method: "POST", credentials: "include" });
+      /* better-auth rejects a request without a JSON content type (415), which
+         made Sign out fail every time. */
+      const response = await fetchWithTimeout("/api/auth/sign-out", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
       if (!response.ok) throw new Error("Unable to sign out.");
       setProfile({ authenticated: false });
       setRecentOrders([]);
