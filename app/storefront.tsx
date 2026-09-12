@@ -2373,6 +2373,9 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onC
       };
       if (response.status === 401) setAccount("guest");
       if (!response.ok) throw new Error(data.error ?? "Unable to place order");
+      /* Lets the header pick the new order up immediately rather than waiting
+         for its next poll. */
+      window.dispatchEvent(new Event("deaf-shark-order-placed"));
       onComplete(data.order.orderNumber, data.order.pickupEta, phone);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to place order");

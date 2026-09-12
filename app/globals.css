@@ -574,6 +574,14 @@ h1, h2, h3, p { margin-top: 0; }
 .order-status-trigger i { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 4px rgba(183,130,61,.14); }
 .order-status-trigger.ready { border-color: var(--teal); background: var(--teal); }
 .order-status-trigger.ready i { background: white; box-shadow: 0 0 0 4px rgba(255,255,255,.16); }
+/* Live order chip in the header: a customer should be able to see that their
+   order is ready without opening their account. */
+.header-order-chip { display: inline-flex; align-items: center; gap: 7px; min-height: 34px; border: 1px solid rgba(255,255,255,.22); border-radius: 999px; padding: 0 13px; background: rgba(255,255,255,.08); color: #fff; font: inherit; font-size: 12.5px; font-weight: 800; white-space: nowrap; cursor: pointer; }
+.header-order-chip:hover { background: rgba(255,255,255,.16); }
+.header-order-chip i { width: 8px; height: 8px; border-radius: 50%; background: #d9a76c; }
+.header-order-chip.status-preparing i { background: #e0913c; }
+.header-order-chip.status-ready i { background: #55bf80; box-shadow: 0 0 0 4px rgba(85,191,128,.18); }
+@media (max-width: 720px) { .header-order-chip span { display: none; } .header-order-chip { padding: 0 10px; } }
 .header-order-popover { position: absolute; z-index: 80; top: calc(100% + 20px); right: 0; width: min(390px, calc(100vw - 28px)); border: 1px solid var(--line); border-radius: 24px; padding: 28px; background: var(--paper); color: var(--ink); box-shadow: 0 26px 80px rgba(20,11,8,.28); }
 .header-order-popover::before { content: ""; position: absolute; top: -8px; right: 30px; width: 16px; height: 16px; transform: rotate(45deg); background: var(--paper); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
 .header-order-popover .eyebrow { margin-bottom: 8px; }

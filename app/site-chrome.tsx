@@ -132,6 +132,9 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
   const [verifyEmail, setVerifyEmail] = useState("");
   const [resetToken, setResetToken] = useState("");
   const [signOutError, setSignOutError] = useState("");
+  /* Live status of the customer's current order, shown in the header so they do
+     not have to open their account to see whether it is ready. */
+  const [activeOrder, setActiveOrder] = useState<{ orderNumber: string; status: string } | null>(null);
   const [studentEmail, setStudentEmail] = useState("");
   const [studentMessage, setStudentMessage] = useState("");
   const [studentBusy, setStudentBusy] = useState(false);
@@ -157,6 +160,31 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
       }
     };
   }, [searchOpen, profileOpen, trackingOrder]);
+
+  useEffect(() => {
+    let stopped = false;
+    async function loadActiveOrder() {
+      try {
+        const response = await fetch("/api/customer-orders", { cache: "no-store", credentials: "include" });
+        if (!response.ok) { if (!stopped) setActiveOrder(null); return; }
+        const data = await response.json() as { orders?: Array<{ orderNumber: string; status: string }> };
+        const open = (data.orders ?? []).find((order) => ["new", "preparing", "ready"].includes(order.status));
+        if (!stopped) setActiveOrder(open ?? null);
+      } catch {
+        if (!stopped) setActiveOrder(null);
+      }
+    }
+    void loadActiveOrder();
+    const timer = window.setInterval(loadActiveOrder, 20000);
+    window.addEventListener("deaf-shark-session-changed", loadActiveOrder);
+    window.addEventListener("deaf-shark-order-placed", loadActiveOrder);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+      window.removeEventListener("deaf-shark-session-changed", loadActiveOrder);
+      window.removeEventListener("deaf-shark-order-placed", loadActiveOrder);
+    };
+  }, []);
 
   useEffect(() => {
     const openAccount = () => { setMobileMenuOpen(false); void openProfile(); };
@@ -570,6 +598,16 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
         <nav aria-label="Primary navigation">{links.map(([href, label]) => <Link key={href} href={href} className={active === href ? "active" : ""}>{label}</Link>)}</nav>
         <Link className="header-brand" href="/" aria-label="Deaf Shark Coffee home"><BrandMark /></Link>
         <div className="header-action">
+          {activeOrder && (
+            <button
+              type="button"
+              className={`header-order-chip status-${activeOrder.status}`}
+              onClick={() => { setMobileMenuOpen(false); setTrackingOrder(activeOrder.orderNumber); }}
+            >
+              <i aria-hidden="true" />
+              <span>{activeOrder.status === "ready" ? "Order ready" : activeOrder.status === "preparing" ? "Preparing" : "Order in"}</span>
+            </button>
+          )}
           <button className="header-icon-button" onClick={() => { setMobileMenuOpen(false); setSearchOpen((current) => !current); }} aria-label="Search menu">
             <svg className="header-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <circle cx="11" cy="11" r="8" />
