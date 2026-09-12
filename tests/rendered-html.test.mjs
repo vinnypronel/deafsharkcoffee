@@ -79,7 +79,8 @@ test("server-renders the expanded photographed menu", async () => {
   assert.match(html, /Poland Spring Water/i);
   assert.match(html, /Snapple/i);
   assert.match(html, /The NJ Classic/i);
-  assert.match(html, /Chicken Wings with French Fries/i);
+  assert.match(html, /Chicken Wings with Fries/i);
+  assert.match(html, /Sweet potato fries/i);
   assert.match(html, /Chicken Deluxe/i);
   assert.match(html, /role="tab"[^>]*><span class="category-nav-label">Matcha<\/span>/i);
   assert.match(html, /role="tab"[^>]*><span class="category-nav-label">Tea<\/span>/i);

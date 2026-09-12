@@ -161,6 +161,13 @@ export const FOOD_ADD_ONS: ModifierGroup = {
   options: [{ label: "Extra meat", price: 2.5 }],
 };
 
+export const FRIES_CHOICE: ModifierGroup = {
+  label: "Fries choice",
+  type: "single",
+  required: true,
+  options: ["French fries", "Sweet potato fries"].map((label) => ({ label })),
+};
+
 export const DECAF_MODIFIER: ModifierGroup = {
   label: "Coffee type",
   type: "single",
@@ -874,10 +881,12 @@ export const menuProducts: Product[] = [
   },
   {
     id: "fries",
-    name: "French Fries",
+    name: "Fries",
     category: "Bites",
     price: 5,
-    description: "Crisp, golden, and ready to share.",
+    description: "Choose classic French fries or sweet potato fries.",
+    configurable: true,
+    modifierGroups: [FRIES_CHOICE],
     visual: "bite",
     photo: "/menu/owner/french-fries-v5.png",
   },
@@ -892,11 +901,12 @@ export const menuProducts: Product[] = [
   },
   {
     id: "chicken-wings-fries",
-    name: "Chicken Wings with French Fries",
+    name: "Chicken Wings with Fries",
     category: "Bites",
     price: 10,
-    description: "Five breaded chicken wings served with French fries.",
+    description: "Five breaded chicken wings served with your choice of French fries or sweet potato fries.",
     configurable: true,
+    modifierGroups: [FRIES_CHOICE],
     visual: "bite",
     photo: "/menu/owner/chicken-wings-fries-v6.png",
   },

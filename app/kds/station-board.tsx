@@ -47,10 +47,16 @@ function statusFor(order: StationOrder, station: Station): WorkStatus {
   return order.status === "ready" ? "ready" : order.status === "preparing" ? "preparing" : "new";
 }
 
+/* Past an hour, plain minutes stop meaning anything on a busy counter: "791
+   min ago" has to be divided in your head. */
 function orderAge(createdAt: string) {
   const seconds = Math.max(0, Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000));
   if (seconds < 60) return "Just now";
-  return `${Math.floor(seconds / 60)} min ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  return remainder === 0 ? `${hours} hr ago` : `${hours} hr ${remainder} min ago`;
 }
 
 function pickupLabel(order: StationOrder) {
@@ -60,7 +66,9 @@ function pickupLabel(order: StationOrder) {
   return `ASAP · ${order.pickupEta}`;
 }
 
-export function StationBoard({ station }: { station: Station }) {
+/* embedded: rendered inside the dashboard, which already provides the brand,
+   clock and sound controls, so the station's own header is left out. */
+export function StationBoard({ station, embedded = false }: { station: Station; embedded?: boolean }) {
   const [orders, setOrders] = useState<StationOrder[]>([]);
   const [connection, setConnection] = useState<"live" | "waiting">("waiting");
   const [soundEnabled, setSoundEnabled] = useState(false);
@@ -156,15 +164,15 @@ export function StationBoard({ station }: { station: Station }) {
   };
 
   return (
-    <main className={`kds-page kds-${station}`}>
-      <header className="kds-header">
+    <main className={`kds-page kds-${station}${embedded ? " kds-embedded" : ""}`}>
+      {!embedded && <header className="kds-header">
         <a href="/dashboard" className="kds-brand"><img src="/favicon.png" alt="" /><span><small>Deaf Shark Online Orders</small><strong>{station === "coffee" ? "Coffee station" : "Kitchen station"}</strong></span></a>
         <div className="kds-clock"><strong>{clock.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</strong><span>{clock.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}</span></div>
         <div className="kds-header-actions">
           <span className={`kds-connection ${connection}`}><i />{connection === "live" ? "Live" : "Reconnecting"}</span>
           <button type="button" className={soundEnabled ? "sound-on" : ""} onClick={enableSound}>{soundEnabled ? "Sound on" : "Enable sound"}</button>
         </div>
-      </header>
+      </header>}
 
       <section className="kds-summary" aria-label="Station order summary">
         <span><b>{counts.new}</b> New</span>

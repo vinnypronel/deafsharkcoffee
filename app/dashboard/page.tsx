@@ -1,3 +1,4 @@
+import "../kds/kds.css";
 import { Dashboard } from "./dashboard";
 import { headers } from "next/headers";
 import Link from "next/link";

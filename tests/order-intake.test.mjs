@@ -132,6 +132,21 @@ test("prices from the server catalog and ignores client-supplied prices", () => 
   assert.ok(["COFFEE", "KITCHEN", "RETAIL"].includes(item.prepStation));
 });
 
+test("offers French fries or sweet potato fries for fries and wing orders", () => {
+  for (const id of ["fries", "chicken-wings-fries"]) {
+    const [regular] = priceCart([{ id, quantity: 1 }]);
+    assert.ok(regular.options.includes("Fries choice: French fries"));
+
+    const [sweetPotato] = priceCart([{
+      id,
+      quantity: 1,
+      selection: { modifiers: { "Fries choice": ["Sweet potato fries"] } },
+    }]);
+    assert.ok(sweetPotato.options.includes("Fries choice: Sweet potato fries"));
+    assert.equal(sweetPotato.unitPrice, regular.unitPrice);
+  }
+});
+
 test("opens configurable drinks at their advertised base price and charges only selected upgrades", () => {
   const [latte] = priceCart([{ id: "latte", quantity: 1 }]);
   assert.equal(latte.unitPrice, 5);

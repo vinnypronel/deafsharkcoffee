@@ -1189,7 +1189,8 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
     }
 
     if (isCompactMenu) {
-      quickAdd(product);
+      if (product.configurable) openProduct(product);
+      else quickAdd(product);
       return;
     }
 
@@ -1319,9 +1320,9 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
               <button
                 type="button"
                 className={`item-selected-cart ${justAdded === product.id ? "added" : ""}`}
-                onClick={() => quickAdd(product)}
-                aria-label={`${justAdded === product.id ? "Added" : "Add"} ${product.name} to cart`}
-                title={`${justAdded === product.id ? "Added" : "Add to cart"}`}
+                onClick={() => product.configurable ? openProduct(product) : quickAdd(product)}
+                aria-label={`${product.configurable ? "Customize" : justAdded === product.id ? "Added" : "Add"} ${product.name}${product.configurable ? "" : " to cart"}`}
+                title={product.configurable ? "Customize" : justAdded === product.id ? "Added" : "Add to cart"}
               >
                 <span className="universal-cart-glyph" aria-hidden="true" />
                 <span className="quick-add-plus" aria-hidden="true" />

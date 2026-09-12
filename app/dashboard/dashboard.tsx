@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { menuProducts, type PrepStation } from "../menu-data";
 import { AdminPanels } from "./admin-panels";
+import { StationBoard } from "../kds/station-board";
 
 type OrderItem = {
   id: string;
@@ -64,7 +65,7 @@ export function Dashboard() {
   const [availability, setAvailability] = useState<Record<string, boolean>>({});
   const [prepTime, setPrepTime] = useState(15);
   const [paused, setPaused] = useState(false);
-  const [activeView, setActiveView] = useState<"orders" | "menu" | "website" | "hours" | "events" | "forms" | "history" | "loyalty">("orders");
+  const [activeView, setActiveView] = useState<"orders" | "coffee" | "kitchen" | "menu" | "website" | "hours" | "events" | "forms" | "history" | "loyalty">("orders");
   const [mobileColumn, setMobileColumn] = useState<Order["status"]>("new");
   const [connection, setConnection] = useState<"live" | "waiting">("waiting");
   const [soundArmed, setSoundArmed] = useState(false);
@@ -232,8 +233,8 @@ export function Dashboard() {
         <Link className="dashboard-brand" href="/"><img src="/favicon.png" alt="" /><span><strong>Deaf Shark Coffee</strong></span></Link>
         <div className="dashboard-tabs">
           <button className={activeView === "orders" ? "active" : ""} onClick={() => setActiveView("orders")}>Live orders <span>{openOrders.length}</span></button>
-          <a href="/kds/coffee" target="_blank" rel="noreferrer">Coffee</a>
-          <a href="/kds/kitchen" target="_blank" rel="noreferrer">Food</a>
+          <button className={activeView === "coffee" ? "active" : ""} onClick={() => setActiveView("coffee")}>Coffee</button>
+          <button className={activeView === "kitchen" ? "active" : ""} onClick={() => setActiveView("kitchen")}>Food</button>
           <button className={activeView === "menu" ? "active" : ""} onClick={() => setActiveView("menu")}>Menu</button>
           <button className={activeView === "website" ? "active" : ""} onClick={() => setActiveView("website")}>Homepage</button>
           <button className={activeView === "hours" ? "active" : ""} onClick={() => setActiveView("hours")}>Hours</button>
@@ -322,6 +323,8 @@ export function Dashboard() {
           </div>
           <AdminPanels view="menu" />
         </section>
+      ) : activeView === "coffee" || activeView === "kitchen" ? (
+        <StationBoard station={activeView} embedded />
       ) : <AdminPanels view={activeView} />}
     </main>
   );

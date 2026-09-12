@@ -5923,3 +5923,8 @@ video:-moz-full-screen {
 }
 .auth-password-toggle:hover { color: var(--ink); background: rgba(45, 26, 18, .07); }
 .auth-password-toggle:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+
+/* The station boards also render inside the dashboard, where the page already
+   supplies its own chrome, so the embedded copy drops the full-screen frame. */
+.kds-embedded { min-height: 0; background: transparent; padding-top: 0; }
+.kds-embedded .kds-summary { margin-top: 0; }
