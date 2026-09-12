@@ -199,8 +199,8 @@ export function Dashboard() {
         <Link className="dashboard-brand" href="/"><img src="/favicon.png" alt="" /><span><strong>Deaf Shark Coffee</strong></span></Link>
         <div className="dashboard-tabs">
           <button className={activeView === "orders" ? "active" : ""} onClick={() => setActiveView("orders")}>Live orders <span>{openOrders.length}</span></button>
-          <a href="/kds/coffee" target="_blank" rel="noreferrer">Coffee screen</a>
-          <a href="/kds/kitchen" target="_blank" rel="noreferrer">Kitchen screen</a>
+          <a href="/kds/coffee" target="_blank" rel="noreferrer">Coffee</a>
+          <a href="/kds/kitchen" target="_blank" rel="noreferrer">Food</a>
           <button className={activeView === "menu" ? "active" : ""} onClick={() => setActiveView("menu")}>Menu</button>
           <button className={activeView === "website" ? "active" : ""} onClick={() => setActiveView("website")}>Homepage</button>
           <button className={activeView === "hours" ? "active" : ""} onClick={() => setActiveView("hours")}>Hours</button>

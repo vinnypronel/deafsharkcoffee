@@ -4229,7 +4229,11 @@ body.modal-open { touch-action: none; }
 .dashboard-brand span { display: flex; flex-direction: column; }
 .dashboard-brand small { color: rgba(255,255,255,.52); font-size: 11px; }
 .dashboard-tabs { display: flex; gap: 5px; padding: 5px; border-radius: 12px; background: rgba(255,255,255,.08); }
-.dashboard-tabs button { min-height: 40px; border: 0; border-radius: 9px; padding: 0 16px; background: transparent; color: rgba(255,255,255,.65); font-weight: 750; cursor: pointer; }
+/* The station links sit in the same row as the tabs, so they are built from
+   the same rule rather than falling through as bare anchors. */
+.dashboard-tabs button, .dashboard-tabs a { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 9px; padding: 0 16px; background: transparent; color: rgba(255,255,255,.65); font: inherit; font-weight: 750; text-decoration: none; white-space: nowrap; cursor: pointer; }
+.dashboard-tabs a { border: 1px solid rgba(255,255,255,.18); }
+.dashboard-tabs button:hover, .dashboard-tabs a:hover { background: rgba(255,255,255,.1); color: #fff; }
 .dashboard-tabs button.active { background: white; color: var(--deep); }
 .dashboard-tabs span { display: inline-grid; place-items: center; min-width: 22px; height: 22px; margin-left: 6px; border-radius: 50%; background: var(--gold); font-size: 11px; }
 .connection-status { justify-self: end; display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 750; }
