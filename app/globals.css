@@ -675,6 +675,11 @@ h1, h2, h3, p { margin-top: 0; }
 .loyalty-card > div { height: 9px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.14); }
 .loyalty-card > div i { height: 100%; display: block; border-radius: inherit; background: var(--gold); }
 .loyalty-card small { color: rgba(255,250,243,.64); }
+/* Preview state, before the rewards programme opens. */
+.loyalty-card-preview > span { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.loyalty-soon { border: 1px solid rgba(220,168,107,.5); border-radius: 999px; padding: 2px 9px; color: rgba(255,250,243,.82); font-size: 10px; letter-spacing: .08em; }
+.loyalty-card-preview > strong { color: rgba(255,250,243,.5); }
+.loyalty-card-preview small { color: rgba(255,250,243,.72); line-height: 1.45; }
 .loyalty-note { font-size: 13px; }
 .welcome-offer { display: grid; gap: 7px; margin: 0 0 18px; border: 1px dashed rgba(120,73,34,.42); border-radius: 18px; padding: 18px; background: linear-gradient(145deg, #fff8e9, #f4dfb8); text-align: left; box-shadow: 0 10px 30px rgba(64,35,20,.08); }
 .welcome-offer > span { color: #8b572d; font-size: 10px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; }
@@ -812,7 +817,7 @@ h1, h2, h3, p { margin-top: 0; }
 .primary-button { display: inline-flex; min-height: 48px; align-items: center; justify-content: center; border: 0; border-radius: 6px; padding: 0 26px; background: var(--espresso); color: #fffaf3; font-weight: 700; font-size: 14.5px; cursor: pointer; transition: transform .2s ease, background .2s ease; box-shadow: 0 4px 14px rgba(45, 26, 18, 0.16); }
 .primary-button:hover { background: var(--ink); }
 .primary-button:disabled { opacity: .55; cursor: wait; transform: none; }
-.site-error { min-height: 70vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; background: var(--cream); color: var(--ink); text-align: center; }
+.site-error { min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; background: var(--cream); color: var(--ink); text-align: center; }
 .site-error h1 { max-width: 760px; margin: 10px 0 12px; font-family: var(--font-display); font-size: clamp(42px, 7vw, 82px); font-weight: 400; line-height: .98; }
 .site-error p { max-width: 600px; margin: 0; color: var(--muted); line-height: 1.6; }
 .site-error-actions { display: flex; gap: 12px; align-items: center; justify-content: center; margin-top: 24px; }

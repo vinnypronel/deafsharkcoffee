@@ -984,6 +984,15 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                 <span className="account-welcome">Welcome back</span>
                 <h2>{profile.profile.displayName}</h2>
                 <p>{profile.profile.email}</p>
+                {/* Shown before the programme launches so the rewards area is
+                    visible on the profile, without claiming rules nobody has
+                    agreed yet or implying points are being earned. */}
+                {!authConfig.loyaltyEnabled && <div className="loyalty-card loyalty-card-preview">
+                  <span>Deaf Shark Rewards <b className="loyalty-soon">Coming soon</b></span>
+                  <strong>{profile.profile.points} points</strong>
+                  <div><i style={{ width: "0%" }} /></div>
+                  <small>Rewards are being finalised with the shop. Nothing is being earned yet, and your orders are already being counted for when it opens.</small>
+                </div>}
                 {authConfig.loyaltyEnabled && <><div className="loyalty-card">
                   <span>Deaf Shark Rewards</span>
                   <strong>{profile.profile.points} points</strong>
