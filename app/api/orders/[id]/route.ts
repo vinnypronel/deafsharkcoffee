@@ -3,6 +3,7 @@ import { env } from "cloudflare:workers";
 import { ensureSchema, getDb } from "../../../../db";
 import { orders } from "../../../../db/schema";
 import { loyaltyChangeStatements } from "../../../../lib/loyalty-ledger";
+import { pointsForSubtotal } from "../../../../lib/loyalty";
 import { requireStaff } from "../../../../lib/staff-auth";
 import { notifyOrderReady } from "../../../../lib/sms";
 
@@ -100,7 +101,9 @@ export async function PATCH(
       ))
       .returning({ id: orders.id }).toSQL();
     const statements = [env.DB.prepare(updateQuery.sql).bind(...updateQuery.params)];
-    const earnedPoints = Math.floor(existing.subtotalCents / 100);
+    /* One point per dollar actually spent, so a discounted order earns on what
+       the customer paid rather than on the pre-discount subtotal. */
+    const earnedPoints = pointsForSubtotal(existing.subtotalCents - (existing.discountCents ?? 0));
     if (env.LOYALTY_ENABLED === "true" && update.status === "complete" && existing.customerUserId && earnedPoints > 0) {
       statements.push(...loyaltyChangeStatements({
         userId: existing.customerUserId, orderId: existing.id,

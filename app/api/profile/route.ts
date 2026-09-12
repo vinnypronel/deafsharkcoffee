@@ -3,9 +3,10 @@ import { ensureSchema, getDb } from "../../../db";
 import { customerProfiles, loyaltyTransactions, memberOffers } from "../../../db/schema";
 import { getCustomerSession } from "../../../lib/auth";
 import { env } from "cloudflare:workers";
+import { WELCOME_OFFER_TYPE, bestAvailableTier, nextTierProgress } from "../../../lib/loyalty";
 
-const SIGNUP_BONUS_POINTS = 25;
-const WELCOME_OFFER_TYPE = "signup_half_off_coffee";
+/* No signup points: the shop's programme gives new members a half-off drink
+   coupon instead, and points are earned by spending. */
 
 async function ensureWelcomeBenefits(user: { id: string; email: string; name: string }) {
   const db = getDb();
@@ -18,28 +19,6 @@ async function ensureWelcomeBenefits(user: { id: string; email: string; name: st
   const [current] = await db.select().from(customerProfiles).where(eq(customerProfiles.userId, user.id)).limit(1);
   if (!current) throw new Error("Customer profile could not be created.");
   if (env.LOYALTY_ENABLED !== "true") return;
-
-  if (!current.signupBonusAwarded) {
-    const balanceAfter = current.points + SIGNUP_BONUS_POINTS;
-    await db.batch([
-      db.update(customerProfiles).set({
-        points: sql`${customerProfiles.points} + ${SIGNUP_BONUS_POINTS}`,
-        lifetimePoints: sql`${customerProfiles.lifetimePoints} + ${SIGNUP_BONUS_POINTS}`,
-        signupBonusAwarded: true,
-        updatedAt: new Date(),
-      }).where(and(
-        eq(customerProfiles.userId, user.id),
-        eq(customerProfiles.signupBonusAwarded, false),
-      )),
-      db.insert(loyaltyTransactions).values({
-        userId: user.id,
-        reference: `signup:${user.id}`,
-        pointsChange: SIGNUP_BONUS_POINTS,
-        balanceAfter,
-        reason: "signup_bonus",
-      }).onConflictDoNothing({ target: loyaltyTransactions.reference }),
-    ]);
-  }
 
   await db.insert(memberOffers).values({
     userId: user.id,
@@ -85,6 +64,12 @@ export async function GET(request: Request) {
       lifetimePoints: profile.lifetimePoints,
       activity,
       welcomeOffer,
+      studentVerified: Boolean(profile.studentVerifiedAt),
+      studentEmail: profile.studentEmail,
+      rewards: {
+        available: bestAvailableTier(profile.points),
+        progress: nextTierProgress(profile.points),
+      },
     },
   });
 }

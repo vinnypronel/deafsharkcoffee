@@ -25,6 +25,11 @@ import { CUSTOM_CHECKOUT_ENABLED } from "../../ordering";
 import { requirePickupAccount } from "../../../lib/checkout-policy";
 import { readStoreHours } from "../../../lib/store-hours-store";
 import { sendStaffNotification } from "../../../lib/transactional-email";
+import { memberOffers } from "../../../db/schema";
+import { WELCOME_OFFER_TYPE, resolveDiscount, type DiscountChoice } from "../../../lib/loyalty";
+import { loyaltyChangeStatements } from "../../../lib/loyalty-ledger";
+import { DRINK_CATEGORIES, menuProducts } from "../../menu-data";
+import { and, eq as eqOp } from "drizzle-orm";
 
 export async function GET(request: Request) {
   try {
@@ -115,11 +120,21 @@ export async function POST(request: Request) {
       return orderResponse(alreadyPlaced, 200, reference);
     }
 
-    const [settingsRow, availabilityRows, menuRows, storeHours] = await Promise.all([
+    const [settingsRow, availabilityRows, menuRows, storeHours, profileRows, offerRows] = await Promise.all([
       getDb().select().from(storeSettings).limit(1),
       getDb().select().from(menuAvailability),
       getDb().select().from(menuContent),
       readStoreHours(),
+      customerUserId
+        ? getDb().select().from(customerProfiles).where(eq(customerProfiles.userId, customerUserId)).limit(1)
+        : Promise.resolve([]),
+      customerUserId
+        ? getDb().select().from(memberOffers).where(and(
+            eqOp(memberOffers.userId, customerUserId),
+            eqOp(memberOffers.offerType, WELCOME_OFFER_TYPE),
+            eqOp(memberOffers.status, "active"),
+          )).limit(1)
+        : Promise.resolve([]),
     ]);
     const storedSettings = settingsRow[0] as OrderSettings | undefined;
     if (!storedSettings) throw new Error("Store settings row is missing.");
@@ -131,7 +146,41 @@ export async function POST(request: Request) {
     );
 
     const orderItems = priceCart(cartItems, { availability, overrides });
-    const { subtotalCents, taxCents, totalCents } = orderTotals(orderItems);
+
+    /* Recomputed here from the customer's own record. The browser only says
+       which discount it wants; the value, the points cost and the eligibility
+       are all decided server-side. */
+    const drinkIds = new Set(menuProducts.filter((product) => DRINK_CATEGORIES.includes(product.category)).map((product) => product.id));
+    const loyaltyProfile = profileRows[0];
+    const welcomeOffer = offerRows[0];
+    const choice: DiscountChoice = (() => {
+      const raw = payload.discount as { kind?: unknown; points?: unknown } | undefined;
+      const kind = typeof raw?.kind === "string" ? raw.kind : "none";
+      if (kind === "reward") return { kind: "reward", points: Number(raw?.points) };
+      if (kind === "student") return { kind: "student" };
+      if (kind === "welcome") return { kind: "welcome" };
+      return { kind: "none" };
+    })();
+
+    let discount;
+    try {
+      discount = resolveDiscount({
+        subtotalCents: Math.round(orderItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0) * 100),
+        choice,
+        pointsBalance: loyaltyProfile?.points ?? 0,
+        studentVerified: Boolean(loyaltyProfile?.studentVerifiedAt),
+        welcomeOfferAvailable: Boolean(welcomeOffer),
+        items: orderItems.map((item) => ({
+          unitPriceCents: Math.round(item.unitPrice * 100),
+          quantity: item.quantity,
+          isDrink: drinkIds.has(item.id),
+        })),
+      });
+    } catch (error) {
+      throw new OrderRequestError(error instanceof Error ? error.message : "That discount is not available.", 400, "discount_unavailable");
+    }
+
+    const { subtotalCents, discountCents, taxCents, totalCents } = orderTotals(orderItems, discount.amountCents);
     const { fulfillmentType, scheduledFor, pickupEta } = resolveFulfillment(payload, settings);
     const { hasCoffeeItems, hasKitchenItems } = stationFlags(orderItems);
 
@@ -157,6 +206,9 @@ export async function POST(request: Request) {
         phone,
         itemsJson: JSON.stringify(orderItems),
         subtotalCents,
+        discountCents,
+        discountKind: discount.kind,
+        rewardPointsSpent: discount.pointsSpent,
         taxCents,
         totalCents,
         status: "new",
@@ -185,12 +237,39 @@ export async function POST(request: Request) {
       return orderResponse(raced, 200, reference);
     }
 
+    /* Spending the reward and burning the coupon happen after the order exists,
+       each guarded so a retry cannot double-spend. The points statement only
+       applies when the balance still covers it, and the coupon update only
+       matches a row that is still active. */
+    if (discount.pointsSpent > 0 && customerUserId) {
+      try {
+        await getDb().batch(loyaltyChangeStatements({
+          userId: customerUserId,
+          points: -discount.pointsSpent,
+          reference: `redeem:order:${createdOrder.id}`,
+          reason: "reward_redeemed",
+          orderId: createdOrder.id,
+        }) as never);
+      } catch (error) {
+        logOrderEvent("reward_spend_failed", { reference, orderId: createdOrder.id, points: discount.pointsSpent });
+        throw error;
+      }
+    }
+    if (discount.kind === "welcome" && welcomeOffer) {
+      await getDb().update(memberOffers)
+        .set({ status: "redeemed", redeemedAt: new Date(), redeemedBy: "online_order" })
+        .where(and(eqOp(memberOffers.id, welcomeOffer.id), eqOp(memberOffers.status, "active")));
+    }
+
     logOrderEvent("created", {
       reference,
       orderId: createdOrder.id,
       lineItems: orderItems.length,
       units: orderItems.reduce((sum, item) => sum + item.quantity, 0),
       totalCents,
+      discountCents,
+      discountKind: discount.kind,
+      pointsSpent: discount.pointsSpent,
       fulfillmentType,
       paymentMethod: "pickup",
       coffee: hasCoffeeItems,

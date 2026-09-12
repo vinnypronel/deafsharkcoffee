@@ -245,12 +245,16 @@ export function priceCart(
   });
 }
 
-export function orderTotals(items: PricedOrderItem[]) {
+/* Tax is charged on what the customer actually pays, so a discount comes off
+   the subtotal before tax is worked out, never after. */
+export function orderTotals(items: PricedOrderItem[], discountCents = 0) {
   const subtotalCents = Math.round(
     items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0) * 100,
   );
-  const taxCents = Math.round(subtotalCents * NJ_SALES_TAX_RATE);
-  return { subtotalCents, taxCents, totalCents: subtotalCents + taxCents };
+  const discount = Math.max(0, Math.min(Math.round(discountCents), subtotalCents));
+  const taxableCents = subtotalCents - discount;
+  const taxCents = Math.round(taxableCents * NJ_SALES_TAX_RATE);
+  return { subtotalCents, discountCents: discount, taxCents, totalCents: taxableCents + taxCents };
 }
 
 export function clockMinutes(value: string) {

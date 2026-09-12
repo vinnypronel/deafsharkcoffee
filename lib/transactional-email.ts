@@ -176,6 +176,24 @@ export async function sendVerificationEmail(to: string, url: string) {
   });
 }
 
+export async function sendStudentVerificationEmail(to: string, url: string) {
+  await sendTransactionalEmail({
+    to,
+    subject: `Confirm your Kean email for Deaf Shark Coffee (${emailSubjectStamp()})`,
+    text: `Confirm your Kean email to add the 10% student discount to your Deaf Shark Coffee account: ${url}
+
+This link expires in one hour.
+
+Sent ${emailSentStamp()}.`,
+    html: emailShell(
+      "Confirm your Kean email",
+      "Confirm this address to add the 10% Kean student discount to your Deaf Shark Coffee account. The discount stays on your account.",
+      "Confirm my Kean email",
+      url,
+    ),
+  });
+}
+
 export async function sendPasswordResetEmail(to: string, url: string) {
   await sendTransactionalEmail({
     to,
