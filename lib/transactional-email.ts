@@ -130,6 +130,21 @@ function emailHeader() {
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 28px"><tr><td align="left" style="vertical-align:middle"><img src="${EMAIL_ASSET_ORIGIN}/email-logo-badge.png" width="56" height="56" alt="Deaf Shark Coffee" style="display:block;border:0;outline:none;width:56px;height:56px" /></td><td align="right" style="vertical-align:middle"><img src="${EMAIL_ASSET_ORIGIN}/email-logo-fin.png" width="66" alt="" style="display:block;border:0;outline:none;width:66px;height:auto" /></td></tr></table>`;
 }
 
+/* Gmail groups messages by subject and then hides everything that repeats
+   between them, so a resent link arrived collapsed behind a "..." toggle with
+   only the new line showing. A per-send stamp in the subject keeps each message
+   in its own conversation, so there is nothing to collapse and it opens in
+   full. Short by design: it reads as a timestamp, not clutter. */
+export function emailSubjectStamp(date = new Date()) {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
 /** Send time in store time, e.g. "September 11, 2026 at 8:46 PM". */
 export function emailSentStamp(date = new Date()) {
   return new Intl.DateTimeFormat("en-US", {
@@ -155,7 +170,7 @@ function emailShell(title: string, body: string, actionLabel: string, actionUrl:
 export async function sendVerificationEmail(to: string, url: string) {
   await sendTransactionalEmail({
     to,
-    subject: "Verify your Deaf Shark Coffee account",
+    subject: `Verify your Deaf Shark Coffee account (${emailSubjectStamp()})`,
     text: `Verify your Deaf Shark Coffee account: ${url}\n\nThis link expires in one hour.\n\nSent ${emailSentStamp()}.`,
     html: emailShell("Verify your email", "Confirm your email address to finish setting up your Deaf Shark Coffee account.", "Verify email", url),
   });
@@ -164,7 +179,7 @@ export async function sendVerificationEmail(to: string, url: string) {
 export async function sendPasswordResetEmail(to: string, url: string) {
   await sendTransactionalEmail({
     to,
-    subject: "Reset your Deaf Shark Coffee password",
+    subject: `Reset your Deaf Shark Coffee password (${emailSubjectStamp()})`,
     text: `Reset your Deaf Shark Coffee password: ${url}\n\nThis link expires in one hour.\n\nSent ${emailSentStamp()}.`,
     html: emailShell("Reset your password", "Use the secure link below to choose a new password for your Deaf Shark Coffee account.", "Reset password", url),
   });
