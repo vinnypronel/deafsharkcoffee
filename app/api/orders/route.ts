@@ -24,6 +24,7 @@ import type { MenuContentOverride } from "../../menu-data";
 import { CUSTOM_CHECKOUT_ENABLED } from "../../ordering";
 import { requirePickupAccount } from "../../../lib/checkout-policy";
 import { readStoreHours } from "../../../lib/store-hours-store";
+import { sendStaffNotification } from "../../../lib/transactional-email";
 
 export async function GET(request: Request) {
   try {
@@ -196,6 +197,22 @@ export async function POST(request: Request) {
       kitchen: hasKitchenItems,
       authenticated: Boolean(customerUserId),
     });
+
+    /* Tells the shop an order landed without anyone watching the board. Never
+       allowed to affect the order: the helper swallows and logs its own
+       failures, so a mail outage cannot fail a paid-at-pickup ticket. */
+    await sendStaffNotification(
+      "admin",
+      `New online order ${createdOrder.orderNumber} · $${(totalCents / 100).toFixed(2)}`,
+      [
+        `Order ${createdOrder.orderNumber}`,
+        `${customerName} · ${phone}`,
+        fulfillmentType === "scheduled" ? `Scheduled pickup: ${pickupEta}` : `Pickup in about ${pickupEta}`,
+        ...orderItems.map((item) => `${item.quantity} x ${item.name}${item.options.length ? ` (${item.options.join(", ")})` : ""}`),
+        `Total $${(totalCents / 100).toFixed(2)} · pay at pickup`,
+        "Open the dashboard to accept it: https://deafsharkcoffee.com/dashboard",
+      ],
+    );
 
     return orderResponse(createdOrder, 201, reference);
   } catch (error) {

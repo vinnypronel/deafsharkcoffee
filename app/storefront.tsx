@@ -1910,9 +1910,9 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
           <section className="confirmation-card" role="dialog" aria-modal="true">
             <img src="/deafshark-dog-art.png" alt="Deaf Shark character" />
             <span className="eyebrow">Order received</span>
-            <h2>We have it, {confirmation.number}.</h2>
+            <h2>We have it.</h2>
             <p>Your pickup estimate is <strong>{confirmation.eta}</strong>. Please pay at the counter when you arrive.</p>
-            <div className="confirmation-actions"><button className="primary-button" onClick={() => { setConfirmation(null); window.dispatchEvent(new Event("deaf-shark-open-order")); }}>View order status</button><button className="soft-button" onClick={() => setConfirmation(null)}>Back to the menu</button></div>
+            <div className="confirmation-actions"><button className="primary-button" onClick={() => { const number = confirmation.number; setConfirmation(null); window.dispatchEvent(new CustomEvent("deaf-shark-open-order", { detail: { orderNumber: number } })); }}>View order status</button><button className="soft-button" onClick={() => setConfirmation(null)}>Back to the menu</button></div>
           </section>
         </div>
       )}
