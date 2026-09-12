@@ -130,15 +130,33 @@ function emailHeader() {
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 28px"><tr><td align="left" style="vertical-align:middle"><img src="${EMAIL_ASSET_ORIGIN}/email-logo-badge.png" width="56" height="56" alt="Deaf Shark Coffee" style="display:block;border:0;outline:none;width:56px;height:56px" /></td><td align="right" style="vertical-align:middle"><img src="${EMAIL_ASSET_ORIGIN}/email-logo-fin.png" width="66" alt="" style="display:block;border:0;outline:none;width:66px;height:auto" /></td></tr></table>`;
 }
 
-function emailShell(title: string, body: string, actionLabel: string, actionUrl: string) {
-  return `<!doctype html><html><body style="margin:0;background:#f7efe2;color:#28140c;font-family:Arial,sans-serif"><div style="max-width:560px;margin:0 auto;padding:40px 24px">${emailHeader()}<h1 style="font-family:Georgia,serif;font-size:32px">${title}</h1><p style="font-size:16px;line-height:1.6">${body}</p><p style="margin:30px 0"><a href="${actionUrl}" style="display:inline-block;padding:14px 22px;border-radius:8px;background:#32190f;color:#fff;text-decoration:none;font-weight:700">${actionLabel}</a></p><p style="font-size:13px;line-height:1.5;color:#715f55">If you did not request this, you can ignore this email. This link expires in one hour.</p></div></body></html>`;
+/** Send time in store time, e.g. "September 11, 2026 at 8:46 PM". */
+export function emailSentStamp(date = new Date()) {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
+/* Gmail threads messages with the same subject and hides whatever repeats
+   between them behind a "..." toggle, which buried the heading and the button
+   on the second verification email. The send time makes every message unique,
+   so there is nothing for Gmail to collapse, and it tells the reader which
+   request a link belongs to when several arrive. */
+function emailShell(title: string, body: string, actionLabel: string, actionUrl: string, sentAt = emailSentStamp()) {
+  const preheader = `${body} Sent ${sentAt}.`;
+  return `<!doctype html><html><body style="margin:0;background:#f7efe2;color:#28140c;font-family:Arial,sans-serif"><div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;font-size:1px;line-height:1px">${preheader}</div><div style="max-width:560px;margin:0 auto;padding:40px 24px">${emailHeader()}<h1 style="font-family:Georgia,serif;font-size:32px">${title}</h1><p style="font-size:16px;line-height:1.6">${body}</p><p style="margin:30px 0"><a href="${actionUrl}" style="display:inline-block;padding:14px 22px;border-radius:8px;background:#32190f;color:#fff;text-decoration:none;font-weight:700">${actionLabel}</a></p><p style="font-size:13px;line-height:1.5;color:#715f55">If you did not request this, you can ignore this email. This link expires in one hour.</p><p style="margin:18px 0 0;font-size:12px;line-height:1.5;color:#8a7a70">Sent ${sentAt} &middot; Deaf Shark Coffee, 900 Green Lane, Union, NJ</p></div></body></html>`;
 }
 
 export async function sendVerificationEmail(to: string, url: string) {
   await sendTransactionalEmail({
     to,
     subject: "Verify your Deaf Shark Coffee account",
-    text: `Verify your Deaf Shark Coffee account: ${url}\n\nThis link expires in one hour.`,
+    text: `Verify your Deaf Shark Coffee account: ${url}\n\nThis link expires in one hour.\n\nSent ${emailSentStamp()}.`,
     html: emailShell("Verify your email", "Confirm your email address to finish setting up your Deaf Shark Coffee account.", "Verify email", url),
   });
 }
@@ -147,7 +165,7 @@ export async function sendPasswordResetEmail(to: string, url: string) {
   await sendTransactionalEmail({
     to,
     subject: "Reset your Deaf Shark Coffee password",
-    text: `Reset your Deaf Shark Coffee password: ${url}\n\nThis link expires in one hour.`,
+    text: `Reset your Deaf Shark Coffee password: ${url}\n\nThis link expires in one hour.\n\nSent ${emailSentStamp()}.`,
     html: emailShell("Reset your password", "Use the secure link below to choose a new password for your Deaf Shark Coffee account.", "Reset password", url),
   });
 }
