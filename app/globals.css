@@ -1414,6 +1414,15 @@ h1, h2, h3, p { margin-top: 0; }
   box-shadow: none;
   background: transparent;
 }
+.menu-photo-status {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+}
 .menu-product-card .product-packaged .product-photo {
   /* White-backed retail product shots visually dissolve into the white card. */
   mix-blend-mode: multiply;
@@ -1969,6 +1978,13 @@ h1, h2, h3, p { margin-top: 0; }
   color: var(--muted);
   letter-spacing: .02em;
 }
+
+/* The highlight must switch with the photo, without a trail of fading rows. */
+.menu-item-row,
+.menu-item-row strong,
+.menu-item-row small,
+.menu-item-row .item-leader,
+.menu-item-row .item-price { transition: none; }
 
 .menu-bottom-actions {
   display: flex;

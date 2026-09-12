@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { StoreHours } from "./store-hours";
 import ScrollHero from "./scroll-hero";
 import {
@@ -31,6 +32,7 @@ import { CUSTOM_CHECKOUT_ENABLED } from "./ordering";
 import TurnstileWidget from "./turnstile-widget";
 import { PHONE_INPUT_MAX_LENGTH, formatPhoneInput } from "../lib/phone-format";
 import "./drink-visuals.css";
+import { MenuPreviewPhoto, menuPreviewSrc, warmMenuPhoto } from "./menu-preview-photo";
 
 type CartItem = {
   key: string;
@@ -178,17 +180,23 @@ function CupMark() {
   );
 }
 
-function ProductVisual({ product, compact = false }: { product: Product; compact?: boolean }) {
+function productPhoto(product: Product) {
+  return product.photo || ((product.visual === "hot" || product.visual === "iced") ? CUP_PHOTOS[product.visual] : (product.visual === "sandwich" || product.category === "Sandwiches" || product.category === "Breakfast" ? "/chicken-pesto-centered.jpg" : undefined));
+}
+
+function ProductVisual({ product, compact = false, menuPreview = false }: { product: Product; compact?: boolean; menuPreview?: boolean }) {
   const isCup = product.visual === "hot" || product.visual === "iced";
   const isDrinkProduct = DRINK_CATEGORIES.includes(product.category);
   const isPackagedProduct = product.category === "From the Fridge" || product.category === "Coffee Beans";
   const isFoodProduct = product.category === "Breakfast" || product.category === "Sandwiches" || product.category === "Bites";
-  const photo = product.photo || (isCup ? CUP_PHOTOS[product.visual as "hot" | "iced"] : (product.visual === "sandwich" || product.category === "Sandwiches" || product.category === "Breakfast" ? "/chicken-pesto-centered.jpg" : undefined));
+  const photo = productPhoto(product);
   if (photo) {
     return (
       <div className={`product-visual product-${product.visual} ${isDrinkProduct ? "product-drink" : ""} ${isPackagedProduct ? "product-packaged" : ""} ${isFoodProduct ? "product-food" : ""} ${compact ? "product-visual-compact" : ""}`}>
         <div className="visual-glow" />
-        <img className="product-photo" src={photo} alt={product.name} />
+        {menuPreview
+          ? <MenuPreviewPhoto key={menuPreviewSrc(photo)} src={menuPreviewSrc(photo)} alt={product.name} />
+          : <img key={photo} className="product-photo" src={photo} alt={product.name} />}
         <span className="visual-shadow" />
       </div>
     );
@@ -716,9 +724,57 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   const [products, setProducts] = useState<Product[]>(menuProducts);
   const [featuredSlides, setFeaturedSlides] = useState<FeaturedProduct[]>(featuredProducts);
   const [heroProduct, setHeroProduct] = useState<FeaturedProduct>(featuredProducts[0]);
-  const [menuShowcaseProduct, setMenuShowcaseProduct] = useState<Product>(
+  const [menuShowcaseSelection, setMenuShowcaseProduct] = useState<Product>(
     menuProducts.find((p) => p.category === "Coffee") ?? menuProducts[0]
   );
+  const menuShowcaseProduct = products.find((product) => product.id === menuShowcaseSelection.id) ?? menuShowcaseSelection;
+  const menuRowsRef = useRef<HTMLDivElement>(null);
+  const menuPointerRef = useRef<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    const root = menuRowsRef.current;
+    if (!root) return;
+    const byId = new Map(products.map((product) => [product.id, product]));
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const product = byId.get((entry.target as HTMLElement).dataset.menuProductId ?? "");
+        const photo = product && productPhoto(product);
+        if (photo) warmMenuPhoto(photo);
+      }
+    }, { rootMargin: "800px 0px" });
+    root.querySelectorAll("[data-menu-product-id]").forEach((row) => observer.observe(row));
+
+    // Scrolling can move another row under a stationary mouse without firing
+    // mouseenter. Hit-test once per scroll frame, including smooth scrolling.
+    let frame = 0;
+    const trackPointer = (event: PointerEvent) => {
+      menuPointerRef.current = event.pointerType === "mouse" ? { x: event.clientX, y: event.clientY } : null;
+    };
+    const clearPointer = () => { menuPointerRef.current = null; };
+    const syncHover = () => {
+      frame = 0;
+      const pointer = menuPointerRef.current;
+      if (!pointer || !window.matchMedia("(hover: hover)").matches) return;
+      const row = document.elementFromPoint(pointer.x, pointer.y)?.closest<HTMLElement>("[data-menu-product-id]");
+      if (!row || !root.contains(row)) return;
+      const product = byId.get(row.dataset.menuProductId ?? "");
+      if (product) flushSync(() => setMenuShowcaseProduct((current) => current.id === product.id ? current : product));
+    };
+    const onScroll = () => { if (menuPointerRef.current && !frame) frame = requestAnimationFrame(syncHover); };
+    window.addEventListener("pointermove", trackPointer, { passive: true });
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("blur", clearPointer);
+    document.documentElement.addEventListener("pointerleave", clearPointer);
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+      window.removeEventListener("pointermove", trackPointer);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("blur", clearPointer);
+      document.documentElement.removeEventListener("pointerleave", clearPointer);
+    };
+  }, [products]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   /* The cart survives sign-in and email verification, which reload the page.
@@ -1053,7 +1109,8 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
           setAvailability(data.availability ?? {});
           if (Array.isArray(data.menu)) {
             const overrides = new Map<string, MenuContentOverride>(data.menu.map((item: MenuContentOverride) => [item.productId, item]));
-            setProducts(menuProducts.map((product) => applyMenuContentOverride(product, overrides.get(product.id))));
+            const nextProducts = menuProducts.map((product) => applyMenuContentOverride(product, overrides.get(product.id)));
+            setProducts((current) => JSON.stringify(current) === JSON.stringify(nextProducts) ? current : nextProducts);
           }
           if (typeof data.prepTime === "number") setPrepTime(data.prepTime);
           if (typeof data.paused === "boolean") setOrdersPaused(data.paused);
@@ -1198,13 +1255,20 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
     const soldOut = availability[product.id] === false;
     const isSelected = menuShowcaseProduct.id === product.id;
     return (
-      <div className="menu-item-row-wrap" key={product.id}>
+      <div className="menu-item-row-wrap" key={product.id} data-menu-product-id={product.id}
+        onPointerEnter={(event) => {
+          // Continuous pointer events can otherwise commit after the next paint.
+          if (event.pointerType === "mouse") flushSync(() => setMenuShowcaseProduct((current) => current.id === product.id ? current : product));
+        }}
+        onFocus={(event) => {
+          // Touch focus precedes click; changing selection there would turn a
+          // first tap into an add-to-cart instead of the existing preview step.
+          if (event.target instanceof HTMLElement && event.target.matches(":focus-visible")) setMenuShowcaseProduct(product);
+        }}
+      >
         <button
           className={`menu-item-row ${isSelected ? "selected has-mobile-actions" : ""} ${soldOut ? "sold-out" : ""}`}
           onClick={() => activateMenuProduct(product)}
-          onMouseEnter={() => {
-            if (window.matchMedia("(hover: hover)").matches) setMenuShowcaseProduct(product);
-          }}
           disabled={soldOut}
         >
           <div className="item-info">
@@ -1446,7 +1510,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
         <div className="order-section-badge-wrap" aria-hidden="true">
           <img src="/deafshark-logo-640.webp" alt="Deaf Shark Coffee" className="order-section-badge" decoding="async" />
         </div>
-        <div className="menu-showcase-grid">
+        <div className="menu-showcase-grid" ref={menuRowsRef}>
           {/* Left Column: Title + Clean Product Card + Brand Tag (Sticky) */}
           <aside className="menu-product-card-wrap">
             <div className="menu-product-pin">
@@ -1459,7 +1523,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
               </div>
               <div className="menu-product-card-sticky-mask">
                 <div className="menu-product-card">
-                  <ProductVisual product={menuShowcaseProduct} />
+                  <ProductVisual product={menuShowcaseProduct} menuPreview />
                   <button
                     className="menu-card-pill"
                     onClick={() => openProduct(menuShowcaseProduct)}
