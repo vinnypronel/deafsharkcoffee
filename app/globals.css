@@ -597,10 +597,11 @@ h1, h2, h3, p { margin-top: 0; }
 .auth-email-input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(220,168,107,.2); }
 .auth-email-input:disabled { cursor: not-allowed; opacity: .55; }
 .auth-email-btn { width: 100%; min-height: 44px; }
-/* Signup is the tallest state, so it needs room under the last line. Without it
-   the closing "Already have an account? Sign in" toggle and its underline sit
-   flush against the bottom edge and read as cut off. */
-.account-modal[data-auth-mode="signup"] { justify-content: flex-start; padding-top: 36px; padding-bottom: 72px; }
+/* Signup is the tallest state: it measures 758px, so it fits above roughly
+   800px of viewport and overflows below that. Short windows compress the whole
+   form (see the max-height block further down) instead of scrolling, because a
+   customer should never have to scroll to reach Create account. */
+.account-modal[data-auth-mode="signup"] { justify-content: flex-start; padding-top: 36px; padding-bottom: 48px; }
 .account-modal[data-auth-mode="signup"] .auth-consents { margin-bottom: 4px; }
 /* Scoped to the auth toggles so the recent-order buttons keep their own spacing. */
 .account-modal[data-auth-mode="signup"] .account-mode-toggle,
@@ -609,6 +610,25 @@ h1, h2, h3, p { margin-top: 0; }
 .account-modal[data-auth-mode="signup"] h2 { font-size: clamp(28px, 3.2vw, 36px); }
 .account-modal[data-auth-mode="signup"] .social-auth-buttons { margin: 10px 0 5px; }
 .account-modal[data-auth-mode="signup"] .auth-divider { margin: 6px 0; }
+/* Below ~820px tall the signup form is compressed so every field, the consents,
+   and Create account stay on screen together. Declared after the rules above so
+   it overrides them on source order. */
+@media (max-height: 820px) {
+  .account-modal[data-auth-mode="signup"] { padding-top: 18px; padding-bottom: 22px; }
+  .account-modal[data-auth-mode="signup"] > img { width: 48px; height: 32px; margin-bottom: 2px; }
+  .account-modal[data-auth-mode="signup"] h2 { margin-bottom: 4px; font-size: clamp(21px, 2.6vw, 27px); }
+  .account-modal[data-auth-mode="signup"] > p { font-size: 12.5px; line-height: 1.35; }
+  .account-modal[data-auth-mode="signup"] .auth-divider { margin: 3px 0; }
+  .account-modal[data-auth-mode="signup"] .auth-email-form { gap: 6px; margin-bottom: 6px; }
+  .account-modal[data-auth-mode="signup"] .auth-email-input { min-height: 38px; }
+  .account-modal[data-auth-mode="signup"] .auth-birthday-fieldset legend { margin-bottom: 2px; font-size: 11.5px; }
+  .account-modal[data-auth-mode="signup"] .auth-password-guidance,
+  .account-modal[data-auth-mode="signup"] .auth-required-note { margin: 0; font-size: 11.5px; }
+  .account-modal[data-auth-mode="signup"] .auth-consents { gap: 4px; margin-bottom: 2px; }
+  .account-modal[data-auth-mode="signup"] .auth-email-btn { min-height: 40px; }
+  .account-modal[data-auth-mode="signup"] .account-mode-toggle { margin-top: 4px; }
+  .account-modal[data-auth-mode="signup"] > small { font-size: 10.5px; line-height: 1.3; }
+}
 .auth-field-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
 .auth-birthday-fieldset { margin: 0; border: 0; padding: 0; text-align: left; }
 .auth-birthday-fieldset legend { margin-bottom: 6px; color: var(--ink); font-size: 12px; font-weight: 800; }
