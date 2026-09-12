@@ -3910,6 +3910,10 @@ body.modal-open { touch-action: none; }
 .checkout-card > .primary-button { width: 100%; }
 .checkout-account-note { color: var(--muted); font-size: 14px; }
 .auth-required-note { margin: -2px 0 0; color: var(--muted); font-size: 12.5px; }
+.auth-verify { display: grid; gap: 12px; width: 100%; margin-top: 4px; }
+.auth-verify-address { margin: 0; border: 1px solid rgba(217,131,36,.22); border-radius: 12px; padding: 12px 14px; background: rgba(217,131,36,.08); color: var(--ink); text-align: center; word-break: break-word; }
+.auth-verify-steps { display: grid; gap: 6px; margin: 0; padding-left: 20px; color: var(--muted); font-size: 13.5px; line-height: 1.45; text-align: left; }
+.auth-verify-hint { margin: 0; color: var(--muted); font-size: 12.5px; }
 .auth-required-note b { color: var(--ink); }
 .hours-note { font-style: italic; }
 .admin-hours-grid { display: grid; gap: 10px; margin: 18px 0; }

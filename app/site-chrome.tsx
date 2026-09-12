@@ -122,7 +122,9 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState("");
   const [authNotice, setAuthNotice] = useState("");
-  const [passwordFlow, setPasswordFlow] = useState<"credentials" | "request" | "reset">("credentials");
+  const [passwordFlow, setPasswordFlow] = useState<"credentials" | "request" | "reset" | "verify">("credentials");
+  /* Email the verification link was sent to, shown on the verify screen. */
+  const [verifyEmail, setVerifyEmail] = useState("");
   const [resetToken, setResetToken] = useState("");
   const [profilePhone, setProfilePhone] = useState("");
   const [profileName, setProfileName] = useState("");
@@ -179,6 +181,26 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
     }, reducedMotion ? 0 : ACCOUNT_DRAWER_EXIT_MS);
   }
 
+  async function resendVerificationEmail() {
+    if (!verifyEmail || authBusy) return;
+    setAuthBusy(true);
+    setAuthError("");
+    setAuthNotice("");
+    try {
+      const response = await fetch("/api/auth/send-verification-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: verifyEmail, callbackURL: window.location.href }),
+      });
+      if (!response.ok) throw new Error("We could not send another link. Please try again in a moment.");
+      setAuthNotice("Sent. Check your inbox again, including spam.");
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "We could not send another link.");
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
   async function openProfile() {
     setSearchOpen(false);
     setProfileClosing(false);
@@ -203,7 +225,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
     if (profileResult.status === "fulfilled") {
       let nextProfile = profileResult.value;
       if (nextProfile.authenticated) {
-        const pendingSignup = window.sessionStorage.getItem("deaf-shark-pending-signup");
+        const pendingSignup = window.localStorage.getItem("deaf-shark-pending-signup");
         if (pendingSignup) {
           try {
             const onboardingResponse = await fetch("/api/profile/onboarding", {
@@ -213,7 +235,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
               body: pendingSignup,
             });
             if (onboardingResponse.ok) {
-              window.sessionStorage.removeItem("deaf-shark-pending-signup");
+              window.localStorage.removeItem("deaf-shark-pending-signup");
               const refreshed = await fetchWithTimeout("/api/profile", { cache: "no-store", credentials: "include" });
               if (refreshed.ok) nextProfile = await refreshed.json() as ProfileResponse;
             }
@@ -373,10 +395,15 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
           marketingOptIn: authMarketingOptIn,
         });
         if (authConfig.emailVerificationEnabled) {
-          window.sessionStorage.setItem("deaf-shark-pending-signup", pendingSignup);
+          /* localStorage, not sessionStorage: the verification link opens a new
+             tab, which starts with empty session storage and would silently
+             discard the phone number and birthday collected here. */
+          window.localStorage.setItem("deaf-shark-pending-signup", pendingSignup);
           setAuthPassword("");
           setAuthMode("signin");
-          setAuthNotice("Check your email and use the verification link to finish creating your account.");
+          setVerifyEmail(authEmail.trim());
+          setPasswordFlow("verify");
+          setAuthNotice("");
           return;
         }
         const onboardingResponse = await fetch("/api/profile/onboarding", {
@@ -778,8 +805,8 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
             {!profile && <><h2>Opening your account...</h2><p>Loading your Deaf Shark profile and loyalty points.</p></>}
             {profile && !profile.authenticated && (
               <>
-                <h2>{passwordFlow === "reset" ? "Choose a new password" : passwordFlow === "request" ? "Reset your password" : "Sign in or create your account"}</h2>
-                <p>{passwordFlow === "reset" ? "Enter a new password for your Deaf Shark Coffee account." : passwordFlow === "request" ? "We will email you a secure, one-hour reset link." : "Sign in to place pickup orders, follow your order status, and manage your profile."}</p>
+                <h2>{passwordFlow === "verify" ? "Check your email" : passwordFlow === "reset" ? "Choose a new password" : passwordFlow === "request" ? "Reset your password" : "Sign in or create your account"}</h2>
+                <p>{passwordFlow === "verify" ? "Your account is almost ready. We sent a verification link to:" : passwordFlow === "reset" ? "Enter a new password for your Deaf Shark Coffee account." : passwordFlow === "request" ? "We will email you a secure, one-hour reset link." : "Sign in to place pickup orders, follow your order status, and manage your profile."}</p>
 
                 {passwordFlow === "credentials" && authConfig.googleEnabled && <div className="social-auth-buttons">
                   <button
@@ -920,6 +947,20 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                     {authBusy ? "Please wait..." : authMode === "signup" ? "Create account" : "Sign in with email"}
                   </button>
                 </form>}
+                {passwordFlow === "verify" && (
+                  <div className="auth-verify">
+                    <p className="auth-verify-address"><strong>{verifyEmail}</strong></p>
+                    <ol className="auth-verify-steps">
+                      <li>Open the email from Deaf Shark Coffee.</li>
+                      <li>Tap the verification link. It expires in one hour.</li>
+                      <li>You will be signed in automatically.</li>
+                    </ol>
+                    <p className="auth-verify-hint">Nothing yet? Check your spam folder.</p>
+                    <button type="button" className="primary-button auth-email-btn" onClick={resendVerificationEmail} disabled={authBusy}>
+                      {authBusy ? "Sending..." : "Send the link again"}
+                    </button>
+                  </div>
+                )}
                 {passwordFlow === "request" && authConfig.passwordRecoveryEnabled && (
                   <form className="auth-email-form" onSubmit={requestPasswordReset} noValidate>
                     <input type="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} placeholder="Enter your email address" autoComplete="email" className="auth-email-input" />
