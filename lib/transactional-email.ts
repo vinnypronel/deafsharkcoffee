@@ -125,9 +125,13 @@ export async function sendStaffNotification(channel: StaffNotificationChannel, s
 const EMAIL_ASSET_ORIGIN = "https://deafsharkcoffee.com";
 
 /* Tables, not flex or grid: Outlook ignores modern layout. The fin is a darkened
-   copy of the site mark, because the pale original disappears on cream. */
-function emailHeader() {
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 28px"><tr><td align="left" style="vertical-align:middle"><img src="${EMAIL_ASSET_ORIGIN}/email-logo-badge.png" width="56" height="56" alt="Deaf Shark Coffee" style="display:block;border:0;outline:none;width:56px;height:56px" /></td><td align="right" style="vertical-align:middle"><img src="${EMAIL_ASSET_ORIGIN}/email-logo-fin.png" width="66" alt="" style="display:block;border:0;outline:none;width:66px;height:auto" /></td></tr></table>`;
+   copy of the site mark, because the pale original disappears on cream. Both
+   files are exported at twice their display size so they stay sharp on phones
+   and retina screens. */
+function emailLogo(kind: "badge" | "fin", maxWidth: number) {
+  const file = kind === "badge" ? "email-logo-badge.png" : "email-logo-fin.png";
+  const alt = kind === "badge" ? "Deaf Shark Coffee" : "";
+  return `<img src="${EMAIL_ASSET_ORIGIN}/${file}" width="${maxWidth}" alt="${alt}" style="display:block;border:0;outline:none;width:100%;max-width:${maxWidth}px;height:auto" />`;
 }
 
 /* Gmail groups messages by subject and then hides everything that repeats
@@ -161,10 +165,17 @@ export function emailSentStamp(date = new Date()) {
    repeats and shows only what is new, so a body stamp alone left the message
    collapsed down to that one line. The unique subject above is what keeps each
    email in its own conversation. This line stays because it tells the reader
-   which request a link belongs to when several arrive. */
+   which request a link belongs to when several arrive.
+
+   The message keeps its original centered 560px column. The logos fill the
+   empty space either side of it, never above it. Side columns are a share of
+   the width and each logo fills its column up to its full size, so they shrink
+   on smaller screens. On phones a media query hands most of the width back to
+   the text; apps that strip media queries keep the same side layout, just
+   tighter. */
 function emailShell(title: string, body: string, actionLabel: string, actionUrl: string, sentAt = emailSentStamp()) {
   const preheader = `${body} Sent ${sentAt}.`;
-  return `<!doctype html><html><body style="margin:0;background:#f7efe2;color:#28140c;font-family:Arial,sans-serif"><div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;font-size:1px;line-height:1px">${preheader}</div><div style="max-width:560px;margin:0 auto;padding:40px 24px">${emailHeader()}<h1 style="font-family:Georgia,serif;font-size:32px">${title}</h1><p style="font-size:16px;line-height:1.6">${body}</p><p style="margin:30px 0"><a href="${actionUrl}" style="display:inline-block;padding:14px 22px;border-radius:8px;background:#32190f;color:#fff;text-decoration:none;font-weight:700">${actionLabel}</a></p><p style="font-size:13px;line-height:1.5;color:#715f55">If you did not request this, you can ignore this email. This link expires in one hour.</p><p style="margin:18px 0 0;font-size:12px;line-height:1.5;color:#8a7a70">Sent ${sentAt} &middot; Deaf Shark Coffee, 900 Green Lane, Union, NJ</p></div></body></html>`;
+  return `<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>@media only screen and (max-width:640px){.ds-side{width:17%!important;padding:0 6px!important}.ds-main{width:66%!important}.ds-title{font-size:24px!important}}</style></head><body style="margin:0;background:#f7efe2;color:#28140c;font-family:Arial,sans-serif"><div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;font-size:1px;line-height:1px">${preheader}</div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f7efe2"><tr><td class="ds-side" width="25%" align="center" valign="middle" style="width:25%;padding:24px 20px">${emailLogo("badge", 240)}</td><td class="ds-main" width="50%" align="center" valign="middle" style="width:50%;padding:24px 0"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px"><tr><td align="left"><h1 class="ds-title" style="margin:0 0 14px;font-family:Georgia,serif;font-size:32px;line-height:1.2">${title}</h1><p style="margin:0;font-size:16px;line-height:1.6">${body}</p><p style="margin:26px 0"><a href="${actionUrl}" style="display:inline-block;padding:14px 22px;border-radius:8px;background:#32190f;color:#fff;text-decoration:none;font-weight:700">${actionLabel}</a></p><p style="margin:0;font-size:13px;line-height:1.5;color:#715f55">If you did not request this, you can ignore this email. This link expires in one hour.</p><p style="margin:14px 0 0;font-size:12px;line-height:1.5;color:#8a7a70">Sent ${sentAt} &middot; Deaf Shark Coffee, 900 Green Lane, Union, NJ</p></td></tr></table></td><td class="ds-side" width="25%" align="center" valign="middle" style="width:25%;padding:24px 20px">${emailLogo("fin", 280)}</td></tr></table></body></html>`;
 }
 
 export async function sendVerificationEmail(to: string, url: string) {

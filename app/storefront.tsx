@@ -12,6 +12,9 @@ import {
   DRINK_CATEGORIES,
   EXTRA_SHOT_PRICE,
   featuredProducts,
+  hasExtraShotOptionsForProduct,
+  hasMilkOptionsForProduct,
+  hasSyrupOptionsForProduct,
   menuProducts,
   MILK_OPTIONS,
   modifierGroupsForProduct,
@@ -188,7 +191,7 @@ function ProductVisual({ product, compact = false, menuPreview = false }: { prod
   const isCup = product.visual === "hot" || product.visual === "iced";
   const isDrinkProduct = DRINK_CATEGORIES.includes(product.category);
   const isPackagedProduct = product.category === "From the Fridge" || product.category === "Coffee Beans";
-  const isFoodProduct = product.category === "Breakfast" || product.category === "Sandwiches" || product.category === "Bites";
+  const isFoodProduct = product.category === "Breakfast" || product.category === "Sandwiches" || product.category === "Bites" || product.category === "Desserts";
   const photo = productPhoto(product);
   if (photo) {
     return (
@@ -241,23 +244,20 @@ function ProductConfigurator({
 }) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const isDrink = DRINK_CATEGORIES.includes(product.category);
-  const isFood = ["Breakfast", "Sandwiches", "Bites"].includes(product.category);
+  const isFood = ["Breakfast", "Sandwiches", "Bites", "Desserts"].includes(product.category);
   const isSmoothie = !!product.bases?.length;
-  const hasMilkOptions =
-    isDrink && !isSmoothie && !["chicha", "malta", "hot-tea"].includes(product.id);
+  const hasMilkOptions = hasMilkOptionsForProduct(product);
   const availableTemps = temperaturesFor(product);
   const hasTempOptions = isDrink && availableTemps.length > 1;
   const isHotOnlyDrink = isDrink && availableTemps.length === 1 && availableTemps[0] === "Hot";
-  const hasSyrupOptions = isDrink && !isSmoothie && product.id !== "hot-tea";
-  const hasShotOptions =
-    (product.category === "Coffee" || ["matcha-latte", "strawberry-matcha", "mango-matcha", "chai-tea-latte"].includes(product.id)) &&
-    product.id !== "hot-tea";
+  const hasSyrupOptions = hasSyrupOptionsForProduct(product);
+  const hasShotOptions = hasExtraShotOptionsForProduct(product);
   const hasFlavorOptions = !!product.flavors?.length;
   /* Every group the product could ever have. Used to seed and to parse an
      existing cart item, so a saved ice choice survives a temperature toggle. */
   const modifierGroups: ModifierGroup[] = modifierGroupsForProduct(product);
 
-  const defaultMilk: MilkChoice = ["americano", "drip-coffee", "espresso", "cold-brew", "chicha", "malta", "red-eye", "decaf-coffee", "regular-coffee"].includes(product.id) ? "None" : "Whole";
+  const defaultMilk: MilkChoice = ["americano", "drip-coffee", "espresso", "cold-brew", "chicha", "malta", "dirty-soda", "red-eye", "decaf-coffee", "regular-coffee"].includes(product.id) ? "None" : "Whole";
   const defaultTemp = defaultTemperatureForProduct(product);
 
   const [config, setConfig] = useState<Configuration>(() => {
@@ -726,7 +726,7 @@ function HeroFeaturedVideo({
 }
 
 export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
-  const [activeCategory, setActiveCategory] = useState<MenuCategory>("Coffee");
+  const [activeCategory, setActiveCategory] = useState<MenuCategory>(categories[0]);
   const categoryNavRef = useRef<HTMLDivElement | null>(null);
   const mobileCategoryNavRef = useRef<HTMLDivElement | null>(null);
   const categoryIndicatorRef = useRef<HTMLSpanElement | null>(null);
@@ -734,7 +734,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   const [featuredSlides, setFeaturedSlides] = useState<FeaturedProduct[]>(featuredProducts);
   const [heroProduct, setHeroProduct] = useState<FeaturedProduct>(featuredProducts[0]);
   const [menuShowcaseSelection, setMenuShowcaseProduct] = useState<Product>(
-    menuProducts.find((p) => p.category === "Coffee") ?? menuProducts[0]
+    menuProducts.find((p) => p.category === categories[0]) ?? menuProducts[0]
   );
   const menuShowcaseProduct = products.find((product) => product.id === menuShowcaseSelection.id) ?? menuShowcaseSelection;
   const menuRowsRef = useRef<HTMLDivElement>(null);
@@ -1531,7 +1531,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
                 {/* The menu page is its own document, so its title is the h1 there.
                     On the home page this block sits under the hero h1 and stays an h2. */}
                 {isMenuPage
-                  ? <h1 className="menu-panel-heading"><img src="/deafshark-logo-640.webp" alt="" className="menu-heading-badge" decoding="async" />The Full Deaf Shark Menu</h1>
+                  ? <h1 className="menu-panel-heading">The Full Deaf Shark Menu<img src="/deafshark-logo-640.webp" alt="" className="menu-heading-badge" decoding="async" /></h1>
                   : <h2>Salvadoran roasts, poured fresh.</h2>}
               </div>
               <div className="menu-product-card-sticky-mask">

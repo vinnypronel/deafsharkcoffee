@@ -1,7 +1,11 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { env } from "cloudflare:workers";
 import { ensureSchema, getDb } from "../../../../db";
-import { orders } from "../../../../db/schema";
+import { customerProfiles, orders } from "../../../../db/schema";
+import { loadPromotions } from "../../../../lib/promotion-store";
+import { promotionAwards } from "../../../../lib/promotions";
+import { REFERRAL_POINTS, referralReference } from "../../../../lib/referral";
+import { storeClock } from "../../../../lib/store-clock";
 import { loyaltyChangeStatements } from "../../../../lib/loyalty-ledger";
 import { pointsForSubtotal } from "../../../../lib/loyalty";
 import { requireStaff } from "../../../../lib/staff-auth";
@@ -26,6 +30,51 @@ function combinedStatus(coffee: StationStatus, kitchen: StationStatus) {
   if (needed.length > 0 && needed.every((status) => status === "ready")) return "ready";
   if (needed.some((status) => status === "preparing" || status === "ready")) return "preparing";
   return "new";
+}
+
+type BonusStatement = ReturnType<typeof env.DB.prepare>;
+
+/* Promotion bonuses and the referral reward for an order that is being
+   completed. Each is written under its own unique reference and only when the
+   order is complete, so they commit with the completion, and a retry or a
+   second tablet can never pay any of them twice. */
+async function bonusStatements(order: typeof orders.$inferSelect, basePoints: number): Promise<BonusStatement[]> {
+  const userId = order.customerUserId;
+  if (!userId) return [];
+  const [promotions, [profile]] = await Promise.all([
+    loadPromotions(),
+    getDb().select({ referredByUserId: customerProfiles.referredByUserId }).from(customerProfiles).where(eq(customerProfiles.userId, userId)).limit(1),
+  ]);
+
+  const visitsByPromotion = new Map<number, number>();
+  const challenges = promotions.filter((promotion) => promotion.active && promotion.kind === "visit_challenge");
+  if (challenges.length > 0) {
+    const completed = await getDb().select({ createdAt: orders.createdAt }).from(orders)
+      .where(and(eq(orders.customerUserId, userId), eq(orders.status, "complete"), ne(orders.id, order.id)))
+      .limit(500);
+    for (const challenge of challenges) {
+      const inRange = (at: Date) => {
+        const date = storeClock(at).date;
+        return (!challenge.startDate || date >= challenge.startDate) && (!challenge.endDate || date <= challenge.endDate);
+      };
+      /* This order counts too: it is the one being completed. */
+      const visits = completed.filter((row) => inRange(new Date(row.createdAt))).length + (inRange(new Date(order.createdAt)) ? 1 : 0);
+      visitsByPromotion.set(challenge.id, visits);
+    }
+  }
+
+  const items = (JSON.parse(order.itemsJson) as Array<{ id?: string; quantity?: number }>)
+    .map((item) => ({ id: String(item.id ?? ""), quantity: Number(item.quantity ?? 0) }));
+  const awards = promotionAwards({ promotions, orderId: order.id, userId, placedAt: new Date(order.createdAt), basePoints, items, visitsByPromotion });
+
+  const changes = awards.filter((award) => award.points > 0).map((award) => ({ userId, points: award.points, reference: award.reference, reason: award.reason }));
+  if (profile?.referredByUserId && profile.referredByUserId !== userId) {
+    changes.push({ userId: profile.referredByUserId, points: REFERRAL_POINTS, reference: referralReference(userId), reason: "referral_first_order" });
+  }
+
+  return changes.flatMap((change) => loyaltyChangeStatements({
+    ...change, lifetimeCredit: true, onlyIfOrderComplete: order.id,
+  }).map((statement) => env.DB.prepare(statement.sql).bind(...statement.values)));
 }
 
 export async function PATCH(
@@ -110,6 +159,9 @@ export async function PATCH(
         reference: `order:${existing.id}`, points: earnedPoints,
         reason: "completed_order", lifetimeCredit: true, requirePreviousChange: true,
       }).map((statement) => env.DB.prepare(statement.sql).bind(...statement.values)));
+    }
+    if (env.LOYALTY_ENABLED === "true" && update.status === "complete" && existing.customerUserId) {
+      statements.push(...(await bonusStatements(existing, earnedPoints)));
     }
     // Completing the ticket, writing its credit, and updating the balance either
     // all commit or all roll back. A lost response is safe to retry.

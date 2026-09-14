@@ -3,6 +3,8 @@ import { ensureSchema, getDb } from "../../../../db";
 import { customerProfiles, newsletterSubscriptions, users } from "../../../../db/schema";
 import { getAuth } from "../../../../lib/auth";
 import { verifyPublicForm } from "../../../../lib/public-form";
+import { normalizeReferralCode } from "../../../../lib/referral";
+import { referrerForCode } from "../../../../lib/referral-store";
 
 /* Account creation and profile capture in one server request.
 
@@ -29,6 +31,7 @@ type SignupPayload = {
   birthdayDay?: number | null;
   policiesAccepted?: boolean;
   marketingOptIn?: boolean;
+  referralCode?: string;
   callbackURL?: string;
   turnstileToken?: string;
 };
@@ -150,6 +153,11 @@ export async function POST(request: Request) {
   }
 
   const now = new Date();
+  /* A referral only counts for a brand new account, and never for yourself.
+     An unknown code is ignored rather than failing the signup. */
+  const referrerId = await referrerForCode(normalizeReferralCode(payload.referralCode));
+  const referredByUserId = referrerId && referrerId !== account.id ? referrerId : null;
+  const birthdaySetAt = birthdayMonth !== null ? now : null;
   await getDb().insert(customerProfiles).values({
     userId: account.id,
     email: account.email,
@@ -157,11 +165,13 @@ export async function POST(request: Request) {
     phone,
     birthdayMonth,
     birthdayDay,
+    birthdaySetAt,
+    referredByUserId,
     termsAcceptedAt: now,
     privacyAcceptedAt: now,
   }).onConflictDoUpdate({
     target: customerProfiles.userId,
-    set: { email: account.email, displayName, phone, birthdayMonth, birthdayDay, termsAcceptedAt: now, privacyAcceptedAt: now, updatedAt: now },
+    set: { email: account.email, displayName, phone, birthdayMonth, birthdayDay, birthdaySetAt, referredByUserId, termsAcceptedAt: now, privacyAcceptedAt: now, updatedAt: now },
   });
 
   if (payload.marketingOptIn === true) {

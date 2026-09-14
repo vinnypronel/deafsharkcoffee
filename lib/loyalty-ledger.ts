@@ -9,10 +9,14 @@ export function loyaltyChangeStatements(input: {
   orderId?: number;
   lifetimeCredit?: boolean;
   requirePreviousChange?: boolean;
+  /** Only write when this order is complete. Used for bonuses that ride along
+   * with an order completion but are not chained to its update statement. */
+  onlyIfOrderComplete?: number;
 }) {
   if (!input.userId || !input.reference || !Number.isSafeInteger(input.points) || input.points === 0) {
     throw new Error("Invalid loyalty adjustment.");
   }
+  const completionGuard = input.onlyIfOrderComplete !== undefined;
   return [
     {
       sql: `INSERT INTO loyalty_transactions
@@ -20,8 +24,12 @@ export function loyaltyChangeStatements(input: {
         SELECT user_id, ?, ?, ?, points + ?, ?, unixepoch()
         FROM customer_profiles WHERE user_id = ? AND points + ? >= 0
         ${input.requirePreviousChange ? "AND changes() = 1" : ""}
+        ${completionGuard ? "AND EXISTS (SELECT 1 FROM orders WHERE id = ? AND status = 'complete')" : ""}
         ON CONFLICT DO NOTHING`,
-      values: [input.orderId ?? null, input.reference, input.points, input.points, input.reason, input.userId, input.points],
+      values: [
+        input.orderId ?? null, input.reference, input.points, input.points, input.reason, input.userId, input.points,
+        ...(completionGuard ? [input.onlyIfOrderComplete] : []),
+      ],
     },
     {
       sql: `UPDATE customer_profiles

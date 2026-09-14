@@ -15,6 +15,7 @@ const REQUIRED_TABLES = [
   "menu_content",
   "newsletter_subscriptions",
   "orders",
+  "promotions",
   "rateLimit",
   "session",
   "store_settings",

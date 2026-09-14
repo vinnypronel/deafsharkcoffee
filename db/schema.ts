@@ -117,6 +117,10 @@ export const customerProfiles = sqliteTable("customer_profiles", {
   lifetimePoints: integer("lifetime_points").notNull().default(0),
   birthdayMonth: integer("birthday_month"),
   birthdayDay: integer("birthday_day"),
+  /* When the birthday was saved. The birthday drink is only honored if this is before the day itself. */
+  birthdaySetAt: integer("birthday_set_at", { mode: "timestamp" }),
+  referralCode: text("referral_code"),
+  referredByUserId: text("referred_by_user_id"),
   studentEmail: text("student_email"),
   studentVerifiedAt: integer("student_verified_at", { mode: "timestamp" }),
   lastActivityAt: integer("last_activity_at", { mode: "timestamp" }),
@@ -254,6 +258,24 @@ export const employmentApplications = sqliteTable(
   },
   (table) => [index("idx_employment_status_created_at").on(table.status, table.createdAt)],
 );
+
+export const promotions = sqliteTable("promotions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  kind: text("kind").notNull(),
+  active: integer("active", { mode: "boolean" }).notNull().default(true),
+  startDate: text("start_date"),
+  endDate: text("end_date"),
+  daysJson: text("days_json").notNull().default("[]"),
+  startTime: text("start_time"),
+  endTime: text("end_time"),
+  multiplier: integer("multiplier"),
+  bonusPoints: integer("bonus_points"),
+  productId: text("product_id"),
+  visitsRequired: integer("visits_required"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+});
 
 export const featuredContent = sqliteTable("featured_content", {
   slot: integer("slot").primaryKey(),

@@ -9,7 +9,9 @@ import { PHONE_INPUT_MAX_LENGTH, formatPhoneInput } from "../lib/phone-format";
 import { OrderOnlineLink } from "./order-online-link";
 import { OrderStatus } from "./order-status";
 import TurnstileWidget from "./turnstile-widget";
-type ProfileResponse = { authenticated: boolean; profile?: { displayName: string; email: string; phone?: string | null; points: number; lifetimePoints: number; activity?: Array<{ id: number; pointsChange: number; balanceAfter: number; reason: string; createdAt: string }>; welcomeOffer?: { id: number; code: string; status: string; issuedAt: string; redeemedAt?: string | null } | null; studentVerified?: boolean; studentEmail?: string | null; rewards?: { available: { points: number; valueCents: number; label: string } | null; progress: { tier: { points: number; valueCents: number; label: string }; pointsAway: number; percent: number; atTop: boolean } } } };
+const BIRTHDAY_MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+type ProfileResponse = { authenticated: boolean; profile?: { displayName: string; email: string; phone?: string | null; points: number; lifetimePoints: number; activity?: Array<{ id: number; pointsChange: number; balanceAfter: number; reason: string; createdAt: string }>; welcomeOffer?: { id: number; code: string; status: string; issuedAt: string; redeemedAt?: string | null } | null; studentVerified?: boolean; studentEmail?: string | null; birthday?: { onFile: boolean; month: number | null; day: number | null; isToday: boolean; eligibleToday: boolean; redeemedThisYear: boolean; maxCents: number }; referral?: { code: string | null; points: number; joined: number; rewarded: number }; promotions?: Array<{ id: number; name: string; summary: string }>; rewards?: { available: { points: number; valueCents: number; label: string } | null; progress: { tier: { points: number; valueCents: number; label: string }; pointsAway: number; percent: number; atTop: boolean } } } };
 type AuthConfig = { googleEnabled: boolean; emailEnabled: boolean; emailVerificationEnabled: boolean; passwordRecoveryEnabled: boolean; loyaltyEnabled?: boolean };
 type LenisController = { start: () => void; stop: () => void; scrollTo: (target: number, options?: Record<string, unknown>) => void };
 type WindowWithLenis = Window & { __lenis?: LenisController };
@@ -138,6 +140,13 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
   const [studentEmail, setStudentEmail] = useState("");
   const [studentMessage, setStudentMessage] = useState("");
   const [studentBusy, setStudentBusy] = useState(false);
+  const [birthdayMonth, setBirthdayMonth] = useState("");
+  const [birthdayDay, setBirthdayDay] = useState("");
+  const [birthdayBusy, setBirthdayBusy] = useState(false);
+  const [birthdayMessage, setBirthdayMessage] = useState("");
+  const [referralCopied, setReferralCopied] = useState(false);
+  /* Code from a friend's referral link, sent with signup. */
+  const [signupReferralCode, setSignupReferralCode] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchResultsRef = useRef<HTMLDivElement>(null);
   const searchResultsContentRef = useRef<HTMLDivElement>(null);
@@ -213,6 +222,45 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
       setProfileOpen(false);
       setProfileClosing(false);
     }, reducedMotion ? 0 : ACCOUNT_DRAWER_EXIT_MS);
+  }
+
+  async function saveBirthday(e: React.FormEvent) {
+    e.preventDefault();
+    setBirthdayMessage("");
+    if (!birthdayMonth || !birthdayDay) {
+      setBirthdayMessage("Choose your birthday month and day.");
+      return;
+    }
+    setBirthdayBusy(true);
+    try {
+      const response = await fetch("/api/profile/birthday", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ month: Number(birthdayMonth), day: Number(birthdayDay) }),
+      });
+      const data = await response.json() as { error?: string };
+      if (!response.ok) {
+        setBirthdayMessage(data.error || "We could not save your birthday.");
+        return;
+      }
+      const refreshed = await fetchWithTimeout("/api/profile", { cache: "no-store", credentials: "include" });
+      if (refreshed.ok) setProfile(await refreshed.json() as ProfileResponse);
+    } catch {
+      setBirthdayMessage("Check your connection and try again.");
+    } finally {
+      setBirthdayBusy(false);
+    }
+  }
+
+  async function copyReferralLink(link: string) {
+    try {
+      await navigator.clipboard.writeText(link);
+      setReferralCopied(true);
+      window.setTimeout(() => setReferralCopied(false), 2400);
+    } catch {
+      setReferralCopied(false);
+    }
   }
 
   async function requestStudentDiscount(e: React.FormEvent) {
@@ -325,6 +373,16 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    /* A referral link lands here. Kept for this browser tab, so the code still
+       reaches signup if the friend browses the menu first. */
+    const referral = (params.get("ref") ?? "").trim().toUpperCase();
+    try {
+      if (/^[A-Z0-9]{4,16}$/.test(referral)) window.sessionStorage.setItem("deaf-shark-referral", referral);
+      const storedReferral = window.sessionStorage.getItem("deaf-shark-referral");
+      if (storedReferral) window.setTimeout(() => setSignupReferralCode(storedReferral), 0);
+    } catch {
+      // Storage can be blocked. The link still opens signup.
+    }
     if (params.get("account") === "reset") {
       const token = params.get("token") ?? "";
       window.setTimeout(() => {
@@ -456,6 +514,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
             marketingOptIn: authMarketingOptIn,
             callbackURL: window.location.href,
             turnstileToken: signupTurnstileToken,
+            referralCode: signupReferralCode || undefined,
           }),
         });
         const signupData = await response.json() as { error?: string; emailSent?: boolean };
@@ -605,7 +664,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
               onClick={() => { setMobileMenuOpen(false); setTrackingOrder(activeOrder.orderNumber); }}
             >
               <i aria-hidden="true" />
-              <span>{activeOrder.status === "ready" ? "Order ready" : activeOrder.status === "preparing" ? "Preparing" : "Order in"}</span>
+              <span>{activeOrder.status === "ready" ? "Order ready" : activeOrder.status === "preparing" ? "Preparing" : "Order status"}</span>
             </button>
           )}
           <button className="header-icon-button" onClick={() => { setMobileMenuOpen(false); setSearchOpen((current) => !current); }} aria-label="Search menu">
@@ -1059,6 +1118,9 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                     ? `Your ${profile.profile.rewards.progress.tier.label} is ready to use.`
                     : `${profile.profile.rewards.progress.pointsAway} points until your ${profile.profile.rewards.progress.tier.label}`}</small>
                   {profile.profile.rewards.available && <p className="loyalty-ready">{profile.profile.rewards.available.label} ready at checkout</p>}
+                  {profile.profile.promotions && profile.profile.promotions.length > 0 && <ul className="loyalty-promotions">
+                    {profile.profile.promotions.map((promotion) => <li key={promotion.id}><b>{promotion.name}</b><span>{promotion.summary}</span></li>)}
+                  </ul>}
                 </div>}
 
                 {profile.profile.welcomeOffer?.status === "active" && <div className="welcome-offer welcome-offer-active">
@@ -1066,6 +1128,51 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                   <strong>50% off one drink</strong>
                   <p>Use it at checkout on any drink. One drink, one time.</p>
                 </div>}
+
+                {profile.profile.birthday?.isToday && (
+                  <div className={`welcome-offer birthday-offer${profile.profile.birthday.redeemedThisYear ? " welcome-offer-redeemed" : ""}`}>
+                    <span>Happy birthday</span>
+                    {profile.profile.birthday.redeemedThisYear ? (
+                      <><strong>Birthday drink redeemed</strong><p>Enjoy it, and happy birthday from Deaf Shark.</p></>
+                    ) : profile.profile.birthday.eligibleToday ? (
+                      <><strong>A free drink on us</strong><p>Any drink up to ${(profile.profile.birthday.maxCents / 100).toFixed(0)}, in store today only. Show this screen at the counter.</p></>
+                    ) : (
+                      <><strong>Happy birthday</strong><p>Your birthday was added today, so your free birthday drink starts next year.</p></>
+                    )}
+                  </div>
+                )}
+
+                {profile.profile.birthday && !profile.profile.birthday.onFile && (
+                  <form className="student-form birthday-form" onSubmit={saveBirthday} noValidate>
+                    <strong className="birthday-form-title">Add your birthday for a free drink every year</strong>
+                    <div className="birthday-form-row">
+                      <select value={birthdayMonth} onChange={(e) => { setBirthdayMonth(e.target.value); setBirthdayDay(""); setBirthdayMessage(""); }} aria-label="Birthday month">
+                        <option value="">Month</option>
+                        {BIRTHDAY_MONTH_NAMES.map((name, index) => <option key={name} value={index + 1}>{name}</option>)}
+                      </select>
+                      <select value={birthdayDay} onChange={(e) => { setBirthdayDay(e.target.value); setBirthdayMessage(""); }} aria-label="Birthday day" disabled={!birthdayMonth}>
+                        <option value="">Day</option>
+                        {Array.from({ length: birthdayMonth ? new Date(2000, Number(birthdayMonth), 0).getDate() : 31 }, (_, index) => index + 1).map((day) => <option key={day} value={day}>{day}</option>)}
+                      </select>
+                    </div>
+                    <button type="submit" className="primary-button" disabled={birthdayBusy}>{birthdayBusy ? "Saving..." : "Save my birthday"}</button>
+                    <small role="status">{birthdayMessage || "Once saved it cannot be changed. The drink is in store, on your birthday."}</small>
+                  </form>
+                )}
+
+                {profile.profile.referral?.code && (() => {
+                  const referral = profile.profile!.referral!;
+                  const link = `${window.location.origin}/?account=signup&ref=${referral.code}`;
+                  return (
+                    <div className="student-form referral-card">
+                      <label>Invite a friend, earn {referral.points} points
+                        <input type="text" readOnly value={link} onFocus={(e) => e.currentTarget.select()} aria-label="Your referral link" />
+                      </label>
+                      <button type="button" className="primary-button" onClick={() => void copyReferralLink(link)}>{referralCopied ? "Link copied" : "Copy my invite link"}</button>
+                      <small>You get {referral.points} points when a friend who signs up with your link completes their first order.{referral.joined > 0 ? ` ${referral.joined} joined, ${referral.rewarded} rewarded so far.` : ""}</small>
+                    </div>
+                  );
+                })()}
 
                 {profile.profile.studentVerified ? (
                   <div className="student-status">
@@ -1085,7 +1192,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                 {profile.profile.activity && profile.profile.activity.length > 0 && (
                   <div className="account-points-activity">
                     <strong>Recent points</strong>
-                    {profile.profile.activity.slice(0, 3).map((entry) => <div key={entry.id}><span>{entry.reason === "completed_order" ? "Completed order" : entry.reason === "reward_redeemed" ? "Reward redeemed" : entry.reason.replace(/^staff_adjustment:/, "Staff adjustment: ")}</span><b className={entry.pointsChange >= 0 ? "points-positive" : "points-negative"}>{entry.pointsChange >= 0 ? "+" : ""}{entry.pointsChange}</b></div>)}
+                    {profile.profile.activity.slice(0, 3).map((entry) => <div key={entry.id}><span>{entry.reason === "completed_order" ? "Completed order" : entry.reason === "reward_redeemed" ? "Reward redeemed" : entry.reason === "referral_first_order" ? "Friend referral" : entry.reason.replace(/^staff_adjustment:/, "Staff adjustment: ").replace(/^promotion:/, "Bonus: ")}</span><b className={entry.pointsChange >= 0 ? "points-positive" : "points-negative"}>{entry.pointsChange >= 0 ? "+" : ""}{entry.pointsChange}</b></div>)}
                   </div>
                 )}
                 <div className="account-points-activity"><strong>Your recent orders</strong>
@@ -1098,7 +1205,8 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                 <div className="account-details">
                   <div><span>Name</span><strong>{profile.profile.displayName}</strong></div>
                   <div><span>Mobile number</span><strong>{profile.profile.phone || "Not on file"}</strong></div>
-                  <small>To change your name or number, call the shop at <a href="tel:+19084818884">(908) 481-8884</a>.</small>
+                  {profile.profile.birthday?.onFile && profile.profile.birthday.month && profile.profile.birthday.day && <div><span>Birthday</span><strong>{BIRTHDAY_MONTH_NAMES[profile.profile.birthday.month - 1]} {profile.profile.birthday.day}</strong></div>}
+                  <small>To change your name, number or birthday, call the shop at <a href="tel:+19084818884">(908) 481-8884</a>.</small>
                 </div>
                 <button type="button" className="account-signout" onClick={handleSignOut} disabled={authBusy}>
                   Sign out

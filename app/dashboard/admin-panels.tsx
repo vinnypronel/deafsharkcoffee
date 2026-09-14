@@ -1,22 +1,25 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { categories as menuCategories, menuProducts } from "../menu-data";
 import { OfferBarcode } from "../offer-barcode";
-import { PHONE_INPUT_MAX_LENGTH, formatPhoneInput } from "../../lib/phone-format";
+import { PromotionsManager } from "./promotions-manager";
+import { WELCOME_OFFER_TYPE, bestAvailableTier, nextTierProgress } from "../../lib/loyalty";
 import { DISPLAY_WEEK, WEEKDAY_NAMES, parseWeeklyHours, type DayHours, type Weekday, type WeeklyHours } from "../../lib/store-hours";
 
-type View = "menu" | "website" | "hours" | "events" | "forms" | "history" | "loyalty";
+type View = "menu" | "website" | "hours" | "events" | "forms" | "history" | "loyalty" | "promotions";
 type Featured = { slot: number; productId: string; categoryLabel: string; title: string; buttonLabel: string; priceCents: number; mediaUrl: string };
 type MenuDraft = { productId: string; name: string; category: string; description: string; priceCents: number; photoUrl: string };
 type EventDraft = { id?: number; title: string; description: string; dateLabel: string; timeLabel: string; location: string; entryLabel: string; details: string; buttonLabel: string; buttonHref: string; imageLeftUrl: string; imageRightUrl: string; imageCaption: string | null; published: boolean; sortOrder: number; createdAt?: string };
-type OrderRecord = { id: number; orderNumber: string; customerName: string; phone: string; fulfillmentType: string; pickupEta: string; paymentMethod: string; totalCents: number; status: string; createdAt: string | Date };
+type OrderRecord = { id: number; orderNumber: string; customerName: string; phone: string; itemsJson: string; fulfillmentType: string; pickupEta: string; paymentMethod: string; totalCents: number; status: string; createdAt: string | Date };
+type OrderHistoryItem = { name: string; quantity: number; unitPrice?: number; options: string[] };
 type ContactRecord = { id: number; name: string; email: string; phone?: string | null; topic: string; message: string; createdAt: string | Date };
 type ApplicationRecord = { id: number; fullName: string; email: string; phone: string; position: string; employmentType: string; experience?: string | null; why?: string | null; createdAt: string | Date };
 type SubscriberRecord = { id: number; email: string; status: string; consentText: string; consentedAt: string | Date };
 type Records = { orders: OrderRecord[]; contacts: ContactRecord[]; applications: ApplicationRecord[]; subscribers: SubscriberRecord[] };
-type LoyaltyMember = { userId: string; email: string; displayName: string; phone?: string | null; points: number; lifetimePoints: number; updatedAt: string };
+type LoyaltyMember = { userId: string; email: string; displayName: string; phone?: string | null; points: number; lifetimePoints: number; updatedAt: string; birthday?: { onFile: boolean; month: number | null; day: number | null; isToday: boolean; eligibleToday: boolean; redeemedThisYear: boolean; maxCents: number }; referredByName?: string | null };
+const BIRTHDAY_MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 type LoyaltyTransaction = { id: number; userId: string; orderId?: number | null; pointsChange: number; balanceAfter: number; reason: string; createdAt: string };
 type MemberOffer = { id: number; userId: string; offerType: string; code: string; status: string; issuedAt: string; redeemedAt?: string | null; redeemedBy?: string | null };
 type LoyaltyData = { members: LoyaltyMember[]; transactions: LoyaltyTransaction[]; offers: MemberOffer[] };
@@ -143,9 +146,11 @@ export function AdminPanels({ view }: { view: View }) {
 
   if (view === "history") return (
     <AdminSection eyebrow="Sales records" title="Complete order history" description="Every website order is retained here with its date, payment method, pickup type, total, and final status.">
-      <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Date</th><th>Order</th><th>Customer</th><th>Pickup</th><th>Payment</th><th>Total</th><th>Status</th></tr></thead><tbody>{records.orders.map((order) => <tr key={order.id}><td>{when(order.createdAt)}</td><td>#{order.orderNumber}</td><td><strong>{order.customerName}</strong><small>{order.phone}</small></td><td>{order.fulfillmentType === "scheduled" ? order.pickupEta : "ASAP"}</td><td>{order.paymentMethod}</td><td>{dollars(order.totalCents)}</td><td><span className={`record-status status-${order.status}`}>{order.status}</span></td></tr>)}</tbody></table></div>
+      <OrderHistoryTable orders={records.orders} />
     </AdminSection>
   );
+
+  if (view === "promotions") return <PromotionsManager />;
 
   if (view === "loyalty") return (
     <LoyaltyManager data={loyalty} message={message} setMessage={setMessage} reload={load} />
@@ -159,6 +164,56 @@ export function AdminPanels({ view }: { view: View }) {
       <RecordsBlock title="Newsletter subscriptions" rows={records.subscribers.map((row) => ({ id: row.id, date: row.consentedAt, heading: row.email, meta: row.status, body: row.consentText }))} />
     </AdminSection>
   );
+}
+
+function orderItemsFor(order: OrderRecord): OrderHistoryItem[] {
+  try {
+    const parsed: unknown = JSON.parse(order.itemsJson);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.flatMap((entry) => {
+      if (!entry || typeof entry !== "object") return [];
+      const item = entry as Record<string, unknown>;
+      if (typeof item.name !== "string" || !item.name.trim()) return [];
+      const quantity = typeof item.quantity === "number" && Number.isFinite(item.quantity) && item.quantity > 0 ? item.quantity : 1;
+      const unitPrice = typeof item.unitPrice === "number" && Number.isFinite(item.unitPrice) ? item.unitPrice : undefined;
+      const options = Array.isArray(item.options) ? item.options.filter((option): option is string => typeof option === "string" && !!option.trim()) : [];
+      return [{ name: item.name, quantity, unitPrice, options }];
+    });
+  } catch {
+    return [];
+  }
+}
+
+function OrderHistoryTable({ orders }: { orders: OrderRecord[] }) {
+  const [expanded, setExpanded] = useState<Set<number>>(() => new Set());
+  const toggle = (orderId: number) => setExpanded((current) => {
+    const next = new Set(current);
+    if (next.has(orderId)) next.delete(orderId);
+    else next.add(orderId);
+    return next;
+  });
+
+  return <div className="admin-table-wrap"><table className="admin-table order-history-table">
+    <thead><tr><th aria-label="Order details" /><th>Date</th><th>Order</th><th>Customer</th><th>Pickup</th><th>Payment</th><th>Total</th><th>Status</th></tr></thead>
+    <tbody>
+      {orders.map((order) => {
+        const isExpanded = expanded.has(order.id);
+        const detailsId = `order-history-details-${order.id}`;
+        const items = orderItemsFor(order);
+        return <Fragment key={order.id}>
+          <tr className={`order-history-summary${isExpanded ? " is-expanded" : ""}`}>
+            <td className="order-history-toggle-cell"><button type="button" className="order-history-toggle" aria-expanded={isExpanded} aria-controls={detailsId} aria-label={`${isExpanded ? "Hide" : "Show"} items for order ${order.orderNumber}`} onClick={() => toggle(order.id)}><svg aria-hidden="true" viewBox="0 0 20 20"><path d="m5 7.5 5 5 5-5" /></svg></button></td>
+            <td>{when(order.createdAt)}</td><td>#{order.orderNumber}</td><td><strong>{order.customerName}</strong><small>{order.phone}</small></td><td>{order.fulfillmentType === "scheduled" ? order.pickupEta : "ASAP"}</td><td>{order.paymentMethod}</td><td>{dollars(order.totalCents)}</td><td><span className={`record-status status-${order.status}`}>{order.status}</span></td>
+          </tr>
+          {isExpanded && <tr className="order-history-details-row"><td colSpan={8}><div className="order-history-details" id={detailsId}>
+            <strong className="order-history-details-title">Items ordered</strong>
+            {items.length ? <ul>{items.map((item, index) => <li key={`${item.name}-${index}`}><div><strong>{item.quantity} × {item.name}</strong>{item.options.length ? <small>{item.options.join(" · ")}</small> : null}</div>{item.unitPrice !== undefined && <span>{dollars(Math.round(item.unitPrice * item.quantity * 100))}</span>}</li>)}</ul> : <p>No item details were saved for this order.</p>}
+          </div></td></tr>}
+        </Fragment>;
+      })}
+      {orders.length === 0 && <tr><td colSpan={8} className="order-history-empty">No orders yet.</td></tr>}
+    </tbody>
+  </table></div>;
 }
 
 function MenuContentManager({ menu, setMenu, message, save, upload }: {
@@ -199,12 +254,11 @@ function LoyaltyManager({ data, message, setMessage, reload }: { data: LoyaltyDa
   const [changes, setChanges] = useState<Record<string, string>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<string | null>(null);
-  /* Customers cannot change their own name or number once the account exists,
-     so staff need a way to correct a mistyped digit. */
-  const [details, setDetails] = useState<Record<string, { displayName: string; phone: string }>>({});
   const query = search.trim().toLowerCase();
   const memberNames = new Map(data.members.map((member) => [member.userId, member.displayName]));
-  const offersByMember = new Map(data.offers.map((offer) => [offer.userId, offer]));
+  /* Birthday redemptions live in the same offers table, so only the welcome
+     coupon belongs in this map. */
+  const offersByMember = new Map(data.offers.filter((offer) => offer.offerType === WELCOME_OFFER_TYPE).map((offer) => [offer.userId, offer]));
   const members = data.members.filter((member) => {
     if (!query) return true;
     const offerCode = offersByMember.get(member.userId)?.code;
@@ -232,28 +286,19 @@ function LoyaltyManager({ data, message, setMessage, reload }: { data: LoyaltyDa
     await reload();
   }
 
-  function detailsFor(member: LoyaltyMember) {
-    return details[member.userId] ?? { displayName: member.displayName, phone: member.phone ?? "" };
-  }
-
-  async function saveDetails(member: LoyaltyMember) {
-    const draft = detailsFor(member);
-    if (!draft.displayName.trim()) return setMessage("Enter the customer's name.");
-    if (draft.phone.trim() && draft.phone.replace(/D/g, "").length < 10) {
-      return setMessage("Enter a complete phone number or leave it blank.");
-    }
-    setSaving(`details:${member.userId}`);
-    setMessage("Saving customer details…");
-    const response = await fetch("/api/admin/customers", {
-      method: "PATCH",
+  async function redeemBirthday(member: LoyaltyMember) {
+    if (!window.confirm(`Give ${member.displayName} their free birthday drink (up to $8)? This can only be done once this year.`)) return;
+    setSaving(`birthday:${member.userId}`);
+    setMessage("Redeeming birthday drink…");
+    const response = await fetch("/api/admin/loyalty", {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: member.userId, displayName: draft.displayName, phone: draft.phone }),
+      body: JSON.stringify({ userId: member.userId, action: "redeem_birthday" }),
     });
     const result = await response.json() as { error?: string };
     setSaving(null);
-    if (!response.ok) return setMessage(result.error || "Could not update those details.");
-    setDetails((current) => { const next = { ...current }; delete next[member.userId]; return next; });
-    setMessage(`${draft.displayName} updated.`);
+    if (!response.ok) return setMessage(result.error || "Could not redeem the birthday drink.");
+    setMessage(`${member.displayName}'s birthday drink was redeemed.`);
     await reload();
   }
 
@@ -274,7 +319,7 @@ function LoyaltyManager({ data, message, setMessage, reload }: { data: LoyaltyDa
   }
 
   return (
-    <AdminSection eyebrow="Customer rewards" title="Customers" description="Correct a customer's name or phone number, review balances, redeem welcome offers, and make traceable points corrections. Customers cannot change their own name or number, so a mistyped one is fixed here.">
+    <AdminSection eyebrow="Customer rewards" title="Customers" description="Review customer contact details and balances, redeem welcome offers, and make traceable points corrections. Names and mobile numbers are read-only for staff.">
       {message && <AdminNotice>{message}</AdminNotice>}
       <div className="record-summary"><span><strong>{data.members.length}</strong> members</span><span><strong>{data.members.reduce((total, member) => total + member.points, 0)}</strong> active points</span><span><strong>{data.offers.filter((offer) => offer.status === "active").length}</strong> active welcome offers</span></div>
       <label className="loyalty-search">Scan a coupon or find a member<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Scan barcode or search name, email, or phone" /></label>
@@ -283,17 +328,16 @@ function LoyaltyManager({ data, message, setMessage, reload }: { data: LoyaltyDa
           const offer = offersByMember.get(member.userId);
           return <article className="loyalty-member-card" key={member.userId}>
             <header><div><strong>{member.displayName}</strong><small>{member.email}{member.phone ? ` · ${member.phone}` : ""}</small></div><span>{member.points} pts</span></header>
-            <div className="loyalty-progress"><i style={{ width: `${Math.min(100, member.points % 100 || (member.points > 0 ? 100 : 0))}%` }} /></div>
-            <p>{member.points >= 100 ? `${Math.floor(member.points / 100)} reward${Math.floor(member.points / 100) === 1 ? "" : "s"} available` : `${100 - member.points} points to a $5 reward`} · {member.lifetimePoints} lifetime points</p>
+            <div className="loyalty-progress"><i style={{ width: `${nextTierProgress(member.points).percent}%` }} /></div>
+            <p>{bestAvailableTier(member.points) ? `${bestAvailableTier(member.points)?.label} available` : `${nextTierProgress(member.points).pointsAway} points to a ${nextTierProgress(member.points).tier.label}`} · {member.lifetimePoints} lifetime points{member.birthday?.onFile && member.birthday.month && member.birthday.day ? ` · Birthday ${BIRTHDAY_MONTHS[member.birthday.month - 1]} ${member.birthday.day}` : ""}{member.referredByName ? ` · Referred by ${member.referredByName}` : ""}</p>
+            {member.birthday?.isToday && <div className={`member-offer member-birthday${member.birthday.redeemedThisYear ? " member-offer-redeemed" : ""}`}>
+              <div><strong>Birthday today: free drink up to ${(member.birthday.maxCents / 100).toFixed(0)}</strong><small>{member.birthday.redeemedThisYear ? "Already redeemed this year" : member.birthday.eligibleToday ? "In store only. Any drink, up to $8." : "Not eligible: birthday was added today"}</small></div>
+              {member.birthday.eligibleToday && !member.birthday.redeemedThisYear && <button className="admin-save" disabled={saving === `birthday:${member.userId}`} onClick={() => redeemBirthday(member)}>{saving === `birthday:${member.userId}` ? "Saving…" : "Redeem birthday drink"}</button>}
+            </div>}
             {offer && <div className={`member-offer member-offer-${offer.status}`}>
               <div><strong>50% off one coffee</strong><OfferBarcode value={offer.code} compact /><small>{offer.status === "active" ? "In-store offer ready" : `Redeemed ${when(offer.redeemedAt)}`}</small></div>
               {offer.status === "active" && <button className="admin-save" disabled={saving === `offer:${offer.id}`} onClick={() => redeem(member, offer)}>{saving === `offer:${offer.id}` ? "Saving…" : "Mark redeemed"}</button>}
             </div>}
-            <div className="loyalty-adjustment customer-details-edit">
-              <label>Name<input value={detailsFor(member).displayName} onChange={(event) => setDetails((current) => ({ ...current, [member.userId]: { ...detailsFor(member), displayName: event.target.value } }))} maxLength={80} /></label>
-              <label>Mobile number<input value={detailsFor(member).phone} onChange={(event) => setDetails((current) => ({ ...current, [member.userId]: { ...detailsFor(member), phone: formatPhoneInput(event.target.value) } }))} type="tel" inputMode="tel" maxLength={PHONE_INPUT_MAX_LENGTH} placeholder="(908)-555-0123" /></label>
-              <button className="admin-save" disabled={saving === `details:${member.userId}`} onClick={() => saveDetails(member)}>{saving === `details:${member.userId}` ? "Saving…" : "Save details"}</button>
-            </div>
             <div className="loyalty-adjustment">
               <label>Points<input type="number" step="1" value={changes[member.userId] ?? ""} onChange={(event) => setChanges((current) => ({ ...current, [member.userId]: event.target.value }))} placeholder="+25 or -25" /></label>
               <label>Reason<input value={reasons[member.userId] ?? ""} onChange={(event) => setReasons((current) => ({ ...current, [member.userId]: event.target.value }))} maxLength={120} placeholder="Customer service correction" /></label>
@@ -342,14 +386,14 @@ function HoursManager() {
   }
 
   return (
-    <AdminSection eyebrow="Store hours" title="Opening hours" description="These hours appear on the homepage and the Visit page. Online ordering only accepts orders during these hours and stops taking orders 30 minutes before closing. For a surprise closure, use Pause online orders on the Live orders screen.">
+    <AdminSection title="Store hours" description="These hours appear on the homepage and the Visit page. Online ordering only accepts orders during these hours and stops taking orders 30 minutes before closing. For a surprise closure, use Pause online orders on the Live orders screen.">
       {message && <AdminNotice>{message}</AdminNotice>}
       {!weekly ? <p className="empty-records">Loading hours…</p> : <div className="admin-hours-grid">
         {DISPLAY_WEEK.map((day) => <div className={`admin-hours-row${weekly[day].closed ? " is-closed" : ""}`} key={day}>
           <strong>{WEEKDAY_NAMES[day]}</strong>
           <label className="admin-check"><input type="checkbox" checked={weekly[day].closed} onChange={(event) => update(day, { closed: event.target.checked })} /> Closed</label>
-          <label>Opens<input type="time" step={900} value={weekly[day].open} disabled={weekly[day].closed} onChange={(event) => update(day, { open: event.target.value })} /></label>
-          <label>Closes<input type="time" step={900} value={weekly[day].close} disabled={weekly[day].closed} onChange={(event) => update(day, { close: event.target.value })} /></label>
+          <label className="admin-hours-time"><span>Opens</span><input aria-label={`${WEEKDAY_NAMES[day]} opening time`} type="time" step={900} value={weekly[day].open} disabled={weekly[day].closed} onChange={(event) => update(day, { open: event.target.value })} /></label>
+          <label className="admin-hours-time"><span>Closes</span><input aria-label={`${WEEKDAY_NAMES[day]} closing time`} type="time" step={900} value={weekly[day].close} disabled={weekly[day].closed} onChange={(event) => update(day, { close: event.target.value })} /></label>
         </div>)}
       </div>}
       <label className="admin-hours-note">Special note (optional, shown under the hours)<input value={note} maxLength={160} onChange={(event) => setNote(event.target.value)} placeholder="Example: Closed Thursday, November 26 for Thanksgiving" /></label>
@@ -358,8 +402,8 @@ function HoursManager() {
   );
 }
 
-function AdminSection({ eyebrow, title, description, children }: { eyebrow: string; title: string; description: string; children: ReactNode }) {
-  return <section className="admin-panel"><div className="admin-panel-heading"><span>{eyebrow}</span><h1>{title}</h1><p>{description}</p></div>{children}</section>;
+function AdminSection({ eyebrow, title, description, children }: { eyebrow?: string; title: string; description: string; children: ReactNode }) {
+  return <section className="admin-panel"><div className="admin-panel-heading">{eyebrow && <span>{eyebrow}</span>}<h1>{title}</h1><p>{description}</p></div>{children}</section>;
 }
 function AdminNotice({ children }: { children: ReactNode }) { return <p className="admin-notice" role="status">{children}</p>; }
 function MediaPreview({ url, title }: { url: string; title: string }) { return <div className="admin-media-preview">{/\.(mp4|webm)(\?|$)/i.test(url) ? <video src={url} muted loop autoPlay playsInline /> : <img src={url} alt={title} />}</div>; }

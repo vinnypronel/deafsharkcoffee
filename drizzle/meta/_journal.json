@@ -134,6 +134,13 @@
       "when": 1789233412960,
       "tag": "0018_loyalty_and_student",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1789320000000,
+      "tag": "0019_birthday_referrals_promotions",
+      "breakpoints": true
     }
   ]
 }

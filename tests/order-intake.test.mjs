@@ -147,6 +147,30 @@ test("offers French fries or sweet potato fries for fries and wing orders", () =
   }
 });
 
+test("prices and routes the fall drinks and desserts from the posted menus", () => {
+  for (const [id, price] of [
+    ["pumpkin-spice-latte", 6.5],
+    ["brown-sugar-shaken-espresso", 6.5],
+    ["dirty-soda", 5.25],
+    ["iced-toasted-marshmallow-latte", 7],
+    ["toasted-marshmallow-matcha-latte", 7.75],
+  ]) {
+    const [drink] = priceCart([{ id, quantity: 1 }]);
+    assert.equal(drink.unitPrice, price);
+    assert.equal(drink.prepStation, "COFFEE");
+  }
+
+  for (const [id, price] of [
+    ["chocoflan", 7],
+    ["tres-leches", 6],
+    ["passion-fruit-dessert", 7.75],
+  ]) {
+    const [dessert] = priceCart([{ id, quantity: 1 }]);
+    assert.equal(dessert.unitPrice, price);
+    assert.equal(dessert.prepStation, "KITCHEN");
+  }
+});
+
 test("opens configurable drinks at their advertised base price and charges only selected upgrades", () => {
   const [latte] = priceCart([{ id: "latte", quantity: 1 }]);
   assert.equal(latte.unitPrice, 5);

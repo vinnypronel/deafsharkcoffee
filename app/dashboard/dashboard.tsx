@@ -65,7 +65,7 @@ export function Dashboard() {
   const [availability, setAvailability] = useState<Record<string, boolean>>({});
   const [prepTime, setPrepTime] = useState(15);
   const [paused, setPaused] = useState(false);
-  const [activeView, setActiveView] = useState<"orders" | "coffee" | "kitchen" | "menu" | "website" | "hours" | "events" | "forms" | "history" | "loyalty">("orders");
+  const [activeView, setActiveView] = useState<"orders" | "coffee" | "kitchen" | "menu" | "website" | "hours" | "events" | "forms" | "history" | "loyalty" | "promotions">("orders");
   const [mobileColumn, setMobileColumn] = useState<Order["status"]>("new");
   const [connection, setConnection] = useState<"live" | "waiting">("waiting");
   const [soundArmed, setSoundArmed] = useState(false);
@@ -241,6 +241,7 @@ export function Dashboard() {
           <button className={activeView === "events" ? "active" : ""} onClick={() => setActiveView("events")}>Events</button>
           <button className={activeView === "forms" ? "active" : ""} onClick={() => setActiveView("forms")}>Forms</button>
           <button className={activeView === "loyalty" ? "active" : ""} onClick={() => setActiveView("loyalty")}>Customers</button>
+          <button className={activeView === "promotions" ? "active" : ""} onClick={() => setActiveView("promotions")}>Promotions</button>
           <button className={activeView === "history" ? "active" : ""} onClick={() => setActiveView("history")}>Order history</button>
         </div>
         <div className="dashboard-status-cluster">

@@ -1,9 +1,15 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, like, sql } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../db";
 import { customerProfiles, loyaltyTransactions, memberOffers } from "../../../db/schema";
 import { getCustomerSession } from "../../../lib/auth";
 import { env } from "cloudflare:workers";
 import { WELCOME_OFFER_TYPE, bestAvailableTier, nextTierProgress } from "../../../lib/loyalty";
+import { BIRTHDAY_DRINK_MAX_CENTS, birthdayOfferType, birthdayStatus } from "../../../lib/birthday";
+import { REFERRAL_POINTS } from "../../../lib/referral";
+import { ensureReferralCode } from "../../../lib/referral-store";
+import { loadPromotions } from "../../../lib/promotion-store";
+import { describePromotion, promotionIsCurrent } from "../../../lib/promotions";
+import { menuProducts } from "../../menu-data";
 
 /* No signup points: the shop's programme gives new members a half-off drink
    coupon instead, and points are earned by spending. */
@@ -27,9 +33,9 @@ async function ensureWelcomeBenefits(user: { id: string; email: string; name: st
   }).onConflictDoNothing({ target: [memberOffers.userId, memberOffers.offerType] });
 }
 
-async function getWelcomeOffer(userId: string) {
+async function getOffer(userId: string, offerType: string) {
   const [offer] = await getDb().select().from(memberOffers)
-    .where(and(eq(memberOffers.userId, userId), eq(memberOffers.offerType, WELCOME_OFFER_TYPE)))
+    .where(and(eq(memberOffers.userId, userId), eq(memberOffers.offerType, offerType)))
     .limit(1);
   return offer ?? null;
 }
@@ -42,17 +48,35 @@ export async function GET(request: Request) {
   const user = session.user;
   await ensureWelcomeBenefits(user);
   const [profile] = await getDb().select().from(customerProfiles).where(eq(customerProfiles.userId, user.id)).limit(1);
-  const welcomeOffer = await getWelcomeOffer(user.id);
-  const activity = await getDb().select({
-    id: loyaltyTransactions.id,
-    pointsChange: loyaltyTransactions.pointsChange,
-    balanceAfter: loyaltyTransactions.balanceAfter,
-    reason: loyaltyTransactions.reason,
-    createdAt: loyaltyTransactions.createdAt,
-  }).from(loyaltyTransactions)
-    .where(eq(loyaltyTransactions.userId, user.id))
-    .orderBy(desc(loyaltyTransactions.createdAt))
-    .limit(12);
+  const birthday = birthdayStatus({ month: profile.birthdayMonth, day: profile.birthdayDay, setAt: profile.birthdaySetAt });
+
+  const [welcomeOffer, birthdayOffer, referralCode, activity, referralCounts, allPromotions] = await Promise.all([
+    getOffer(user.id, WELCOME_OFFER_TYPE),
+    birthday.isToday ? getOffer(user.id, birthdayOfferType(birthday.year)) : Promise.resolve(null),
+    ensureReferralCode(user.id, profile.displayName, profile.referralCode),
+    getDb().select({
+      id: loyaltyTransactions.id,
+      pointsChange: loyaltyTransactions.pointsChange,
+      balanceAfter: loyaltyTransactions.balanceAfter,
+      reason: loyaltyTransactions.reason,
+      createdAt: loyaltyTransactions.createdAt,
+    }).from(loyaltyTransactions)
+      .where(eq(loyaltyTransactions.userId, user.id))
+      .orderBy(desc(loyaltyTransactions.createdAt))
+      .limit(12),
+    Promise.all([
+      getDb().select({ count: sql<number>`count(*)` }).from(customerProfiles).where(eq(customerProfiles.referredByUserId, user.id)),
+      getDb().select({ count: sql<number>`count(*)` }).from(loyaltyTransactions)
+        .where(and(eq(loyaltyTransactions.userId, user.id), like(loyaltyTransactions.reference, "referral:%"))),
+    ]),
+    loadPromotions(),
+  ]);
+
+  const now = new Date();
+  const productNames = new Map(menuProducts.map((product) => [product.id, product.name]));
+  const currentPromotions = allPromotions
+    .filter((promotion) => promotionIsCurrent(promotion, now))
+    .map((promotion) => ({ id: promotion.id, name: promotion.name, summary: describePromotion(promotion, promotion.productId ? productNames.get(promotion.productId) : undefined) }));
 
   return Response.json({
     authenticated: true,
@@ -70,6 +94,22 @@ export async function GET(request: Request) {
         available: bestAvailableTier(profile.points),
         progress: nextTierProgress(profile.points),
       },
+      birthday: {
+        onFile: birthday.onFile,
+        month: birthday.month,
+        day: birthday.day,
+        isToday: birthday.isToday,
+        eligibleToday: birthday.eligibleToday,
+        redeemedThisYear: Boolean(birthdayOffer),
+        maxCents: BIRTHDAY_DRINK_MAX_CENTS,
+      },
+      referral: {
+        code: referralCode,
+        points: REFERRAL_POINTS,
+        joined: Number(referralCounts[0][0]?.count ?? 0),
+        rewarded: Number(referralCounts[1][0]?.count ?? 0),
+      },
+      promotions: currentPromotions,
     },
   });
 }

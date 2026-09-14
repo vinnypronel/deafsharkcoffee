@@ -1,4 +1,5 @@
 export type MenuCategory =
+  | "Fall Season"
   | "Coffee"
   | "Matcha"
   | "Tea"
@@ -6,6 +7,7 @@ export type MenuCategory =
   | "Breakfast"
   | "Sandwiches"
   | "Bites"
+  | "Desserts"
   | "From the Fridge"
   | "Coffee Beans";
 
@@ -218,6 +220,7 @@ const removeIngredients = (...ingredients: string[]): ModifierGroup => ({
 });
 
 export const categories: MenuCategory[] = [
+  "Fall Season",
   "Coffee",
   "Matcha",
   "Tea",
@@ -225,11 +228,34 @@ export const categories: MenuCategory[] = [
   "Breakfast",
   "Sandwiches",
   "Bites",
+  "Desserts",
   "From the Fridge",
   "Coffee Beans",
 ];
 
-export const DRINK_CATEGORIES: MenuCategory[] = ["Coffee", "Matcha", "Tea", "Smoothies"];
+export const DRINK_CATEGORIES: MenuCategory[] = ["Fall Season", "Coffee", "Matcha", "Tea", "Smoothies"];
+
+export const hasMilkOptionsForProduct = (product: Product) =>
+  DRINK_CATEGORIES.includes(product.category) &&
+  !product.bases?.length &&
+  !["chicha", "malta", "hot-tea", "dirty-soda"].includes(product.id);
+
+export const hasSyrupOptionsForProduct = (product: Product) =>
+  DRINK_CATEGORIES.includes(product.category) &&
+  !product.bases?.length &&
+  !["hot-tea", "dirty-soda"].includes(product.id);
+
+export const hasExtraShotOptionsForProduct = (product: Product) =>
+  (product.category === "Coffee" || [
+    "matcha-latte",
+    "strawberry-matcha",
+    "mango-matcha",
+    "chai-tea-latte",
+    "pumpkin-spice-latte",
+    "brown-sugar-shaken-espresso",
+    "iced-toasted-marshmallow-latte",
+    "toasted-marshmallow-matcha-latte",
+  ].includes(product.id)) && product.id !== "hot-tea";
 
 export const prepStationFor = (product: Pick<Product, "category" | "prepStation">): PrepStation => {
   if (product.prepStation) return product.prepStation;
@@ -278,7 +304,7 @@ export const modifierGroupsForProduct = (product: Product, temperature?: "Hot" |
     ...(product.modifierGroups ?? []),
     ...(product.decafAvailable ? [DECAF_MODIFIER] : []),
     ...(isDrink && !isSmoothie && servedIced ? [ICE_MODIFIER] : []),
-    ...(isDrink && !isSmoothie && product.id !== "hot-tea" ? [SWEETENER_MODIFIER] : []),
+    ...(isDrink && !isSmoothie && !["hot-tea", "dirty-soda"].includes(product.id) ? [SWEETENER_MODIFIER] : []),
   ];
 };
 
@@ -303,8 +329,8 @@ export function priceProductSelection(product: Product, input: ProductSelection 
     throw new Error(`Invalid sandwich size for ${product.name}.`);
   }
 
-  const hasMilkOptions = isDrink && !isSmoothie && !["chicha", "malta", "hot-tea"].includes(product.id);
-  const defaultMilk = ["americano", "drip-coffee", "espresso", "cold-brew", "chicha", "malta", "red-eye", "decaf-coffee", "regular-coffee"].includes(product.id) ? "None" : "Whole";
+  const hasMilkOptions = hasMilkOptionsForProduct(product);
+  const defaultMilk = ["americano", "drip-coffee", "espresso", "cold-brew", "chicha", "malta", "dirty-soda", "red-eye", "decaf-coffee", "regular-coffee"].includes(product.id) ? "None" : "Whole";
   const milk = input.milk ?? defaultMilk;
   if (hasMilkOptions && milk !== "None" && !MILK_OPTIONS.includes(milk as (typeof MILK_OPTIONS)[number])) {
     throw new Error(`Invalid milk choice for ${product.name}.`);
@@ -326,15 +352,13 @@ export function priceProductSelection(product: Product, input: ProductSelection 
     throw new Error(`Invalid milk choice for ${product.name}.`);
   }
 
-  const hasSyrupOptions = isDrink && !isSmoothie && product.id !== "hot-tea";
+  const hasSyrupOptions = hasSyrupOptionsForProduct(product);
   const syrups = [...new Set(input.syrups ?? [])];
   if ((!hasSyrupOptions && syrups.length) || syrups.some((value) => !SYRUP_OPTIONS.includes(value as (typeof SYRUP_OPTIONS)[number]))) {
     throw new Error(`Invalid syrup choice for ${product.name}.`);
   }
 
-  const hasShotOptions =
-    (product.category === "Coffee" || ["matcha-latte", "strawberry-matcha", "mango-matcha", "chai-tea-latte"].includes(product.id)) &&
-    product.id !== "hot-tea";
+  const hasShotOptions = hasExtraShotOptionsForProduct(product);
   const extraShot = input.extraShot ?? 0;
   if (!Number.isInteger(extraShot) || extraShot < 0 || extraShot > 5 || (!hasShotOptions && extraShot > 0)) {
     throw new Error(`Invalid espresso-shot quantity for ${product.name}.`);
@@ -397,6 +421,90 @@ export function priceProductSelection(product: Product, input: ProductSelection 
 }
 
 export const menuProducts: Product[] = [
+  {
+    id: "pumpkin-spice-latte",
+    name: "Pumpkin Spice Latte",
+    category: "Fall Season",
+    price: 6.5,
+    description: "Espresso and milk with pumpkin spice and a warm cinnamon finish.",
+    configurable: true,
+    decafAvailable: true,
+    visual: "iced",
+    photo: "/menu/seasonal/pumpkin-spice-latte-v1.png",
+  },
+  {
+    id: "brown-sugar-shaken-espresso",
+    name: "Brown Sugar Shaken Espresso",
+    category: "Fall Season",
+    price: 6.5,
+    description: "Espresso shaken over ice with brown sugar and milk.",
+    configurable: true,
+    decafAvailable: true,
+    temps: ["Iced"],
+    visual: "iced",
+    photo: "/menu/seasonal/brown-sugar-shaken-espresso-v1.png",
+  },
+  {
+    id: "dirty-soda",
+    name: "Dirty Soda",
+    category: "Fall Season",
+    price: 5.25,
+    description: "A fizzy, creamy soda poured over ice.",
+    configurable: true,
+    temps: ["Iced"],
+    visual: "iced",
+    photo: "/menu/seasonal/dirty-soda-v1.png",
+  },
+  {
+    id: "iced-toasted-marshmallow-latte",
+    name: "Iced Toasted Marshmallow Latte",
+    category: "Fall Season",
+    price: 7,
+    description: "Espresso and milk over ice with toasted marshmallow flavor.",
+    configurable: true,
+    decafAvailable: true,
+    temps: ["Iced"],
+    visual: "iced",
+    photo: "/menu/seasonal/iced-toasted-marshmallow-latte-v1.png",
+  },
+  {
+    id: "toasted-marshmallow-matcha-latte",
+    name: "Toasted Marshmallow Matcha Latte",
+    category: "Fall Season",
+    price: 7.75,
+    description: "Matcha and milk over ice with toasted marshmallow flavor.",
+    configurable: true,
+    temps: ["Iced"],
+    visual: "iced",
+    photo: "/menu/seasonal/toasted-marshmallow-matcha-latte-v1.png",
+  },
+  {
+    id: "chocoflan",
+    name: "Chocoflan",
+    category: "Desserts",
+    price: 7,
+    description: "Chocolate cake layered with creamy caramel flan.",
+    visual: "bite",
+    photo: "/menu/desserts/chocoflan-v1.png",
+  },
+  {
+    id: "tres-leches",
+    name: "Tres Leches",
+    category: "Desserts",
+    price: 6,
+    description: "Soft sponge cake soaked in three milks and finished with cream.",
+    visual: "bite",
+    photo: "/menu/desserts/tres-leches-v1.png",
+  },
+  {
+    id: "passion-fruit-dessert",
+    name: "Passion Fruit Dessert",
+    category: "Desserts",
+    price: 7.75,
+    description: "A bright, creamy passion fruit dessert with a tropical finish.",
+    visual: "bite",
+    photo: "/menu/desserts/passion-fruit-dessert-v1.png",
+  },
   {
     id: "ocean-blend-bag",
     name: "Ocean Blend",
