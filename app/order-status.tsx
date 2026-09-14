@@ -8,6 +8,9 @@ type CustomerOrder = {
   totalCents: number;
   pickupEta: string;
   paymentMethod: string;
+  fulfillmentType?: string;
+  scheduledFor?: string | null;
+  createdAt?: string;
   items: Array<{ name: string; quantity: number; options?: string[] }>;
 };
 
@@ -26,6 +29,29 @@ const statusSteps = [
   { key: "preparing", label: "Preparing" },
   { key: "complete", label: "Complete" },
 ] as const;
+
+/* Pickup window shown to the customer: 15 to 30 minutes after an ASAP order was
+   placed, or the chosen time for a scheduled order. Store time, since that is
+   the clock on the wall at pickup. */
+const PICKUP_WINDOW_MINUTES = [15, 30] as const;
+
+function storeClockTime(date: Date, withPeriod = true) {
+  const text = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" }).format(date);
+  return withPeriod ? text : text.replace(/s?[AP]M$/, "");
+}
+
+function pickupWindow(order: CustomerOrder) {
+  if (order.fulfillmentType === "scheduled" && order.scheduledFor) {
+    const scheduled = new Date(order.scheduledFor);
+    if (!Number.isNaN(scheduled.getTime())) return storeClockTime(scheduled);
+  }
+  const placed = order.createdAt ? new Date(order.createdAt) : null;
+  if (!placed || Number.isNaN(placed.getTime())) return order.pickupEta;
+  const start = new Date(placed.getTime() + PICKUP_WINDOW_MINUTES[0] * 60_000);
+  const end = new Date(placed.getTime() + PICKUP_WINDOW_MINUTES[1] * 60_000);
+  const samePeriod = storeClockTime(start).slice(-2) === storeClockTime(end).slice(-2);
+  return `${storeClockTime(start, !samePeriod)} to ${storeClockTime(end)}`;
+}
 
 /* Matches the account drawer's exit animation, so the tracker slides back out
    to the right instead of vanishing. */
@@ -86,8 +112,12 @@ export function OrderStatus({ orderNumber, onClose }: { orderNumber: string; onC
         <button className="account-close" onClick={requestClose} aria-label="Close order status">×</button>
         <div className="order-status-shell">
           <header className="order-status-heading">
+            <span>Current status</span>
+            {/* The blinking caret says the status is live and still moving. It
+                stops once the order is complete or cancelled. */}
             <h2 role="status" aria-live="polite">
               {order ? statusLabels[order.status] || order.status : "Loading your order…"}
+              {order && order.status !== "complete" && !cancelled && <i className="order-status-caret" aria-hidden="true" />}
             </h2>
           </header>
 
@@ -123,8 +153,8 @@ export function OrderStatus({ orderNumber, onClose }: { orderNumber: string; onC
               {!cancelled && order.status !== "complete" && (
                 <div className="order-pickup-card">
                   <div>
-                    <span>Estimated pickup</span>
-                    <strong>{order.pickupEta}</strong>
+                    <span>{order.fulfillmentType === "scheduled" ? "Scheduled pickup" : "Estimated pickup"}</span>
+                    <strong>{pickupWindow(order)}</strong>
                   </div>
                   <p>We’ll keep this tracker updated automatically.</p>
                 </div>
