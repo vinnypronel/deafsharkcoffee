@@ -584,16 +584,18 @@ h1, h2, h3, p { margin-top: 0; }
 .order-status-trigger.ready i { background: white; box-shadow: 0 0 0 4px rgba(255,255,255,.16); }
 /* Live order chip in the header: a customer should be able to see that their
    order is ready without opening their account. */
-/* Same shape and hover as the Order online buttons: the cart slides out on the
+/* Same shape and hover as the Order online buttons: the order stage icon slides out on the
    right. Filled with the tan of the hero video panel, with espresso text because
    white on tan is too faint to read. */
 .header-order-chip { display: inline-flex; align-items: center; justify-content: center; min-height: 38px; border: 0; border-radius: 6px; padding: 0 16px; background: #be8e5d; color: #1a0f0a; font: inherit; font-size: 13px; font-weight: 700; white-space: nowrap; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,.22); transition: transform .28s cubic-bezier(.2, 0, 0, 1), box-shadow .28s ease; }
 .header-order-chip:hover, .header-order-chip:focus-visible { box-shadow: -4px 6px 20px rgba(0,0,0,.4); }
 .header-order-chip:focus-visible { outline: 2px solid rgba(255,255,255,.68); outline-offset: 3px; }
-.header-order-chip .btn-cart-glyph { display: inline-block; flex-shrink: 0; width: 0; height: 15px; margin-left: 0; overflow: hidden; opacity: 0; background-color: currentColor; -webkit-mask: url(/cart-icon.png) no-repeat center / contain; mask: url(/cart-icon.png) no-repeat center / contain; transform: translateX(-6px) scale(.7); transition: width .28s cubic-bezier(.2, 0, 0, 1), opacity .22s ease, margin-left .28s cubic-bezier(.2, 0, 0, 1), transform .28s cubic-bezier(.2, 0, 0, 1); }
-.header-order-chip:hover .btn-cart-glyph, .header-order-chip:focus-visible .btn-cart-glyph { width: 16px; margin-left: 8px; opacity: 1; transform: translateX(0) scale(1); }
+.header-order-chip .order-status-icon { display: inline-block; flex-shrink: 0; width: 0; height: 17px; margin-left: 0; overflow: hidden; opacity: 0; transform: translateX(-6px) scale(.7); transition: width .28s cubic-bezier(.2, 0, 0, 1), opacity .22s ease, margin-left .28s cubic-bezier(.2, 0, 0, 1), transform .28s cubic-bezier(.2, 0, 0, 1); }
+.header-order-chip:hover .order-status-icon, .header-order-chip:focus-visible .order-status-icon { width: 17px; margin-left: 8px; opacity: 1; transform: translateX(0) scale(1); }
+/* Ready gets a green check so a finished order stands out at a glance. */
+.header-order-chip.status-ready .order-status-icon { color: #1d6b35; }
 @media (max-width: 720px) { .header-order-chip { min-height: 34px; padding: 0 11px; font-size: 12px; } }
-@media (prefers-reduced-motion: reduce) { .header-order-chip, .header-order-chip .btn-cart-glyph { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .header-order-chip, .header-order-chip .order-status-icon { transition: none; } }
 .header-order-popover { position: absolute; z-index: 80; top: calc(100% + 20px); right: 0; width: min(390px, calc(100vw - 28px)); border: 1px solid var(--line); border-radius: 24px; padding: 28px; background: var(--paper); color: var(--ink); box-shadow: 0 26px 80px rgba(20,11,8,.28); }
 .header-order-popover::before { content: ""; position: absolute; top: -8px; right: 30px; width: 16px; height: 16px; transform: rotate(45deg); background: var(--paper); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
 .header-order-popover .eyebrow { margin-bottom: 8px; }

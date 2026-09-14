@@ -11,6 +11,18 @@ import { OrderStatus } from "./order-status";
 import TurnstileWidget from "./turnstile-widget";
 const BIRTHDAY_MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
+const ORDER_STATUS_LABELS: Record<string, string> = { new: "Received", preparing: "In preparation", ready: "Ready for pickup" };
+
+/* One line icon per order stage, drawn in the button text color: a steaming
+   cup once the order is received, a pickup bag while it is being made, and a
+   green check in a circle when it is ready. */
+function OrderStatusIcon({ status }: { status: string }) {
+  const common = { className: "order-status-icon", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.7, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
+  if (status === "preparing") return <svg {...common}><path d="M5 8h14l-1.2 12.5H6.2z" /><path d="M9 8V6.5a3 3 0 0 1 6 0V8" /><path d="m9.5 14 2 2 3.5-3.5" /></svg>;
+  if (status === "ready") return <svg {...common}><circle cx="12" cy="12" r="9" /><path d="m8 12.5 2.7 2.7L16 9.5" /></svg>;
+  return <svg {...common}><path d="M5 10h11v3.5a5.5 5.5 0 0 1-5.5 5.5v0A5.5 5.5 0 0 1 5 13.5z" /><path d="M16 11h1.5a2.5 2.5 0 0 1 0 5H16" /><path d="M8.5 3.5c0 1.3 1 1.6 1 3M12.5 3.5c0 1.3 1 1.6 1 3" /></svg>;
+}
+
 type ProfileResponse = { authenticated: boolean; profile?: { displayName: string; email: string; phone?: string | null; points: number; lifetimePoints: number; activity?: Array<{ id: number; pointsChange: number; balanceAfter: number; reason: string; createdAt: string }>; welcomeOffer?: { id: number; code: string; status: string; issuedAt: string; redeemedAt?: string | null } | null; studentVerified?: boolean; studentEmail?: string | null; birthday?: { onFile: boolean; month: number | null; day: number | null; isToday: boolean; eligibleToday: boolean; redeemedThisYear: boolean; maxCents: number }; referral?: { code: string | null; points: number; joined: number; rewarded: number }; promotions?: Array<{ id: number; name: string; summary: string }>; rewards?: { available: { points: number; valueCents: number; label: string } | null; progress: { tier: { points: number; valueCents: number; label: string }; pointsAway: number; percent: number; atTop: boolean } } } };
 type AuthConfig = { googleEnabled: boolean; emailEnabled: boolean; emailVerificationEnabled: boolean; passwordRecoveryEnabled: boolean; loyaltyEnabled?: boolean };
 type LenisController = { start: () => void; stop: () => void; scrollTo: (target: number, options?: Record<string, unknown>) => void };
@@ -660,11 +672,13 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
           {activeOrder && (
             <button
               type="button"
-              className="header-order-chip"
+              className={`header-order-chip status-${activeOrder.status}`}
               onClick={() => { setMobileMenuOpen(false); setTrackingOrder(activeOrder.orderNumber); }}
+              aria-label={`Order status: ${ORDER_STATUS_LABELS[activeOrder.status] ?? "Received"}`}
+              title={ORDER_STATUS_LABELS[activeOrder.status] ?? "Received"}
             >
               <span>Order status</span>
-              <span className="btn-cart-glyph" aria-hidden="true" />
+              <OrderStatusIcon status={activeOrder.status} />
             </button>
           )}
           <button className="header-icon-button" onClick={() => { setMobileMenuOpen(false); setSearchOpen((current) => !current); }} aria-label="Search menu">
