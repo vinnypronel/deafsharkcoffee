@@ -19,16 +19,29 @@ const statusLabels: Record<string, string> = {
   cancelled: "Order cancelled",
 };
 
+/* Three stages. An order marked ready counts as the final stage, since the
+   customer has nothing left to wait for but pickup. */
 const statusSteps = [
   { key: "new", label: "Received" },
   { key: "preparing", label: "Preparing" },
-  { key: "ready", label: "Ready" },
   { key: "complete", label: "Complete" },
 ] as const;
+
+/* Matches the account drawer's exit animation, so the tracker slides back out
+   to the right instead of vanishing. */
+const DRAWER_EXIT_MS = 300;
 
 export function OrderStatus({ orderNumber, onClose }: { orderNumber: string; onClose: () => void }) {
   const [order, setOrder] = useState<CustomerOrder | null>(null);
   const [error, setError] = useState("");
+  const [closing, setClosing] = useState(false);
+
+  function requestClose() {
+    if (closing) return;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    setClosing(true);
+    window.setTimeout(onClose, reducedMotion ? 0 : DRAWER_EXIT_MS);
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -65,19 +78,17 @@ export function OrderStatus({ orderNumber, onClose }: { orderNumber: string; onC
   }, [orderNumber]);
 
   const cancelled = order?.status === "cancelled";
-  const currentStep = Math.max(0, statusSteps.findIndex((step) => step.key === order?.status));
+  const currentStep = order?.status === "ready" ? statusSteps.length - 1 : Math.max(0, statusSteps.findIndex((step) => step.key === order?.status));
 
   return (
-    <div className="account-backdrop" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <section className="account-modal order-status-modal" role="dialog" aria-modal="true" aria-label="Order status" data-lenis-prevent>
-        <button className="account-close" onClick={onClose} aria-label="Close order status">×</button>
+    <div className="account-backdrop" role="presentation" data-closing={closing ? "true" : undefined} onClick={(event) => { if (event.target === event.currentTarget) requestClose(); }}>
+      <section className="account-modal order-status-modal" role="dialog" aria-modal="true" aria-label="Order status" data-closing={closing ? "true" : undefined} data-lenis-prevent>
+        <button className="account-close" onClick={requestClose} aria-label="Close order status">×</button>
         <div className="order-status-shell">
           <header className="order-status-heading">
-            <span>Order status</span>
-            <h2>#{orderNumber}</h2>
-            <p role="status" aria-live="polite">
+            <h2 role="status" aria-live="polite">
               {order ? statusLabels[order.status] || order.status : "Loading your order…"}
-            </p>
+            </h2>
           </header>
 
           {error && <p role="alert" className="account-form-message error">{error}</p>}
