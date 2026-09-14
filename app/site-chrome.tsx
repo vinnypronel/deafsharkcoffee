@@ -660,11 +660,11 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
           {activeOrder && (
             <button
               type="button"
-              className={`header-order-chip status-${activeOrder.status}`}
+              className="header-order-chip"
               onClick={() => { setMobileMenuOpen(false); setTrackingOrder(activeOrder.orderNumber); }}
             >
-              <i aria-hidden="true" />
-              <span>{activeOrder.status === "ready" ? "Order ready" : activeOrder.status === "preparing" ? "Preparing" : "Order status"}</span>
+              <span>Order status</span>
+              <span className="btn-cart-glyph" aria-hidden="true" />
             </button>
           )}
           <button className="header-icon-button" onClick={() => { setMobileMenuOpen(false); setSearchOpen((current) => !current); }} aria-label="Search menu">
