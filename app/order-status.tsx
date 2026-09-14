@@ -112,7 +112,7 @@ export function OrderStatus({ orderNumber, onClose }: { orderNumber: string; onC
         <button className="account-close" onClick={requestClose} aria-label="Close order status">×</button>
         <div className="order-status-shell">
           <header className="order-status-heading">
-            <span>Current status</span>
+            <span>Current status:</span>
             {/* The blinking caret says the status is live and still moving. It
                 stops once the order is complete or cancelled. */}
             <h2 role="status" aria-live="polite">
@@ -163,7 +163,6 @@ export function OrderStatus({ orderNumber, onClose }: { orderNumber: string; onC
               <section className="order-status-items" aria-labelledby="order-items-title">
                 <header>
                   <div>
-                    <span>Your order</span>
                     <h3 id="order-items-title">Items ordered</h3>
                   </div>
                   <strong>{"$"}{(order.totalCents / 100).toFixed(2)}</strong>
