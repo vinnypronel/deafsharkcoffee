@@ -34,6 +34,8 @@ body::-webkit-scrollbar {
 }
 .desktop-scroll-thumb { display: none; }
 @media (min-width: 1181px) {
+  /* A real handle: grab it and drag to move through the page. The 7px bar sits
+     inside a wider invisible hit area so it is easy to catch with a mouse. */
   .desktop-scroll-thumb {
     position: fixed;
     z-index: 90;
@@ -46,10 +48,16 @@ body::-webkit-scrollbar {
     background: var(--espresso);
     opacity: 0;
     pointer-events: none;
+    cursor: grab;
+    touch-action: none;
     transform: translate3d(0, 0, 0);
-    transition: opacity 180ms ease;
+    transition: opacity 180ms ease, width 160ms ease, right 160ms ease;
     will-change: transform, height, opacity;
   }
+  .desktop-scroll-thumb::before { content: ""; position: absolute; inset: -6px -3px -6px -12px; }
+  .desktop-scroll-thumb:hover { width: 10px; right: 1px; }
+  html.scroll-thumb-dragging, html.scroll-thumb-dragging * { cursor: grabbing !important; user-select: none !important; -webkit-user-select: none !important; }
+  html.scroll-thumb-dragging .desktop-scroll-thumb { width: 10px; right: 1px; opacity: 1; }
 }
 html.lenis, html.lenis body { height: auto; }
 .lenis.lenis-smooth { scroll-behavior: auto !important; }
