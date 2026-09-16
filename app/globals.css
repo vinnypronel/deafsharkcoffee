@@ -798,6 +798,17 @@ h1, h2, h3, p { margin-top: 0; }
 .account-details strong { color: var(--ink); font-size: 14.5px; }
 .account-details > small { color: var(--muted); font-size: 12px; line-height: 1.45; }
 .account-details a { color: var(--espresso); font-weight: 800; }
+.account-legal-update { display: grid; gap: 10px; margin: 16px 0; border: 1px solid rgba(154,52,44,.28); border-radius: 14px; padding: 15px 16px; background: #fff7f2; text-align: left; }
+.account-legal-update > p { margin: 0; color: var(--muted); font-size: 12px; }
+.account-legal-update label { display: flex; align-items: flex-start; gap: 9px; color: var(--muted); font-size: 12px; line-height: 1.4; }
+.account-legal-update input { flex: 0 0 auto; margin-top: 2px; accent-color: var(--espresso); }
+.account-legal-update a { color: var(--espresso); font-weight: 800; }
+.account-legal-update .primary-button { width: 100%; }
+.account-data-actions { display: grid; gap: 8px; margin: 16px 0 4px; border-top: 1px solid rgba(34,18,12,.12); padding-top: 16px; }
+.account-data-actions > a, .account-data-actions > button { border: 0; background: transparent; color: var(--espresso); font: inherit; font-size: 13px; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.account-data-actions > button { color: #a33c2b; }
+.account-data-actions > button:disabled { cursor: wait; opacity: .55; }
+.account-data-actions > small { color: var(--muted); font-size: 11.5px; line-height: 1.45; }
 .account-profile-form { display: grid; gap: 12px; margin: 16px 0; text-align: left; }
 .account-profile-form label { display: grid; gap: 6px; color: var(--ink); font-size: 12px; font-weight: 800; }
 .account-profile-form input { width: 100%; min-height: 44px; box-sizing: border-box; border: 1px solid rgba(45,26,18,.16); border-radius: 12px; background: #fff; color: var(--ink); padding: 0 13px; font: inherit; }
@@ -907,6 +918,7 @@ h1, h2, h3, p { margin-top: 0; }
 .primary-button:hover { background: var(--ink); }
 .primary-button:disabled { opacity: .55; cursor: wait; transform: none; }
 .site-error { min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; background: var(--cream); color: var(--ink); text-align: center; }
+.site-error-logo { width: clamp(108px, 10vw, 132px); height: auto; margin-bottom: 8px; border-radius: 50%; }
 .site-error h1 { max-width: 760px; margin: 10px 0 12px; font-family: var(--font-display); font-size: clamp(42px, 7vw, 82px); font-weight: 400; line-height: .98; }
 .site-error p { max-width: 600px; margin: 0; color: var(--muted); line-height: 1.6; }
 .site-error-actions { display: flex; gap: 12px; align-items: center; justify-content: center; margin-top: 24px; }
@@ -4066,6 +4078,11 @@ body.modal-open { touch-action: none; }
   color: var(--gold);
   flex-shrink: 0;
 }
+.checkout-sms-consent { display: grid; grid-template-columns: 22px 1fr; align-items: start; gap: 10px; margin: -5px 0 20px; border: 1px solid var(--line); border-radius: 14px; padding: 13px 15px; background: #fff; cursor: pointer; }
+.checkout-sms-consent input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--teal); }
+.checkout-sms-consent span { display: grid; gap: 3px; }
+.checkout-sms-consent strong { font-size: 13.5px; }
+.checkout-sms-consent small { color: var(--muted); font-size: 12px; font-weight: 500; line-height: 1.4; }
 .checkout-card > .primary-button { width: 100%; }
 .checkout-account-note { color: var(--muted); font-size: 14px; }
 .auth-required-note { margin: -2px 0 0; color: var(--muted); font-size: 12.5px; }
@@ -6091,3 +6108,37 @@ video:-moz-full-screen {
   .promotion-row { flex-direction: column; align-items: stretch; }
 }
 .birthday-form-title { color: var(--ink); font-size: 12.5px; font-weight: 800; }
+
+/* Desktop menu category strip: arrows either side page the strip sideways so
+   hidden categories can be reached without scrolling the strip by hand. Phones
+   use their own arrowed strip, so this stays above the mobile breakpoint. */
+@media (min-width: 781px) {
+  .standalone-order .category-nav-wrap.has-arrows {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) 28px;
+    align-items: center;
+    gap: 6px;
+    overflow: visible;
+    mask-image: none;
+    -webkit-mask-image: none;
+  }
+  .standalone-order .category-nav-wrap.has-arrows .category-nav {
+    scroll-behavior: smooth;
+  }
+  .category-nav-arrow {
+    width: 28px;
+    height: 34px;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: var(--espresso);
+    font: 700 28px/1 Georgia, serif;
+    cursor: pointer;
+    transition: opacity .2s ease, transform .2s ease;
+  }
+  .category-nav-arrow:hover:not(:disabled) { transform: scale(1.12); }
+  .category-nav-arrow:focus-visible { outline: 2px solid var(--espresso); outline-offset: 2px; border-radius: 4px; }
+  .category-nav-arrow:disabled { opacity: .25; cursor: default; }
+}
+
+.account-signup-closed { display: block; margin-top: 10px; color: var(--muted); font-size: 12.5px; line-height: 1.45; }

@@ -5,6 +5,8 @@ import { getAuth } from "../../../../lib/auth";
 import { verifyPublicForm } from "../../../../lib/public-form";
 import { normalizeReferralCode } from "../../../../lib/referral";
 import { referrerForCode } from "../../../../lib/referral-store";
+import { PRIVACY_VERSION, TERMS_VERSION } from "../../../../lib/legal-policy";
+import { ACCOUNTS_ENABLED } from "../../../accounts";
 
 /* Account creation and profile capture in one server request.
 
@@ -30,6 +32,7 @@ type SignupPayload = {
   birthdayMonth?: number | null;
   birthdayDay?: number | null;
   policiesAccepted?: boolean;
+  ageGuardianConfirmed?: boolean;
   marketingOptIn?: boolean;
   referralCode?: string;
   callbackURL?: string;
@@ -61,6 +64,14 @@ async function sendLinkAndRespond(request: Request, email: string, callbackURL?:
 }
 
 export async function POST(request: Request) {
+  /* Account creation is closed before launch. Refuse here as well as at the
+     better-auth layer, so the API cannot mint an account while sign-up is off. */
+  if (!ACCOUNTS_ENABLED) {
+    return Response.json(
+      { error: "New accounts are not open yet. Please check back soon." },
+      { status: 503, headers: { "Cache-Control": "no-store" } },
+    );
+  }
   let payload: SignupPayload;
   try {
     payload = (await request.json()) as SignupPayload;
@@ -94,6 +105,9 @@ export async function POST(request: Request) {
   }
   if (payload.policiesAccepted !== true) {
     return badRequest("Accept the Terms and Privacy Policy to create an account.");
+  }
+  if (payload.ageGuardianConfirmed !== true) {
+    return badRequest("Confirm that you are at least 13 and have a parent or guardian's permission if you are under 18.");
   }
 
   /* Account creation sends a real email on every attempt, so it needs the same
@@ -169,9 +183,12 @@ export async function POST(request: Request) {
     referredByUserId,
     termsAcceptedAt: now,
     privacyAcceptedAt: now,
+    termsVersion: TERMS_VERSION,
+    privacyVersion: PRIVACY_VERSION,
+    ageGuardianConfirmedAt: now,
   }).onConflictDoUpdate({
     target: customerProfiles.userId,
-    set: { email: account.email, displayName, phone, birthdayMonth, birthdayDay, birthdaySetAt, referredByUserId, termsAcceptedAt: now, privacyAcceptedAt: now, updatedAt: now },
+    set: { email: account.email, displayName, phone, birthdayMonth, birthdayDay, birthdaySetAt, referredByUserId, termsAcceptedAt: now, privacyAcceptedAt: now, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION, ageGuardianConfirmedAt: now, updatedAt: now },
   });
 
   if (payload.marketingOptIn === true) {

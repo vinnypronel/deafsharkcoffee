@@ -17,8 +17,11 @@ import { effectiveOrderingHours, type WeeklyHours } from "./store-hours.ts";
 
 export const ORDER_MAX_BODY_BYTES = 64 * 1024;
 export const ORDER_MAX_LINE_ITEMS = 40;
-export const ORDER_MAX_TOTAL_QUANTITY = 100;
-export const ORDER_MAX_ITEM_QUANTITY = 20;
+/* Up to 99 of any one menu item per online order, counted across every cart
+   line for that item, so splitting it into differently customized lines does
+   not get around the limit. The total is only a sanity bound on top of that. */
+export const ORDER_MAX_TOTAL_QUANTITY = 999;
+export const ORDER_MAX_ITEM_QUANTITY = 99;
 export const NJ_SALES_TAX_RATE = 0.06625;
 export const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 
@@ -161,6 +164,7 @@ export function normalizeCartItems(value: unknown): CartPayload[] {
   }
 
   let totalQuantity = 0;
+  const quantityByItem = new Map<string, number>();
   const items = value.map((entry) => {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
       throw new OrderRequestError("One of the items in your cart is not valid.", 400, "invalid_item");
@@ -183,8 +187,17 @@ export function normalizeCartItems(value: unknown): CartPayload[] {
       throw new OrderRequestError("One of the items in your cart is not valid.", 400, "invalid_item");
     }
     totalQuantity += quantity as number;
+    quantityByItem.set(id, (quantityByItem.get(id) ?? 0) + (quantity as number));
     return { id, quantity: quantity as number, selection: selection as ProductSelection | undefined };
   });
+
+  if ([...quantityByItem.values()].some((count) => count > ORDER_MAX_ITEM_QUANTITY)) {
+    throw new OrderRequestError(
+      `You can order up to ${ORDER_MAX_ITEM_QUANTITY} of each item online. Please call the shop for larger orders.`,
+      400,
+      "item_quantity_limit",
+    );
+  }
 
   if (totalQuantity > ORDER_MAX_TOTAL_QUANTITY) {
     throw new OrderRequestError(

@@ -23,8 +23,8 @@ function OrderStatusIcon({ status }: { status: string }) {
   return <svg {...common}><path d="M5 10h11v3.5a5.5 5.5 0 0 1-5.5 5.5v0A5.5 5.5 0 0 1 5 13.5z" /><path d="M16 11h1.5a2.5 2.5 0 0 1 0 5H16" /><path d="M8.5 3.5c0 1.3 1 1.6 1 3M12.5 3.5c0 1.3 1 1.6 1 3" /></svg>;
 }
 
-type ProfileResponse = { authenticated: boolean; profile?: { displayName: string; email: string; phone?: string | null; points: number; lifetimePoints: number; activity?: Array<{ id: number; pointsChange: number; balanceAfter: number; reason: string; createdAt: string }>; welcomeOffer?: { id: number; code: string; status: string; issuedAt: string; redeemedAt?: string | null } | null; studentVerified?: boolean; studentEmail?: string | null; birthday?: { onFile: boolean; month: number | null; day: number | null; isToday: boolean; eligibleToday: boolean; redeemedThisYear: boolean; maxCents: number }; referral?: { code: string | null; points: number; joined: number; rewarded: number }; promotions?: Array<{ id: number; name: string; summary: string }>; rewards?: { available: { points: number; valueCents: number; label: string } | null; progress: { tier: { points: number; valueCents: number; label: string }; pointsAway: number; percent: number; atTop: boolean } } } };
-type AuthConfig = { googleEnabled: boolean; emailEnabled: boolean; emailVerificationEnabled: boolean; passwordRecoveryEnabled: boolean; loyaltyEnabled?: boolean };
+type ProfileResponse = { authenticated: boolean; profile?: { displayName: string; email: string; phone?: string | null; points: number; lifetimePoints: number; activity?: Array<{ id: number; pointsChange: number; balanceAfter: number; reason: string; createdAt: string }>; welcomeOffer?: { id: number; code: string; status: string; issuedAt: string; redeemedAt?: string | null } | null; studentVerified?: boolean; studentEmail?: string | null; birthday?: { onFile: boolean; month: number | null; day: number | null; isToday: boolean; eligibleToday: boolean; redeemedThisYear: boolean; maxCents: number }; referral?: { code: string | null; points: number; joined: number; rewarded: number }; promotions?: Array<{ id: number; name: string; summary: string }>; rewards?: { available: { points: number; valueCents: number; label: string } | null; progress: { tier: { points: number; valueCents: number; label: string }; pointsAway: number; percent: number; atTop: boolean } }; legal?: { acceptedCurrent: boolean; termsVersion: string; privacyVersion: string } } };
+type AuthConfig = { googleEnabled: boolean; emailEnabled: boolean; emailVerificationEnabled: boolean; passwordRecoveryEnabled: boolean; loyaltyEnabled?: boolean; signupEnabled?: boolean };
 type LenisController = { start: () => void; stop: () => void; scrollTo: (target: number, options?: Record<string, unknown>) => void };
 type WindowWithLenis = Window & { __lenis?: LenisController };
 
@@ -110,6 +110,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
     emailEnabled: false,
     emailVerificationEnabled: false,
     passwordRecoveryEnabled: false,
+    signupEnabled: false,
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const links = [["/", "Home"], ["/menu", "Menu"], ["/about", "Our Story"], ["/events", "Events"], ["/contact", "Visit Us"], ["/employment", "Apply now"]];
@@ -132,6 +133,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
   const [authBirthdayMonth, setAuthBirthdayMonth] = useState("");
   const [authBirthdayDay, setAuthBirthdayDay] = useState("");
   const [authPoliciesAccepted, setAuthPoliciesAccepted] = useState(false);
+  const [authAgeGuardianConfirmed, setAuthAgeGuardianConfirmed] = useState(false);
   /* Signup sends a real email per attempt, so it carries the same bot check as
      the other public forms. */
   const [signupTurnstileToken, setSignupTurnstileToken] = useState("");
@@ -146,6 +148,10 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
   const [verifyEmail, setVerifyEmail] = useState("");
   const [resetToken, setResetToken] = useState("");
   const [signOutError, setSignOutError] = useState("");
+  const [accountActionMessage, setAccountActionMessage] = useState("");
+  const [accountActionBusy, setAccountActionBusy] = useState(false);
+  const [legalPoliciesAccepted, setLegalPoliciesAccepted] = useState(false);
+  const [legalAgeGuardianConfirmed, setLegalAgeGuardianConfirmed] = useState(false);
   /* Live status of the customer's current order, shown in the header so they do
      not have to open their account to see whether it is ready. */
   const [activeOrder, setActiveOrder] = useState<{ orderNumber: string; status: string } | null>(null);
@@ -409,6 +415,13 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
     // This deep link is used by the protected admin page.
   }, []);
 
+  /* Account creation can be closed before launch. If it is, never sit in
+     sign-up mode: fall back to sign-in so the closed create-account form and
+     the ?account=signup deep link cannot be used. */
+  useEffect(() => {
+    if (authConfig.signupEnabled === false && authMode === "signup") setAuthMode("signin");
+  }, [authConfig.signupEnabled, authMode]);
+
   useEffect(() => {
     if (searchOpen) searchInputRef.current?.focus();
   }, [searchOpen]);
@@ -478,6 +491,11 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
 
   async function handleEmailSignIn(e: React.FormEvent) {
     e.preventDefault();
+    if (authMode === "signup" && !authConfig.signupEnabled) {
+      setAuthError("New accounts are not open yet. Please sign in if you already have one.");
+      setAuthMode("signin");
+      return;
+    }
     if (authMode === "signup" && (!authFirstName.trim() || !authLastName.trim())) {
       setAuthError("Enter your first and last name to create your Deaf Shark account.");
       return;
@@ -502,6 +520,10 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
       setAuthError("Accept the Terms and Privacy Policy to create your account.");
       return;
     }
+    if (authMode === "signup" && !authAgeGuardianConfirmed) {
+      setAuthError("Confirm that you are at least 13 and have a parent or guardian's permission if you are under 18.");
+      return;
+    }
     setAuthBusy(true);
     setAuthError("");
     try {
@@ -523,6 +545,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
             birthdayMonth: authBirthdayMonth ? Number(authBirthdayMonth) : null,
             birthdayDay: authBirthdayDay ? Number(authBirthdayDay) : null,
             policiesAccepted: authPoliciesAccepted,
+            ageGuardianConfirmed: authAgeGuardianConfirmed,
             marketingOptIn: authMarketingOptIn,
             callbackURL: window.location.href,
             turnstileToken: signupTurnstileToken,
@@ -647,6 +670,59 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
       setSignOutError("Unable to sign out. Please try again.");
     } finally {
       setAuthBusy(false);
+    }
+  }
+
+  async function acceptCurrentPolicies(event: React.FormEvent) {
+    event.preventDefault();
+    if (!legalPoliciesAccepted || !legalAgeGuardianConfirmed) {
+      setAccountActionMessage("Accept both required confirmations to continue.");
+      return;
+    }
+    setAccountActionBusy(true);
+    setAccountActionMessage("");
+    try {
+      const response = await fetch("/api/profile/legal-acceptance", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ policiesAccepted: true, ageGuardianConfirmed: true }),
+      });
+      const data = await response.json() as { error?: string; legal?: NonNullable<ProfileResponse["profile"]>["legal"] };
+      if (!response.ok || !data.legal) throw new Error(data.error || "We could not save your acceptance.");
+      setProfile((current) => current?.authenticated && current.profile
+        ? { ...current, profile: { ...current.profile, legal: data.legal } }
+        : current);
+      setAccountActionMessage("Your acceptance was saved.");
+    } catch (error) {
+      setAccountActionMessage(error instanceof Error ? error.message : "We could not save your acceptance.");
+    } finally {
+      setAccountActionBusy(false);
+    }
+  }
+
+  async function closeCustomerAccount() {
+    const confirmation = window.prompt("Account closure cannot be undone. Type DELETE to close your account, forfeit loyalty points, and anonymize retained order records.");
+    if (confirmation === null) return;
+    setAccountActionBusy(true);
+    setAccountActionMessage("");
+    try {
+      const response = await fetch("/api/profile/close", {
+        method: "DELETE",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmation }),
+      });
+      const data = await response.json() as { error?: string; message?: string };
+      if (!response.ok) throw new Error(data.error || "We could not close your account.");
+      setProfile({ authenticated: false });
+      setRecentOrders([]);
+      setAccountActionMessage(data.message || "Your account was closed.");
+      window.dispatchEvent(new Event("deaf-shark-session-changed"));
+    } catch (error) {
+      setAccountActionMessage(error instanceof Error ? error.message : "We could not close your account.");
+    } finally {
+      setAccountActionBusy(false);
     }
   }
 
@@ -1068,6 +1144,10 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                         <span>I agree to the <Link href="/terms" target="_blank">Terms</Link> and acknowledge the <Link href="/privacy" target="_blank">Privacy Policy</Link>. <b className="consent-required" aria-label="required">*</b></span>
                       </label>
                       <label>
+                        <input type="checkbox" checked={authAgeGuardianConfirmed} onChange={(e) => setAuthAgeGuardianConfirmed(e.target.checked)} />
+                        <span>I am at least 13. If I am under 18, I have permission and involvement from a parent or legal guardian. <b className="consent-required" aria-label="required">*</b></span>
+                      </label>
+                      <label>
                         <input type="checkbox" checked={authMarketingOptIn} onChange={(e) => setAuthMarketingOptIn(e.target.checked)} />
                         <span>Send me Deaf Shark news, offers, and event updates. I can unsubscribe at any time. <b>Optional</b></span>
                       </label>
@@ -1110,9 +1190,10 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                 {authError && <p className="account-form-message error" role="alert">{authError}</p>}
                 {!authConfig.emailEnabled && !authConfig.googleEnabled && <p role="status">Account sign-in is currently unavailable. Please try again later or call the shop.</p>}
                 {authNotice && <p className="account-form-message" role="status">{authNotice}</p>}
-                {passwordFlow === "credentials" && authConfig.emailEnabled && <button type="button" className="account-mode-toggle" onClick={() => { setAuthMode(authMode === "signin" ? "signup" : "signin"); setAuthError(""); setAuthNotice(""); }}>
+                {passwordFlow === "credentials" && authConfig.emailEnabled && authConfig.signupEnabled && <button type="button" className="account-mode-toggle" onClick={() => { setAuthMode(authMode === "signin" ? "signup" : "signin"); setAuthError(""); setAuthNotice(""); }}>
                   {authMode === "signin" ? "New here? Create an account" : "Already have an account? Sign in"}
                 </button>}
+                {passwordFlow === "credentials" && authConfig.emailEnabled && !authConfig.signupEnabled && <small className="account-signup-closed" role="status">New customer accounts are coming soon. Sign in above if you already have one.</small>}
                 {passwordFlow === "credentials" && authMode === "signin" && authConfig.passwordRecoveryEnabled && <button type="button" className="account-mode-toggle" onClick={() => { setPasswordFlow("request"); setAuthError(""); setAuthNotice(""); }}>Forgot your password?</button>}
                 {passwordFlow !== "credentials" && <button type="button" className="account-mode-toggle" onClick={() => { setPasswordFlow("credentials"); setAuthError(""); setAuthNotice(""); }}>Back to sign in</button>}
                 {!authConfig.googleEnabled && !authConfig.emailEnabled && <small>Customer accounts are temporarily unavailable while secure sign-in is being connected.</small>}
@@ -1124,6 +1205,15 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                 <span className="account-welcome">Welcome back</span>
                 <h2>{profile.profile.displayName}</h2>
                 <p>{profile.profile.email}</p>
+                {profile.profile.legal && !profile.profile.legal.acceptedCurrent && (
+                  <form className="account-legal-update" onSubmit={acceptCurrentPolicies}>
+                    <strong>Review the current account terms</strong>
+                    <p>Accept version {profile.profile.legal.termsVersion} before placing another order.</p>
+                    <label><input type="checkbox" checked={legalPoliciesAccepted} onChange={(event) => setLegalPoliciesAccepted(event.target.checked)} /><span>I agree to the <Link href="/terms" target="_blank">Terms</Link> and acknowledge the <Link href="/privacy" target="_blank">Privacy Policy</Link>.</span></label>
+                    <label><input type="checkbox" checked={legalAgeGuardianConfirmed} onChange={(event) => setLegalAgeGuardianConfirmed(event.target.checked)} /><span>I am at least 13. If I am under 18, I have permission and involvement from a parent or legal guardian.</span></label>
+                    <button type="submit" className="primary-button" disabled={accountActionBusy}>{accountActionBusy ? "Saving..." : "Accept and continue"}</button>
+                  </form>
+                )}
                 {profile.profile.rewards && <div className="loyalty-card">
                   <span>Deaf Shark Rewards</span>
                   <strong>{profile.profile.points} points</strong>
@@ -1222,6 +1312,12 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                   {profile.profile.birthday?.onFile && profile.profile.birthday.month && profile.profile.birthday.day && <div><span>Birthday</span><strong>{BIRTHDAY_MONTH_NAMES[profile.profile.birthday.month - 1]} {profile.profile.birthday.day}</strong></div>}
                   <small>To change your name, number or birthday, call the shop at <a href="tel:+19084818884">(908) 481-8884</a>.</small>
                 </div>
+                <div className="account-data-actions">
+                  <a href="/api/profile/export" download>Download my information</a>
+                  <button type="button" onClick={() => void closeCustomerAccount()} disabled={accountActionBusy}>Close and delete my account</button>
+                  <small>Closing your account forfeits loyalty points. We anonymize retained order records and keep only records needed for legal, accounting, security, or opt-out purposes.</small>
+                </div>
+                {accountActionMessage && <small className="account-form-message" role="status">{accountActionMessage}</small>}
                 <button type="button" className="account-signout" onClick={handleSignOut} disabled={authBusy}>
                   Sign out
                 </button>

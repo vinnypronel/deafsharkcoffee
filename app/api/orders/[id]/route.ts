@@ -172,7 +172,7 @@ export async function PATCH(
     }
     const updated = { ...existing, ...update };
 
-    if (existing.status !== "ready" && updated.status === "ready" && updated.phone) {
+    if (existing.status !== "ready" && updated.status === "ready" && updated.phone && existing.smsOptIn) {
       await notifyOrderReady(updated.phone, updated.orderNumber);
     }
 

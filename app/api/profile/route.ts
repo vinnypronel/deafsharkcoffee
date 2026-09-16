@@ -10,6 +10,7 @@ import { ensureReferralCode } from "../../../lib/referral-store";
 import { loadPromotions } from "../../../lib/promotion-store";
 import { describePromotion, promotionIsCurrent } from "../../../lib/promotions";
 import { menuProducts } from "../../menu-data";
+import { PRIVACY_VERSION, TERMS_VERSION, hasCurrentLegalAcceptance } from "../../../lib/legal-policy";
 
 /* No signup points: the shop's programme gives new members a half-off drink
    coupon instead, and points are earned by spending. */
@@ -110,6 +111,11 @@ export async function GET(request: Request) {
         rewarded: Number(referralCounts[1][0]?.count ?? 0),
       },
       promotions: currentPromotions,
+      legal: {
+        acceptedCurrent: hasCurrentLegalAcceptance(profile),
+        termsVersion: TERMS_VERSION,
+        privacyVersion: PRIVACY_VERSION,
+      },
     },
   });
 }

@@ -5,7 +5,8 @@ import Link from "next/link";
 export default function NotFound() {
   return (
     <main className="site-error">
-      <span className="eyebrow">Page not found</span>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img className="site-error-logo" src="/deafshark-logo-640.webp" width={132} height={132} alt="Deaf Shark Coffee" />
       <h1>We could not find that page.</h1>
       <p>
         It may have moved, or the link may be out of date. The menu, hours, and

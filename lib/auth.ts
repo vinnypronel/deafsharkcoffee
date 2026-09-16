@@ -4,6 +4,7 @@ import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { getDb } from "../db";
 import * as schema from "../db/schema";
 import { sendPasswordResetEmail, sendVerificationEmail, transactionalEmailConfigured } from "./transactional-email";
+import { ACCOUNTS_ENABLED } from "../app/accounts";
 
 function createAuth() {
   const googleClientId = env.GOOGLE_CLIENT_ID?.trim();
@@ -26,6 +27,10 @@ function createAuth() {
     }),
     emailAndPassword: {
       enabled: emailEnabled,
+      /* Sign-in stays open; only new-account creation follows the master switch,
+         so existing customers and staff can still reach their accounts while
+         public sign-up is closed before launch. */
+      disableSignUp: !ACCOUNTS_ENABLED,
       minPasswordLength: 8,
       maxPasswordLength: 128,
       requireEmailVerification: true,

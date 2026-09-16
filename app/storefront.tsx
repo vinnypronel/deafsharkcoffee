@@ -231,14 +231,25 @@ function ProductVisual({ product, compact = false, menuPreview = false }: { prod
   );
 }
 
+/* Online orders allow up to 99 of any one menu item, counted across every cart
+   line for it. The server enforces the same limit in lib/order-intake.ts. */
+const MAX_PER_ITEM = 99;
+
+function quantityInCart(cart: CartItem[], productId: string, excludeKey?: string) {
+  return cart.reduce((sum, item) => (item.id === productId && item.key !== excludeKey ? sum + item.quantity : sum), 0);
+}
+
 function ProductConfigurator({
   product,
   initialItem,
+  maxQuantity = MAX_PER_ITEM,
   onClose,
   onAdd,
 }: {
   product: Product;
   initialItem?: CartItem;
+  /** How many more of this item the cart can take. */
+  maxQuantity?: number;
   onClose: () => void;
   onAdd: (item: CartItem) => void;
 }) {
@@ -380,11 +391,12 @@ function ProductConfigurator({
   };
 
   function add() {
+    if (maxQuantity < 1) return;
     onAdd({
       key: initialItem?.key ?? `${product.id}-${Date.now()}`,
       id: product.id,
       name: product.name,
-      quantity: config.quantity,
+      quantity: Math.min(config.quantity, maxQuantity),
       unitPrice,
       options: pricedSelection.options,
       prepStation: prepStationFor(product),
@@ -580,11 +592,11 @@ function ProductConfigurator({
           <div className="add-row">
             <div className="quantity-control" aria-label="Quantity">
               <button onClick={() => setConfig({ ...config, quantity: Math.max(1, config.quantity - 1) })} aria-label="Decrease quantity">−</button>
-              <strong>{config.quantity}</strong>
-              <button onClick={() => setConfig({ ...config, quantity: config.quantity + 1 })} aria-label="Increase quantity">+</button>
+              <strong>{Math.min(config.quantity, Math.max(maxQuantity, 1))}</strong>
+              <button onClick={() => setConfig({ ...config, quantity: Math.min(Math.max(maxQuantity, 1), config.quantity + 1) })} disabled={config.quantity >= maxQuantity} aria-label="Increase quantity" title={config.quantity >= maxQuantity ? `Limit of ${MAX_PER_ITEM} per item` : undefined}>+</button>
             </div>
             {CUSTOM_CHECKOUT_ENABLED ? (
-              <button className="primary-button add-button" onClick={add}>{initialItem ? "Update item" : "Add to order"} · {money(unitPrice * config.quantity)}</button>
+              <button className="primary-button add-button" onClick={add} disabled={maxQuantity < 1}>{maxQuantity < 1 ? `Limit of ${MAX_PER_ITEM} reached` : <>{initialItem ? "Update item" : "Add to order"} · {money(unitPrice * Math.min(config.quantity, maxQuantity))}</>}</button>
             ) : (
               <OrderOnlineLink className="primary-button add-button" ariaLabel={`Order ${product.name} online`}>
                 Order online
@@ -730,6 +742,9 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   const categoryNavRef = useRef<HTMLDivElement | null>(null);
   const mobileCategoryNavRef = useRef<HTMLDivElement | null>(null);
   const categoryIndicatorRef = useRef<HTMLSpanElement | null>(null);
+  /* Whether the desktop category strip can scroll further left or right, which
+     switches its arrow buttons on and off. */
+  const [categoryStripEdges, setCategoryStripEdges] = useState({ atStart: true, atEnd: true });
   const [products, setProducts] = useState<Product[]>(menuProducts);
   const [featuredSlides, setFeaturedSlides] = useState<FeaturedProduct[]>(featuredProducts);
   const [heroProduct, setHeroProduct] = useState<FeaturedProduct>(featuredProducts[0]);
@@ -1175,6 +1190,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   }
 
   function quickAdd(product: Product) {
+    if (quantityInCart(cart, product.id) >= MAX_PER_ITEM) return;
     setCart((current) => [...current, {
       key: `${product.id}-${Date.now()}`,
       id: product.id,
@@ -1221,6 +1237,9 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   }
 
   function handleSaveConfiguredItem(item: CartItem) {
+    const allowed = MAX_PER_ITEM - quantityInCart(cart, item.id, editingCartItem?.key);
+    if (allowed < 1) return;
+    item = { ...item, quantity: Math.min(item.quantity, allowed) };
     if (editingCartItem) {
       setCart((current) =>
         current.map((c) => (c.key === editingCartItem.key ? item : c))
@@ -1253,6 +1272,35 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
     setActiveCategory(category);
     const first = products.find((p) => p.category === category);
     if (first) setMenuShowcaseProduct(first);
+  }
+
+  /* Reads the strip on demand rather than holding on to one element, because
+     the menu can re-render the strip after this component mounts. */
+  const updateCategoryStripEdges = useCallback(() => {
+    const nav = categoryNavRef.current;
+    if (!nav) return;
+    const maxScroll = nav.scrollWidth - nav.clientWidth;
+    const next = { atStart: nav.scrollLeft <= 2, atEnd: nav.scrollLeft >= maxScroll - 2 };
+    setCategoryStripEdges((current) => (current.atStart === next.atStart && current.atEnd === next.atEnd ? current : next));
+  }, []);
+
+  useEffect(() => {
+    if (!isMenuPage) return;
+    const frame = window.requestAnimationFrame(updateCategoryStripEdges);
+    window.addEventListener("resize", updateCategoryStripEdges, { passive: true });
+    document.fonts?.ready.then(updateCategoryStripEdges).catch(() => undefined);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", updateCategoryStripEdges);
+    };
+  }, [isMenuPage, updateCategoryStripEdges]);
+
+  /* The arrows page the strip sideways to reveal hidden categories. They do not
+     change the selected category. */
+  function scrollCategoryStrip(direction: -1 | 1) {
+    const nav = categoryNavRef.current;
+    if (!nav) return;
+    nav.scrollBy({ left: direction * Math.max(160, nav.clientWidth * 0.7), behavior: "smooth" });
   }
 
   function stepMobileCategory(direction: -1 | 1) {
@@ -1603,8 +1651,17 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
           {/* Right Column: Menu List with Dotted Leaders */}
           <div className="menu-list-panel">
             {isMenuPage && (
-              <div className="category-nav-wrap">
-                <div ref={categoryNavRef} className="category-nav" role="tablist" aria-label="Menu categories">
+              <div className="category-nav-wrap has-arrows">
+                <button
+                  type="button"
+                  className="category-nav-arrow"
+                  onClick={() => scrollCategoryStrip(-1)}
+                  disabled={categoryStripEdges.atStart}
+                  aria-label="Show earlier menu categories"
+                >
+                  <span aria-hidden="true">‹</span>
+                </button>
+                <div ref={categoryNavRef} className="category-nav" role="tablist" aria-label="Menu categories" onScroll={updateCategoryStripEdges}>
                   {categories.map((category) => (
                     <button
                       key={category}
@@ -1618,6 +1675,15 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
                   ))}
                   <span ref={categoryIndicatorRef} className="category-nav-indicator" aria-hidden="true" />
                 </div>
+                <button
+                  type="button"
+                  className="category-nav-arrow"
+                  onClick={() => scrollCategoryStrip(1)}
+                  disabled={categoryStripEdges.atEnd}
+                  aria-label="Show more menu categories"
+                >
+                  <span aria-hidden="true">›</span>
+                </button>
               </div>
             )}
 
@@ -1895,6 +1961,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
         <ProductConfigurator
           product={selectedProduct}
           initialItem={editingCartItem || undefined}
+          maxQuantity={MAX_PER_ITEM - quantityInCart(cart, selectedProduct.id, editingCartItem?.key)}
           onClose={closeProduct}
           onAdd={handleSaveConfiguredItem}
         />
@@ -2278,12 +2345,14 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onC
   const [scheduleAnchor] = useState(() => Date.now());
   const [turnstileToken, setTurnstileToken] = useState("");
   const [turnstileResetKey, setTurnstileResetKey] = useState(0);
+  const [smsOptIn, setSmsOptIn] = useState(false);
   /* One key per checkout session. A retry or a double-click reuses it, so the
      server resolves the second request to the order it already stored. */
   const [idempotencyKey] = useState(createIdempotencyKey);
   /* Launch policy: pay at pickup requires a signed-in account. Guest checkout
      opens once online payment is live. */
   const [account, setAccount] = useState<"loading" | "guest" | "member" | "error">("loading");
+  const [legalAccepted, setLegalAccepted] = useState(false);
   type RewardTierInfo = { points: number; valueCents: number; label: string };
   const [rewardOffer, setRewardOffer] = useState<RewardTierInfo | null>(null);
   const [studentVerified, setStudentVerified] = useState(false);
@@ -2314,7 +2383,7 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onC
       try {
         const response = await fetch("/api/profile", { credentials: "include", cache: "no-store" });
         if (!response.ok) throw new Error("profile");
-        const data = await response.json() as { authenticated: boolean; profile?: { displayName: string; phone?: string | null; studentVerified?: boolean; welcomeOffer?: { status: string } | null; rewards?: { available: RewardTierInfo | null } } };
+        const data = await response.json() as { authenticated: boolean; profile?: { displayName: string; phone?: string | null; studentVerified?: boolean; welcomeOffer?: { status: string } | null; rewards?: { available: RewardTierInfo | null }; legal?: { acceptedCurrent: boolean } } };
         if (cancelled) return;
         if (!data.authenticated) { setAccount("guest"); return; }
         setAccount("member");
@@ -2324,6 +2393,7 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onC
           setRewardOffer(data.profile.rewards?.available ?? null);
           setStudentVerified(Boolean(data.profile.studentVerified));
           setWelcomeOfferReady(data.profile.welcomeOffer?.status === "active");
+          setLegalAccepted(Boolean(data.profile.legal?.acceptedCurrent));
         }
       } catch {
         if (!cancelled) setAccount("error");
@@ -2369,6 +2439,7 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onC
           customerName: name,
           phone,
           paymentMethod: "pickup",
+          smsOptIn,
           fulfillmentType,
           scheduledFor: fulfillmentType === "scheduled" ? new Date(scheduledFor).toISOString() : undefined,
           turnstileToken,
@@ -2411,7 +2482,12 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onC
           <p>Your cart will be saved while you sign in.</p>
           <button type="button" className="primary-button" onClick={() => window.dispatchEvent(new Event("deaf-shark-open-account"))}>Sign in or create account</button>
         </div>}
-        {account === "member" && <>
+        {account === "member" && !legalAccepted && <div className="checkout-account-gate">
+          <strong>Review the current account terms</strong>
+          <p>Open your account and accept the current Terms, Privacy Policy, and age requirement before ordering.</p>
+          <button type="button" className="primary-button" onClick={() => window.dispatchEvent(new Event("deaf-shark-open-account"))}>Open my account</button>
+        </div>}
+        {account === "member" && legalAccepted && <>
         <label className={fieldErrors.name ? "has-error" : undefined}><span>Name for the order</span><input value={name} onChange={(event) => { setName(event.target.value); if (fieldErrors.name) setFieldErrors((current) => ({ ...current, name: undefined })); }} placeholder="Your name" aria-invalid={fieldErrors.name ? true : undefined} aria-describedby={fieldErrors.name ? "checkout-name-error" : undefined} />{fieldErrors.name && <small className="checkout-field-error" id="checkout-name-error" role="alert"><i aria-hidden="true">!</i>{fieldErrors.name}</small>}</label>
         <label className={fieldErrors.phone ? "has-error" : undefined}><span>Mobile number</span><input type="tel" value={phone} onChange={(event) => { setPhone(formatPhoneInput(event.target.value)); if (fieldErrors.phone) setFieldErrors((current) => ({ ...current, phone: undefined })); }} placeholder="(908)-555-0123" maxLength={PHONE_INPUT_MAX_LENGTH} aria-invalid={fieldErrors.phone ? true : undefined} aria-describedby={fieldErrors.phone ? "checkout-phone-error checkout-phone-note" : "checkout-phone-note"} />{fieldErrors.phone && <small className="checkout-field-error" id="checkout-phone-error" role="alert"><i aria-hidden="true">!</i>{fieldErrors.phone}</small>}<small className="field-note" id="checkout-phone-note">The shop can use this number if there is a question about your order.</small></label>
         <fieldset className="payment-options pickup-options">
@@ -2421,6 +2497,10 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onC
         </fieldset>
         {fulfillmentType === "scheduled" && <label className={fieldErrors.scheduledFor ? "has-error" : undefined}><span>Scheduled pickup</span><input type="datetime-local" value={scheduledFor} min={localInputValue(firstScheduledDate)} max={localInputValue(lastScheduledDate)} step={scheduling.slotMinutes * 60} onChange={(event) => { setScheduledFor(event.target.value); if (fieldErrors.scheduledFor) setFieldErrors((current) => ({ ...current, scheduledFor: undefined })); }} aria-invalid={fieldErrors.scheduledFor ? true : undefined} aria-describedby={fieldErrors.scheduledFor ? "checkout-schedule-error" : undefined} />{fieldErrors.scheduledFor && <small className="checkout-field-error" id="checkout-schedule-error" role="alert"><i aria-hidden="true">!</i>{fieldErrors.scheduledFor}</small>}</label>}
         <div className="checkout-pickup-info"><strong>Payment due at pickup</strong><span>No card information is collected on this website.</span></div>
+        <label className="checkout-sms-consent" htmlFor="order-ready-text-consent" aria-label="Receive one order-ready text message">
+          <input id="order-ready-text-consent" type="checkbox" checked={smsOptIn} onChange={(event) => setSmsOptIn(event.target.checked)} />
+          <span><strong>Text me once when this order is ready.</strong><small>Optional. Message and data rates may apply. Reply STOP to opt out.</small></span>
+        </label>
         {(rewardOffer || studentVerified || welcomeOfferReady) && (
           <fieldset className="checkout-rewards">
             <legend>Rewards and discounts</legend>

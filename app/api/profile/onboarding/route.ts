@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../../db";
 import { customerProfiles, newsletterSubscriptions } from "../../../../db/schema";
 import { getCustomerSession } from "../../../../lib/auth";
+import { PRIVACY_VERSION, TERMS_VERSION } from "../../../../lib/legal-policy";
 
 const MARKETING_CONSENT = "I agree to receive Deaf Shark Coffee news and promotions by email. I can unsubscribe at any time.";
 
@@ -16,6 +17,7 @@ export async function POST(request: Request) {
     birthdayMonth?: number | null;
     birthdayDay?: number | null;
     policiesAccepted?: boolean;
+    ageGuardianConfirmed?: boolean;
     marketingOptIn?: boolean;
   };
   const firstName = payload.firstName?.trim() ?? "";
@@ -43,6 +45,9 @@ export async function POST(request: Request) {
   if (payload.policiesAccepted !== true) {
     return Response.json({ error: "Accept the Terms and Privacy Policy to create an account." }, { status: 400 });
   }
+  if (payload.ageGuardianConfirmed !== true) {
+    return Response.json({ error: "Confirm that you are at least 13 and have a parent or guardian's permission if you are under 18." }, { status: 400 });
+  }
 
   await ensureSchema();
   const now = new Date();
@@ -55,6 +60,9 @@ export async function POST(request: Request) {
     birthdayDay,
     termsAcceptedAt: now,
     privacyAcceptedAt: now,
+    termsVersion: TERMS_VERSION,
+    privacyVersion: PRIVACY_VERSION,
+    ageGuardianConfirmedAt: now,
   }).onConflictDoUpdate({
     target: customerProfiles.userId,
     set: {
@@ -65,6 +73,9 @@ export async function POST(request: Request) {
       birthdayDay,
       termsAcceptedAt: now,
       privacyAcceptedAt: now,
+      termsVersion: TERMS_VERSION,
+      privacyVersion: PRIVACY_VERSION,
+      ageGuardianConfirmedAt: now,
       updatedAt: now,
     },
   });

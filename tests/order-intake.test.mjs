@@ -116,8 +116,16 @@ test("shape-checks the cart before any pricing happens", async () => {
   const tooManyLines = Array.from({ length: 41 }, () => ({ id: "regular-coffee", quantity: 1 }));
   assert.equal((await statusOf(() => normalizeCartItems(tooManyLines))).code, "too_many_line_items");
 
-  const tooManyUnits = Array.from({ length: 6 }, () => ({ id: "regular-coffee", quantity: 20 }));
+  const tooManyUnits = Array.from({ length: 11 }, (_, index) => ({ id: `item-${index}`, quantity: ORDER_MAX_ITEM_QUANTITY }));
   assert.equal((await statusOf(() => normalizeCartItems(tooManyUnits))).code, "too_many_units");
+
+  /* The 99 limit counts every line for the same item together. */
+  assert.equal(normalizeCartItems([{ id: "regular-coffee", quantity: 99 }]).length, 1);
+  assert.equal(
+    (await statusOf(() => normalizeCartItems([{ id: "regular-coffee", quantity: 50 }, { id: "regular-coffee", quantity: 50 }]))).code,
+    "item_quantity_limit",
+  );
+  assert.equal(normalizeCartItems([{ id: "regular-coffee", quantity: 99 }, { id: "latte", quantity: 99 }]).length, 2);
 
   assert.deepEqual(normalizeCartItems([{ id: " regular-coffee ", quantity: 2 }]), [
     { id: "regular-coffee", quantity: 2, selection: undefined },

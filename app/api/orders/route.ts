@@ -30,6 +30,7 @@ import { WELCOME_OFFER_TYPE, resolveDiscount, type DiscountChoice } from "../../
 import { loyaltyChangeStatements } from "../../../lib/loyalty-ledger";
 import { DRINK_CATEGORIES, menuProducts } from "../../menu-data";
 import { and, eq as eqOp } from "drizzle-orm";
+import { ORDER_READY_SMS_CONSENT, hasCurrentLegalAcceptance } from "../../../lib/legal-policy";
 
 export async function GET(request: Request) {
   try {
@@ -152,6 +153,9 @@ export async function POST(request: Request) {
        are all decided server-side. */
     const drinkIds = new Set(menuProducts.filter((product) => DRINK_CATEGORIES.includes(product.category)).map((product) => product.id));
     const loyaltyProfile = profileRows[0];
+    if (!loyaltyProfile || !hasCurrentLegalAcceptance(loyaltyProfile)) {
+      throw new OrderRequestError("Open your account and accept the current Terms, Privacy Policy, and age requirement before ordering.", 403, "legal_acceptance_required");
+    }
     const welcomeOffer = offerRows[0];
     const choice: DiscountChoice = (() => {
       const raw = payload.discount as { kind?: unknown; points?: unknown } | undefined;
@@ -183,6 +187,7 @@ export async function POST(request: Request) {
     const { subtotalCents, discountCents, taxCents, totalCents } = orderTotals(orderItems, discount.amountCents);
     const { fulfillmentType, scheduledFor, pickupEta } = resolveFulfillment(payload, settings);
     const { hasCoffeeItems, hasKitchenItems } = stationFlags(orderItems);
+    const smsOptIn = payload.smsOptIn === true;
 
     if (session) {
       await getDb().insert(customerProfiles).values({
@@ -216,6 +221,9 @@ export async function POST(request: Request) {
         kitchenStatus: hasKitchenItems ? "new" : "not_needed",
         source: "website",
         paymentMethod: "pickup",
+        smsOptIn,
+        smsConsentedAt: smsOptIn ? new Date() : null,
+        smsConsentText: smsOptIn ? ORDER_READY_SMS_CONSENT : null,
         pickupEta,
         fulfillmentType,
         scheduledFor,
@@ -272,6 +280,7 @@ export async function POST(request: Request) {
       pointsSpent: discount.pointsSpent,
       fulfillmentType,
       paymentMethod: "pickup",
+      smsOptIn,
       coffee: hasCoffeeItems,
       kitchen: hasKitchenItems,
       authenticated: Boolean(customerUserId),
