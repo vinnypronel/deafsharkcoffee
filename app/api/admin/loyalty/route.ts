@@ -2,6 +2,8 @@ import { and, desc, eq, like } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../../db";
 import { customerProfiles, loyaltyTransactions, memberOffers } from "../../../../db/schema";
 import { requireStaff } from "../../../../lib/staff-auth";
+import { loyaltyChangeStatements } from "../../../../lib/loyalty-ledger";
+import { env } from "cloudflare:workers";
 import { BIRTHDAY_DRINK_MAX_CENTS, birthdayOfferType, birthdayStatus } from "../../../../lib/birthday";
 
 export async function GET(request: Request) {
@@ -116,15 +118,19 @@ export async function PATCH(request: Request) {
     return Response.json({ error: `This customer only has ${profile.points} points available.` }, { status: 400 });
   }
 
-  await getDb().batch([
-    getDb().update(customerProfiles).set({ points: balanceAfter, updatedAt: new Date() }).where(eq(customerProfiles.userId, userId)),
-    getDb().insert(loyaltyTransactions).values({
-      userId,
-      pointsChange,
-      balanceAfter,
-      reason: `staff_adjustment:${reason}`,
-    }),
-  ]);
+  /* A guarded, relative change through the shared ledger helper, not an absolute
+     read-modify-write: an order completing or a redemption between the read and
+     the write can no longer be erased. The unique reference carries the acting
+     staff member for the audit trail, and the balance guard keeps it from ever
+     going negative. */
+  const reference = `staff:${staff.session.user.email}:${crypto.randomUUID()}`;
+  await env.DB.batch(loyaltyChangeStatements({
+    userId,
+    points: pointsChange,
+    reference,
+    reason: `staff_adjustment:${reason}`,
+  }).map((statement) => env.DB.prepare(statement.sql).bind(...statement.values)));
 
-  return Response.json({ ok: true, balanceAfter });
+  const [after] = await getDb().select({ points: customerProfiles.points }).from(customerProfiles).where(eq(customerProfiles.userId, userId)).limit(1);
+  return Response.json({ ok: true, balanceAfter: after?.points ?? balanceAfter });
 }

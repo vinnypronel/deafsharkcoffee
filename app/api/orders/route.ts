@@ -1,4 +1,5 @@
 import { desc, eq } from "drizzle-orm";
+import { env } from "cloudflare:workers";
 import { ensureSchema, getDb } from "../../../db";
 import { customerProfiles, menuAvailability, menuContent, orders, storeSettings } from "../../../db/schema";
 import { getCustomerSession } from "../../../lib/auth";
@@ -190,6 +191,9 @@ export async function POST(request: Request) {
     const smsOptIn = payload.smsOptIn === true;
 
     if (session) {
+      /* Ensure a profile row exists, but never overwrite the saved phone here:
+         name and phone are locked after signup, so an order form cannot change
+         the number the shop calls. The order row carries its own phone. */
       await getDb().insert(customerProfiles).values({
         userId: session.user.id,
         email: session.user.email,
@@ -197,77 +201,97 @@ export async function POST(request: Request) {
         phone,
       }).onConflictDoUpdate({
         target: customerProfiles.userId,
-        set: { email: session.user.email, phone, updatedAt: new Date() },
+        set: { email: session.user.email, updatedAt: new Date() },
       });
     }
 
-    /* Every stored field below is server-derived. Nothing the client sends about
-       prices, tax, payment state, source, or station routing is trusted. */
-    let createdOrder: StoredOrder;
+    /* The reward debit and the welcome-coupon burn commit in the SAME atomic
+       batch as the order insert, and the order only persists if the claim
+       actually applied. Previously the order was inserted first and the points
+       debited afterward, so two checkouts racing on one balance could both take
+       a discount while only one debit landed. The assert statement forces a
+       UNIQUE violation (aborting the whole batch) whenever the claim's guarded
+       update changed 0 rows, so a discounted order can never exist without its
+       matching debit or burn. The redeem row uses a NULL order_id (keyed by the
+       checkout's idempotency key) so the completion credit can still attach the
+       order_id when points are earned. */
+    const claimStatements: Array<{ sql: string; values: unknown[] }> = [];
+    if (discount.kind === "reward" && discount.pointsSpent > 0 && customerUserId) {
+      claimStatements.push(...loyaltyChangeStatements({
+        userId: customerUserId,
+        points: -discount.pointsSpent,
+        reference: `redeem:${idempotencyKey}`,
+        reason: "reward_redeemed",
+      }));
+    } else if (discount.kind === "welcome" && welcomeOffer && customerUserId) {
+      const burn = getDb().update(memberOffers)
+        .set({ status: "redeemed", redeemedAt: new Date(), redeemedBy: "online_order" })
+        .where(and(eqOp(memberOffers.id, welcomeOffer.id), eqOp(memberOffers.status, "active")))
+        .toSQL();
+      claimStatements.push({ sql: burn.sql, values: burn.params as unknown[] });
+    }
+    const hasClaim = claimStatements.length > 0;
+
+    const orderInsert = getDb().insert(orders).values({
+      orderNumber: orderNumber(),
+      customerName,
+      phone,
+      itemsJson: JSON.stringify(orderItems),
+      subtotalCents,
+      discountCents,
+      discountKind: discount.kind,
+      rewardPointsSpent: discount.pointsSpent,
+      taxCents,
+      totalCents,
+      status: "new",
+      coffeeStatus: hasCoffeeItems ? "new" : "not_needed",
+      kitchenStatus: hasKitchenItems ? "new" : "not_needed",
+      source: "website",
+      paymentMethod: "pickup",
+      smsOptIn,
+      smsConsentedAt: smsOptIn ? new Date() : null,
+      smsConsentText: smsOptIn ? ORDER_READY_SMS_CONSENT : null,
+      pickupEta,
+      fulfillmentType,
+      scheduledFor,
+      customerUserId,
+      idempotencyKey,
+      createdAt: new Date(),
+    }).toSQL();
+
+    const batchStatements: Array<{ sql: string; values: unknown[] }> = [
+      ...claimStatements,
+      ...(hasClaim && customerUserId
+        ? [{ sql: "INSERT INTO customer_profiles (user_id, email, display_name) SELECT user_id, email, display_name FROM customer_profiles WHERE user_id = ? AND changes() <> 1", values: [customerUserId] as unknown[] }]
+        : []),
+      { sql: orderInsert.sql, values: orderInsert.params as unknown[] },
+    ];
+
     try {
-      [createdOrder] = await getDb().insert(orders).values({
-        orderNumber: orderNumber(),
-        customerName,
-        phone,
-        itemsJson: JSON.stringify(orderItems),
-        subtotalCents,
-        discountCents,
-        discountKind: discount.kind,
-        rewardPointsSpent: discount.pointsSpent,
-        taxCents,
-        totalCents,
-        status: "new",
-        coffeeStatus: hasCoffeeItems ? "new" : "not_needed",
-        kitchenStatus: hasKitchenItems ? "new" : "not_needed",
-        source: "website",
-        paymentMethod: "pickup",
-        smsOptIn,
-        smsConsentedAt: smsOptIn ? new Date() : null,
-        smsConsentText: smsOptIn ? ORDER_READY_SMS_CONSENT : null,
-        pickupEta,
-        fulfillmentType,
-        scheduledFor,
-        customerUserId,
-        idempotencyKey,
-        createdAt: new Date(),
-      }).returning();
+      await env.DB.batch(batchStatements.map((statement) => env.DB.prepare(statement.sql).bind(...statement.values)));
     } catch (error) {
-      /* Two submits raced past the lookup above. The winner's order is the order. */
-      if (!isUniqueConstraintError(error)) throw error;
-      const [raced] = await getDb()
-        .select()
-        .from(orders)
-        .where(eq(orders.idempotencyKey, idempotencyKey))
-        .limit(1);
-      if (!raced) throw error;
-      if (raced.customerUserId !== customerUserId) throw new OrderRequestError("Please start a new checkout.", 409, "checkout_conflict");
-      logOrderEvent("replayed", { reference, orderId: raced.id, status: 200 });
-      return orderResponse(raced, 200, reference);
+      const message = error instanceof Error ? error.message : String(error);
+      /* The assert fired: the reward balance or the coupon was claimed by another
+         order between the price check and the commit. Nothing was written. */
+      if (hasClaim && /customer_profiles/.test(message)) {
+        logOrderEvent("discount_conflict", { reference, status: 409, discountKind: discount.kind });
+        throw new OrderRequestError("That reward or offer was just used and is no longer available. Please review your cart and try again.", 409, "discount_conflict");
+      }
+      /* Two submits with the same checkout key raced past the lookup above. The
+         winner's order is the order. */
+      if (isUniqueConstraintError(error)) {
+        const [raced] = await getDb().select().from(orders).where(eq(orders.idempotencyKey, idempotencyKey)).limit(1);
+        if (raced) {
+          if (raced.customerUserId !== customerUserId) throw new OrderRequestError("Please start a new checkout.", 409, "checkout_conflict");
+          logOrderEvent("replayed", { reference, orderId: raced.id, status: 200 });
+          return orderResponse(raced, 200, reference);
+        }
+      }
+      throw error;
     }
 
-    /* Spending the reward and burning the coupon happen after the order exists,
-       each guarded so a retry cannot double-spend. The points statement only
-       applies when the balance still covers it, and the coupon update only
-       matches a row that is still active. */
-    if (discount.pointsSpent > 0 && customerUserId) {
-      try {
-        await getDb().batch(loyaltyChangeStatements({
-          userId: customerUserId,
-          points: -discount.pointsSpent,
-          reference: `redeem:order:${createdOrder.id}`,
-          reason: "reward_redeemed",
-          orderId: createdOrder.id,
-        }) as never);
-      } catch (error) {
-        logOrderEvent("reward_spend_failed", { reference, orderId: createdOrder.id, points: discount.pointsSpent });
-        throw error;
-      }
-    }
-    if (discount.kind === "welcome" && welcomeOffer) {
-      await getDb().update(memberOffers)
-        .set({ status: "redeemed", redeemedAt: new Date(), redeemedBy: "online_order" })
-        .where(and(eqOp(memberOffers.id, welcomeOffer.id), eqOp(memberOffers.status, "active")));
-    }
+    const [createdOrder] = await getDb().select().from(orders).where(eq(orders.idempotencyKey, idempotencyKey)).limit(1);
+    if (!createdOrder) throw new Error("Order row missing after commit.");
 
     logOrderEvent("created", {
       reference,

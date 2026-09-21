@@ -1,13 +1,13 @@
 import { and, eq, ne } from "drizzle-orm";
 import { env } from "cloudflare:workers";
 import { ensureSchema, getDb } from "../../../../db";
-import { customerProfiles, orders } from "../../../../db/schema";
+import { customerProfiles, orders, memberOffers } from "../../../../db/schema";
 import { loadPromotions } from "../../../../lib/promotion-store";
 import { promotionAwards } from "../../../../lib/promotions";
 import { REFERRAL_POINTS, referralReference } from "../../../../lib/referral";
 import { storeClock } from "../../../../lib/store-clock";
 import { loyaltyChangeStatements } from "../../../../lib/loyalty-ledger";
-import { pointsForSubtotal } from "../../../../lib/loyalty";
+import { WELCOME_OFFER_TYPE, pointsForSubtotal } from "../../../../lib/loyalty";
 import { requireStaff } from "../../../../lib/staff-auth";
 import { notifyOrderReady } from "../../../../lib/sms";
 
@@ -162,6 +162,25 @@ export async function PATCH(
     }
     if (env.LOYALTY_ENABLED === "true" && update.status === "complete" && existing.customerUserId) {
       statements.push(...(await bonusStatements(existing, earnedPoints)));
+    }
+    /* Cancelling before completion returns a spent reward and reactivates a
+       burned welcome coupon, committed with the status change. The refund
+       credit is guarded by a unique reference (a repeat cancel cannot refund
+       twice) and by requirePreviousChange (only when the status update applied);
+       the coupon reactivation is gated on the order actually being cancelled. */
+    if (update.status === "cancelled" && existing.customerUserId) {
+      if ((existing.rewardPointsSpent ?? 0) > 0) {
+        statements.push(...loyaltyChangeStatements({
+          userId: existing.customerUserId, points: existing.rewardPointsSpent,
+          reference: `refund:order:${existing.id}`, reason: "reward_refunded",
+          requirePreviousChange: true,
+        }).map((statement) => env.DB.prepare(statement.sql).bind(...statement.values)));
+      }
+      if (existing.discountKind === "welcome") {
+        statements.push(env.DB.prepare(
+          "UPDATE member_offers SET status = 'active', redeemed_at = NULL, redeemed_by = NULL WHERE user_id = ? AND offer_type = ? AND status = 'redeemed' AND EXISTS (SELECT 1 FROM orders WHERE id = ? AND status = 'cancelled')"
+        ).bind(existing.customerUserId, WELCOME_OFFER_TYPE, existing.id));
+      }
     }
     // Completing the ticket, writing its credit, and updating the balance either
     // all commit or all roll back. A lost response is safe to retry.
