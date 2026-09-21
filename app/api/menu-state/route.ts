@@ -52,8 +52,8 @@ export async function GET() {
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to load menu state";
-    return Response.json({ error: message }, { status: 500 });
+    console.error(JSON.stringify({ event: "menu_state_failed", errorType: error instanceof Error ? error.name : "UnknownError" }));
+    return Response.json({ error: "Unable to load menu state right now." }, { status: 500 });
   }
 }
 

@@ -51,13 +51,34 @@ export async function POST(request: Request) {
 
   await ensureSchema();
   const now = new Date();
+
+  /* This endpoint only FILLS a profile that has never been onboarded (no
+     consent on record). Once a profile has accepted terms, its name, phone and
+     birthday are locked, so a repeat call cannot be used to rewrite them or to
+     move a birthday onto today for a free drink. It is a no-op for an already
+     onboarded account. */
+  const [existing] = await getDb().select().from(customerProfiles)
+    .where(eq(customerProfiles.userId, session.user.id)).limit(1);
+  if (existing?.termsAcceptedAt) {
+    return Response.json({ success: true, profile: existing, alreadyOnboarded: true }, { status: 200 });
+  }
+
+  /* Keep any birthday already on file; only stamp birthdaySetAt when a birthday
+     is set now, so a birthday added here is treated as added today (not eligible
+     for the in-store drink until next year), matching the birthday endpoint. */
+  const keepBirthday = existing?.birthdayMonth != null && existing?.birthdayDay != null;
+  const finalBirthdayMonth = keepBirthday ? existing!.birthdayMonth : birthdayMonth;
+  const finalBirthdayDay = keepBirthday ? existing!.birthdayDay : birthdayDay;
+  const birthdaySetAt = keepBirthday ? (existing!.birthdaySetAt ?? now) : (finalBirthdayMonth != null ? now : null);
+
   await getDb().insert(customerProfiles).values({
     userId: session.user.id,
     email: session.user.email,
     displayName,
     phone,
-    birthdayMonth,
-    birthdayDay,
+    birthdayMonth: finalBirthdayMonth,
+    birthdayDay: finalBirthdayDay,
+    birthdaySetAt,
     termsAcceptedAt: now,
     privacyAcceptedAt: now,
     termsVersion: TERMS_VERSION,
@@ -69,8 +90,9 @@ export async function POST(request: Request) {
       email: session.user.email,
       displayName,
       phone,
-      birthdayMonth,
-      birthdayDay,
+      birthdayMonth: finalBirthdayMonth,
+      birthdayDay: finalBirthdayDay,
+      birthdaySetAt,
       termsAcceptedAt: now,
       privacyAcceptedAt: now,
       termsVersion: TERMS_VERSION,

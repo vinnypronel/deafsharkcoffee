@@ -38,7 +38,14 @@ export function getDb() {
  * database. Schema changes belong in ./drizzle and must run before the Worker
  * version that depends on them is deployed.
  */
+/* The table set never changes between deploys, so the check only needs to run
+   once per Worker isolate. Caching the successful result removes a SELECT from
+   every DB-backed request, which otherwise doubled read load under any flood. A
+   failure is not cached, so a genuinely missing migration keeps surfacing. */
+let schemaVerified = false;
+
 export async function ensureSchema(): Promise<void> {
+  if (schemaVerified) return;
   if (!env.DB) {
     throw new Error(
       "Cloudflare D1 binding `DB` is unavailable. Configure the binding before using a database-backed feature.",
@@ -58,4 +65,6 @@ export async function ensureSchema(): Promise<void> {
       `Database migrations are required. Missing tables: ${missing.join(", ")}. Apply the D1 migrations before starting this version.`,
     );
   }
+
+  schemaVerified = true;
 }

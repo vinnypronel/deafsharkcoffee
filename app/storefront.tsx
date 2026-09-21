@@ -1145,7 +1145,9 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
       }
     }
     loadAvailability();
-    const timer = window.setInterval(loadAvailability, 4000);
+    /* 30s with a 10s edge cache: the menu, hours and pause rarely change and a
+       flood of this unauthenticated endpoint is absorbed at the edge. */
+    const timer = window.setInterval(loadAvailability, 30000);
     return () => window.clearInterval(timer);
   }, []);
 

@@ -117,7 +117,7 @@ export function StationBoard({ station, embedded = false }: { station: Station; 
 
   useEffect(() => {
     const initialLoad = window.setTimeout(loadOrders, 0);
-    const poller = window.setInterval(loadOrders, 2200);
+    const poller = window.setInterval(loadOrders, 5000);
     const ticker = window.setInterval(() => setClock(new Date()), 30_000);
     return () => {
       window.clearTimeout(initialLoad);

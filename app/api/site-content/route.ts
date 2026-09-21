@@ -11,6 +11,7 @@ export async function GET() {
     ]);
     return Response.json({ featured, events: upcoming });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "Unable to load site content" }, { status: 500 });
+    console.error(JSON.stringify({ event: "site_content_failed", errorType: error instanceof Error ? error.name : "UnknownError" }));
+    return Response.json({ error: "Unable to load site content right now." }, { status: 500 });
   }
 }

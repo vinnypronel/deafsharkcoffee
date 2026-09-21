@@ -168,7 +168,7 @@ export function Dashboard() {
 
   useEffect(() => {
     const initialLoad = window.setTimeout(loadData, 0);
-    const timer = window.setInterval(loadData, 2200);
+    const timer = window.setInterval(loadData, 5000);
     return () => {
       window.clearTimeout(initialLoad);
       window.clearInterval(timer);

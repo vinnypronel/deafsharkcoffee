@@ -46,13 +46,38 @@ function withSecurityHeaders(request: Request, response: Response): Response {
     "frame-src https://challenges.cloudflare.com https://www.cloudflare.com https://maps.google.com https://www.google.com",
   ].join("; "));
   const pathname = new URL(request.url).pathname;
-  if (pathname.startsWith("/api/") || pathname === "/dashboard" || pathname.startsWith("/kds/")) {
+  const method = request.method;
+  /* Two public read endpoints carry a short edge cache so a flood is absorbed
+     instead of reading D1 on every request; order submission still validates
+     hours and pause live, so a few seconds of staleness cannot let a closed
+     order through. Only a successful GET is cached. Everything else under /api
+     and the operator screens stay uncacheable. */
+  const shortCacheApi = method === "GET" && response.ok && (pathname === "/api/menu-state" || pathname === "/api/site-content");
+  if (shortCacheApi) {
+    headers.set("Cache-Control", "public, max-age=10, stale-while-revalidate=30");
+  } else if (pathname.startsWith("/api/") || pathname === "/dashboard" || pathname.startsWith("/kds/")) {
     headers.set("Cache-Control", "no-store");
   }
   if (/\.(?:avif|gif|ico|jpe?g|png|svg|webp|mp4|webm|woff2?)$/i.test(pathname)) {
     headers.set("Cache-Control", pathname.startsWith("/_assets/")
       ? "public, max-age=31536000, immutable"
       : "public, max-age=86400, stale-while-revalidate=604800");
+  }
+  /* Marketing and menu HTML is identical for every visitor (account and cart are
+     client-side), so let the edge cache it briefly: cache-busting query strings
+     on the homepage become edge hits instead of a Worker run each. Never cache a
+     response that set a cookie or already chose its own caching. */
+  if (
+    method === "GET" &&
+    response.ok &&
+    !pathname.startsWith("/api/") &&
+    pathname !== "/dashboard" &&
+    !pathname.startsWith("/kds/") &&
+    !headers.has("Set-Cookie") &&
+    !headers.has("Cache-Control") &&
+    (response.headers.get("Content-Type") || "").includes("text/html")
+  ) {
+    headers.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=600");
   }
   if (new URL(request.url).protocol === "https:") {
     headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
