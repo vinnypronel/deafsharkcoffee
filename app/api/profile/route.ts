@@ -51,6 +51,41 @@ export async function GET(request: Request) {
   const [profile] = await getDb().select().from(customerProfiles).where(eq(customerProfiles.userId, user.id)).limit(1);
   const birthday = birthdayStatus({ month: profile.birthdayMonth, day: profile.birthdayDay, setAt: profile.birthdaySetAt });
 
+  if (env.LOYALTY_ENABLED !== "true") {
+    return Response.json({
+      authenticated: true,
+      loyaltyEnabled: false,
+      profile: {
+        displayName: profile.displayName,
+        email: profile.email,
+        phone: profile.phone,
+        points: 0,
+        lifetimePoints: 0,
+        activity: [],
+        welcomeOffer: null,
+        studentVerified: false,
+        studentEmail: null,
+        rewards: { available: null, progress: nextTierProgress(0) },
+        birthday: {
+          onFile: birthday.onFile,
+          month: birthday.month,
+          day: birthday.day,
+          isToday: birthday.isToday,
+          eligibleToday: false,
+          redeemedThisYear: false,
+          maxCents: 0,
+        },
+        referral: { code: null, points: 0, joined: 0, rewarded: 0 },
+        promotions: [],
+        legal: {
+          acceptedCurrent: hasCurrentLegalAcceptance(profile),
+          termsVersion: TERMS_VERSION,
+          privacyVersion: PRIVACY_VERSION,
+        },
+      },
+    });
+  }
+
   const [welcomeOffer, birthdayOffer, referralCode, activity, referralCounts, allPromotions] = await Promise.all([
     getOffer(user.id, WELCOME_OFFER_TYPE),
     birthday.isToday ? getOffer(user.id, birthdayOfferType(birthday.year)) : Promise.resolve(null),
@@ -81,6 +116,7 @@ export async function GET(request: Request) {
 
   return Response.json({
     authenticated: true,
+    loyaltyEnabled: true,
     profile: {
       displayName: profile.displayName,
       email: profile.email,

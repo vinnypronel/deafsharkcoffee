@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const users = sqliteTable("user", {
@@ -111,31 +112,62 @@ export const orders = sqliteTable(
   ],
 );
 
-export const customerProfiles = sqliteTable("customer_profiles", {
-  userId: text("user_id").primaryKey(),
-  email: text("email").notNull(),
-  displayName: text("display_name").notNull(),
-  phone: text("phone"),
-  points: integer("points").notNull().default(0),
-  lifetimePoints: integer("lifetime_points").notNull().default(0),
-  birthdayMonth: integer("birthday_month"),
-  birthdayDay: integer("birthday_day"),
-  /* When the birthday was saved. The birthday drink is only honored if this is before the day itself. */
-  birthdaySetAt: integer("birthday_set_at", { mode: "timestamp" }),
-  referralCode: text("referral_code"),
-  referredByUserId: text("referred_by_user_id"),
-  studentEmail: text("student_email"),
-  studentVerifiedAt: integer("student_verified_at", { mode: "timestamp" }),
-  lastActivityAt: integer("last_activity_at", { mode: "timestamp" }),
-  termsAcceptedAt: integer("terms_accepted_at", { mode: "timestamp" }),
-  privacyAcceptedAt: integer("privacy_accepted_at", { mode: "timestamp" }),
-  termsVersion: text("terms_version"),
-  privacyVersion: text("privacy_version"),
-  ageGuardianConfirmedAt: integer("age_guardian_confirmed_at", { mode: "timestamp" }),
-  signupBonusAwarded: integer("signup_bonus_awarded", { mode: "boolean" }).notNull().default(false),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
-});
+export const customerProfiles = sqliteTable(
+  "customer_profiles",
+  {
+    userId: text("user_id").primaryKey(),
+    email: text("email").notNull(),
+    displayName: text("display_name").notNull(),
+    phone: text("phone"),
+    points: integer("points").notNull().default(0),
+    lifetimePoints: integer("lifetime_points").notNull().default(0),
+    birthdayMonth: integer("birthday_month"),
+    birthdayDay: integer("birthday_day"),
+    /* When the birthday was saved. The birthday drink is only honored if this is before the day itself. */
+    birthdaySetAt: integer("birthday_set_at", { mode: "timestamp" }),
+    referralCode: text("referral_code"),
+    referredByUserId: text("referred_by_user_id"),
+    studentEmail: text("student_email"),
+    studentVerifiedAt: integer("student_verified_at", { mode: "timestamp" }),
+    lastActivityAt: integer("last_activity_at", { mode: "timestamp" }),
+    termsAcceptedAt: integer("terms_accepted_at", { mode: "timestamp" }),
+    privacyAcceptedAt: integer("privacy_accepted_at", { mode: "timestamp" }),
+    termsVersion: text("terms_version"),
+    privacyVersion: text("privacy_version"),
+    ageGuardianConfirmedAt: integer("age_guardian_confirmed_at", { mode: "timestamp" }),
+    signupBonusAwarded: integer("signup_bonus_awarded", { mode: "boolean" }).notNull().default(false),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+  },
+  (table) => [
+    /* Kean addresses are case-insensitive identities. The expression index also
+       protects older rows that were written before routes normalized casing. */
+    uniqueIndex("idx_customer_student_email_normalized_unique")
+      .on(sql`lower(${table.studentEmail})`)
+      .where(sql`${table.studentEmail} is not null`),
+  ],
+);
+
+export const orderNotifications = sqliteTable(
+  "order_notifications",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    orderId: integer("order_id").notNull().references(() => orders.id, { onDelete: "cascade" }),
+    notificationType: text("notification_type").notNull(),
+    status: text("status").notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    providerMessageId: text("provider_message_id"),
+    lastError: text("last_error"),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+    claimedAt: integer("claimed_at", { mode: "timestamp" }),
+    sentAt: integer("sent_at", { mode: "timestamp" }),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("idx_order_notification_order_type_unique").on(table.orderId, table.notificationType),
+    index("idx_order_notification_status_created_at").on(table.status, table.createdAt),
+  ],
+);
 
 export const loyaltyTransactions = sqliteTable(
   "loyalty_transactions",

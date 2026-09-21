@@ -4,6 +4,14 @@
    paid once per friend. */
 
 export const REFERRAL_POINTS = 25;
+export const REFERRAL_MINIMUM_PAID_CENTS = 500;
+export const REFERRAL_MAX_REWARDS_PER_WINDOW = 10;
+export const REFERRAL_WINDOW_SECONDS = 30 * 24 * 60 * 60;
+
+export function referralOrderQualifies(subtotalCents: number, discountCents: number) {
+  if (!Number.isSafeInteger(subtotalCents) || !Number.isSafeInteger(discountCents)) return false;
+  return Math.max(0, subtotalCents - discountCents) >= REFERRAL_MINIMUM_PAID_CENTS;
+}
 
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 

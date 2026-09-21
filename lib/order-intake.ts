@@ -22,6 +22,13 @@ export const ORDER_MAX_LINE_ITEMS = 40;
    not get around the limit. The total is only a sanity bound on top of that. */
 export const ORDER_MAX_TOTAL_QUANTITY = 999;
 export const ORDER_MAX_ITEM_QUANTITY = 99;
+/** Production admission policy. These limits are intentionally server-owned;
+ * launch validation requires the release environment to acknowledge the same
+ * values before website ordering can be opened. */
+export const ORDER_MAX_ACTIVE_PER_ACCOUNT = 2;
+export const ORDER_MAX_PER_ACCOUNT_PER_HOUR = 5;
+export const ORDER_MAX_PER_SCHEDULED_SLOT = 10;
+export const ORDER_ROLLING_WINDOW_SECONDS = 60 * 60;
 export const NJ_SALES_TAX_RATE = 0.06625;
 export const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 
@@ -75,9 +82,48 @@ export function orderReference() {
   return `ref_${Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
 }
 
-export function orderNumber() {
-  const rand = Math.floor(1000 + Math.random() * 9000);
-  return `DS${Date.now().toString().slice(-4)}${rand}`;
+export function orderNumber(
+  random: (bytes: Uint8Array) => Uint8Array = (bytes) => crypto.getRandomValues(bytes),
+) {
+  const bytes = random(new Uint8Array(8));
+  return `DS${Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("").toUpperCase()}`;
+}
+
+/**
+ * This statement is an in-transaction assertion. When an account or scheduled
+ * slot is already at capacity it deliberately attempts to duplicate the
+ * customer's primary-key row, causing D1 to roll back the entire batch. When
+ * capacity remains the SELECT is empty and the following order insert runs.
+ */
+export function orderAdmissionAssertion(input: {
+  userId: string;
+  rollingWindowStartEpoch: number;
+  scheduledForEpoch: number | null;
+}) {
+  return {
+    sql: `INSERT INTO customer_profiles (user_id, email, display_name)
+      SELECT user_id, email, display_name FROM customer_profiles
+      WHERE user_id = ? AND (
+        (SELECT count(*) FROM orders
+          WHERE customer_user_id = ? AND status IN ('new', 'preparing', 'ready')) >= ?
+        OR (SELECT count(*) FROM orders
+          WHERE customer_user_id = ? AND created_at >= ?) >= ?
+        OR (? IS NOT NULL AND (SELECT count(*) FROM orders
+          WHERE fulfillment_type = 'scheduled' AND scheduled_for = ?
+            AND status IN ('new', 'preparing', 'ready')) >= ?)
+      )`,
+    values: [
+      input.userId,
+      input.userId,
+      ORDER_MAX_ACTIVE_PER_ACCOUNT,
+      input.userId,
+      input.rollingWindowStartEpoch,
+      ORDER_MAX_PER_ACCOUNT_PER_HOUR,
+      input.scheduledForEpoch,
+      input.scheduledForEpoch,
+      ORDER_MAX_PER_SCHEDULED_SLOT,
+    ] as unknown[],
+  };
 }
 
 /* Structured logs for an order carry only non-identifying operational fields.

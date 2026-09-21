@@ -21,6 +21,8 @@ interface DeafSharkRuntimeSecrets {
   AUTH_EMAIL_FROM?: string;
   CLOUDFLARE_EMAIL_ENABLED?: string;
   LOYALTY_ENABLED?: string;
+  /* Fail closed until a confirmed double-opt-in marketing flow is deployed. */
+  MARKETING_EMAIL_ENABLED?: string;
   EMAIL?: SendEmail;
   /* Order-ready text messages. See lib/sms.ts. */
   TWILIO_ACCOUNT_SID?: string;

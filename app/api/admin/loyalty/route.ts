@@ -43,6 +43,9 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const staff = await requireStaff(request);
   if (staff.response) return staff.response;
+  if (env.LOYALTY_ENABLED !== "true") {
+    return Response.json({ error: "Loyalty benefits are not enabled." }, { status: 409 });
+  }
   await ensureSchema();
 
   const payload = (await request.json()) as { offerId?: number; action?: string; userId?: string };
@@ -96,18 +99,40 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   const staff = await requireStaff(request);
   if (staff.response) return staff.response;
+  if (env.LOYALTY_ENABLED !== "true") {
+    return Response.json({ error: "Loyalty benefits are not enabled." }, { status: 409 });
+  }
   await ensureSchema();
 
-  const payload = (await request.json()) as { userId?: string; pointsChange?: number; reason?: string };
+  const payload = (await request.json()) as { userId?: string; pointsChange?: number; reason?: string; adjustmentId?: string };
   const userId = payload.userId?.trim();
   const pointsChange = Number(payload.pointsChange);
   const reason = payload.reason?.trim();
+  const adjustmentId = payload.adjustmentId?.trim();
 
   if (!userId || !Number.isInteger(pointsChange) || pointsChange === 0 || Math.abs(pointsChange) > 10000) {
     return Response.json({ error: "Enter a whole-number points adjustment between -10,000 and 10,000." }, { status: 400 });
   }
   if (!reason || reason.length < 3 || reason.length > 120) {
     return Response.json({ error: "Add a short reason for this adjustment." }, { status: 400 });
+  }
+  if (!adjustmentId || !/^[A-Za-z0-9_-]{8,64}$/.test(adjustmentId)) {
+    return Response.json({ error: "Start a new points adjustment and try again." }, { status: 400 });
+  }
+
+  const reference = `staff:${staff.session.user.email}:${adjustmentId}`;
+  const ledgerReason = `staff_adjustment:${reason}`;
+  const [existingAdjustment] = await getDb().select().from(loyaltyTransactions)
+    .where(eq(loyaltyTransactions.reference, reference)).limit(1);
+  if (existingAdjustment) {
+    if (
+      existingAdjustment.userId !== userId ||
+      existingAdjustment.pointsChange !== pointsChange ||
+      existingAdjustment.reason !== ledgerReason
+    ) {
+      return Response.json({ error: "That adjustment ID was already used for a different change." }, { status: 409 });
+    }
+    return Response.json({ ok: true, balanceAfter: existingAdjustment.balanceAfter, replayed: true });
   }
 
   const [profile] = await getDb().select().from(customerProfiles).where(eq(customerProfiles.userId, userId)).limit(1);
@@ -123,13 +148,36 @@ export async function PATCH(request: Request) {
      the write can no longer be erased. The unique reference carries the acting
      staff member for the audit trail, and the balance guard keeps it from ever
      going negative. */
-  const reference = `staff:${staff.session.user.email}:${crypto.randomUUID()}`;
-  await env.DB.batch(loyaltyChangeStatements({
-    userId,
-    points: pointsChange,
-    reference,
-    reason: `staff_adjustment:${reason}`,
-  }).map((statement) => env.DB.prepare(statement.sql).bind(...statement.values)));
+  try {
+    await env.DB.batch(loyaltyChangeStatements({
+      userId,
+      points: pointsChange,
+      reference,
+      reason: ledgerReason,
+      assertApplied: true,
+    }).map((statement) => env.DB.prepare(statement.sql).bind(...statement.values)));
+  } catch {
+    /* A simultaneous retry may have committed while this request was in flight.
+       Return that exact result; otherwise the guarded balance update changed
+       zero rows and the assertion rolled the entire batch back. */
+    const [racedAdjustment] = await getDb().select().from(loyaltyTransactions)
+      .where(eq(loyaltyTransactions.reference, reference)).limit(1);
+    if (racedAdjustment) {
+      if (
+        racedAdjustment.userId !== userId ||
+        racedAdjustment.pointsChange !== pointsChange ||
+        racedAdjustment.reason !== ledgerReason
+      ) {
+        return Response.json({ error: "That adjustment ID was already used for a different change." }, { status: 409 });
+      }
+      return Response.json({ ok: true, balanceAfter: racedAdjustment.balanceAfter, replayed: true });
+    }
+    const [current] = await getDb().select({ points: customerProfiles.points }).from(customerProfiles)
+      .where(eq(customerProfiles.userId, userId)).limit(1);
+    return Response.json({
+      error: `The balance changed before this adjustment could be applied. It is now ${current?.points ?? 0} points. Review and retry.`,
+    }, { status: 409 });
+  }
 
   const [after] = await getDb().select({ points: customerProfiles.points }).from(customerProfiles).where(eq(customerProfiles.userId, userId)).limit(1);
   return Response.json({ ok: true, balanceAfter: after?.points ?? balanceAfter });

@@ -5,11 +5,15 @@ import { getCustomerSession } from "../../../../lib/auth";
 import { isKeanEmail } from "../../../../lib/loyalty";
 import { createStudentToken } from "../../../../lib/student-verify";
 import { sendStudentVerificationEmail } from "../../../../lib/transactional-email";
+import { env } from "cloudflare:workers";
 
 /* Starts Kean student verification. The address is only stored once the student
    proves they can read mail at it, so an unverified claim never sits on an
    account and nobody can attach someone else's address to their own. */
 export async function POST(request: Request) {
+  if (env.LOYALTY_ENABLED !== "true") {
+    return Response.json({ error: "Student rewards are not available right now." }, { status: 409 });
+  }
   const session = await getCustomerSession(request);
   if (!session) return Response.json({ error: "Sign in to add your student discount." }, { status: 401 });
 

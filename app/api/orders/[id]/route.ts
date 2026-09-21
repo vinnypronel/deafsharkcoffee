@@ -1,10 +1,16 @@
 import { and, eq, ne } from "drizzle-orm";
 import { env } from "cloudflare:workers";
 import { ensureSchema, getDb } from "../../../../db";
-import { customerProfiles, orders, memberOffers } from "../../../../db/schema";
+import { customerProfiles, orders } from "../../../../db/schema";
 import { loadPromotions } from "../../../../lib/promotion-store";
 import { promotionAwards } from "../../../../lib/promotions";
-import { REFERRAL_POINTS, referralReference } from "../../../../lib/referral";
+import {
+  REFERRAL_MAX_REWARDS_PER_WINDOW,
+  REFERRAL_POINTS,
+  REFERRAL_WINDOW_SECONDS,
+  referralOrderQualifies,
+  referralReference,
+} from "../../../../lib/referral";
 import { storeClock } from "../../../../lib/store-clock";
 import { loyaltyChangeStatements } from "../../../../lib/loyalty-ledger";
 import { WELCOME_OFFER_TYPE, pointsForSubtotal } from "../../../../lib/loyalty";
@@ -67,14 +73,37 @@ async function bonusStatements(order: typeof orders.$inferSelect, basePoints: nu
     .map((item) => ({ id: String(item.id ?? ""), quantity: Number(item.quantity ?? 0) }));
   const awards = promotionAwards({ promotions, orderId: order.id, userId, placedAt: new Date(order.createdAt), basePoints, items, visitsByPromotion });
 
-  const changes = awards.filter((award) => award.points > 0).map((award) => ({ userId, points: award.points, reference: award.reference, reason: award.reason }));
-  if (profile?.referredByUserId && profile.referredByUserId !== userId) {
-    changes.push({ userId: profile.referredByUserId, points: REFERRAL_POINTS, reference: referralReference(userId), reason: "referral_first_order" });
+  const statements = awards.filter((award) => award.points > 0).flatMap((award) => loyaltyChangeStatements({
+    userId,
+    points: award.points,
+    reference: award.reference,
+    reason: award.reason,
+    lifetimeCredit: true,
+    onlyIfOrderComplete: order.id,
+  }).map((statement) => env.DB.prepare(statement.sql).bind(...statement.values)));
+
+  if (
+    profile?.referredByUserId &&
+    profile.referredByUserId !== userId &&
+    referralOrderQualifies(order.subtotalCents, order.discountCents ?? 0)
+  ) {
+    const reason = "referral_first_order";
+    statements.push(...loyaltyChangeStatements({
+      userId: profile.referredByUserId,
+      points: REFERRAL_POINTS,
+      reference: referralReference(userId),
+      reason,
+      lifetimeCredit: true,
+      onlyIfOrderComplete: order.id,
+      creditWindow: {
+        reason,
+        sinceEpoch: Math.floor(Date.now() / 1000) - REFERRAL_WINDOW_SECONDS,
+        maxCredits: REFERRAL_MAX_REWARDS_PER_WINDOW,
+      },
+    }).map((statement) => env.DB.prepare(statement.sql).bind(...statement.values)));
   }
 
-  return changes.flatMap((change) => loyaltyChangeStatements({
-    ...change, lifetimeCredit: true, onlyIfOrderComplete: order.id,
-  }).map((statement) => env.DB.prepare(statement.sql).bind(...statement.values)));
+  return statements;
 }
 
 export async function PATCH(

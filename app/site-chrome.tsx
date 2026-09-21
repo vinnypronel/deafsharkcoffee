@@ -4,7 +4,6 @@ import Link from "next/link";
 import Lenis from "lenis";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { menuProducts, type Product } from "./menu-data";
-import { OfferBarcode } from "./offer-barcode";
 import { PHONE_INPUT_MAX_LENGTH, formatPhoneInput } from "../lib/phone-format";
 import { OrderOnlineLink } from "./order-online-link";
 import { OrderStatus } from "./order-status";

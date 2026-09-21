@@ -7,11 +7,16 @@ import { requireStaff } from "../../../lib/staff-auth";
 import { verifyPublicForm } from "../../../lib/public-form";
 import {
   OrderRequestError,
+  ORDER_MAX_ACTIVE_PER_ACCOUNT,
+  ORDER_MAX_PER_ACCOUNT_PER_HOUR,
+  ORDER_MAX_PER_SCHEDULED_SLOT,
+  ORDER_ROLLING_WINDOW_SECONDS,
   logOrderEvent,
   normalizeCartItems,
   normalizeCustomerName,
   normalizeIdempotencyKey,
   normalizePhone,
+  orderAdmissionAssertion,
   orderNumber,
   orderReference,
   orderTotals,
@@ -76,6 +81,22 @@ function isUniqueConstraintError(error: unknown) {
   return /UNIQUE constraint failed/i.test(message);
 }
 
+type AdmissionCounts = {
+  activeCount: number;
+  rollingCount: number;
+  slotCount: number;
+};
+
+async function readAdmissionCounts(userId: string, rollingStart: number, scheduledEpoch: number | null) {
+  return env.DB.prepare(`SELECT
+    (SELECT count(*) FROM orders WHERE customer_user_id = ? AND status IN ('new', 'preparing', 'ready')) AS activeCount,
+    (SELECT count(*) FROM orders WHERE customer_user_id = ? AND created_at >= ?) AS rollingCount,
+    (SELECT count(*) FROM orders WHERE ? IS NOT NULL AND fulfillment_type = 'scheduled' AND scheduled_for = ?
+      AND status IN ('new', 'preparing', 'ready')) AS slotCount`)
+    .bind(userId, userId, rollingStart, scheduledEpoch, scheduledEpoch)
+    .first<AdmissionCounts>();
+}
+
 export async function POST(request: Request) {
   const reference = orderReference();
 
@@ -130,7 +151,7 @@ export async function POST(request: Request) {
       customerUserId
         ? getDb().select().from(customerProfiles).where(eq(customerProfiles.userId, customerUserId)).limit(1)
         : Promise.resolve([]),
-      customerUserId
+      customerUserId && env.LOYALTY_ENABLED === "true"
         ? getDb().select().from(memberOffers).where(and(
             eqOp(memberOffers.userId, customerUserId),
             eqOp(memberOffers.offerType, WELCOME_OFFER_TYPE),
@@ -166,6 +187,9 @@ export async function POST(request: Request) {
       if (kind === "welcome") return { kind: "welcome" };
       return { kind: "none" };
     })();
+    if (choice.kind !== "none" && env.LOYALTY_ENABLED !== "true") {
+      throw new OrderRequestError("Rewards and member discounts are not available right now.", 409, "loyalty_disabled");
+    }
 
     let discount;
     try {
@@ -232,8 +256,15 @@ export async function POST(request: Request) {
     }
     const hasClaim = claimStatements.length > 0;
 
-    const orderInsert = getDb().insert(orders).values({
-      orderNumber: orderNumber(),
+    const createdAt = new Date();
+    const rollingWindowStartEpoch = Math.floor(createdAt.getTime() / 1000) - ORDER_ROLLING_WINDOW_SECONDS;
+    const scheduledForEpoch = scheduledFor ? Math.floor(scheduledFor.getTime() / 1000) : null;
+    const admissionAssertion = orderAdmissionAssertion({
+      userId: customerUserId,
+      rollingWindowStartEpoch,
+      scheduledForEpoch,
+    });
+    const orderValues = {
       customerName,
       phone,
       itemsJson: JSON.stringify(orderItems),
@@ -256,38 +287,61 @@ export async function POST(request: Request) {
       scheduledFor,
       customerUserId,
       idempotencyKey,
-      createdAt: new Date(),
-    }).toSQL();
+      createdAt,
+    };
 
-    const batchStatements: Array<{ sql: string; values: unknown[] }> = [
-      ...claimStatements,
-      ...(hasClaim && customerUserId
-        ? [{ sql: "INSERT INTO customer_profiles (user_id, email, display_name) SELECT user_id, email, display_name FROM customer_profiles WHERE user_id = ? AND changes() <> 1", values: [customerUserId] as unknown[] }]
-        : []),
-      { sql: orderInsert.sql, values: orderInsert.params as unknown[] },
-    ];
+    /* A cryptographic order number makes collisions extremely unlikely. The
+       bounded retry still handles one without repeating a loyalty claim or
+       bypassing admission: a failed D1 batch rolls every statement back. */
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const orderInsert = getDb().insert(orders).values({
+        ...orderValues,
+        orderNumber: orderNumber(),
+      }).toSQL();
+      const batchStatements: Array<{ sql: string; values: unknown[] }> = [
+        ...claimStatements,
+        ...(hasClaim
+          ? [{ sql: "INSERT INTO customer_profiles (user_id, email, display_name) SELECT user_id, email, display_name FROM customer_profiles WHERE user_id = ? AND changes() <> 1", values: [customerUserId] as unknown[] }]
+          : []),
+        admissionAssertion,
+        { sql: orderInsert.sql, values: orderInsert.params as unknown[] },
+      ];
 
-    try {
-      await env.DB.batch(batchStatements.map((statement) => env.DB.prepare(statement.sql).bind(...statement.values)));
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      /* The assert fired: the reward balance or the coupon was claimed by another
-         order between the price check and the commit. Nothing was written. */
-      if (hasClaim && /customer_profiles/.test(message)) {
-        logOrderEvent("discount_conflict", { reference, status: 409, discountKind: discount.kind });
-        throw new OrderRequestError("That reward or offer was just used and is no longer available. Please review your cart and try again.", 409, "discount_conflict");
-      }
-      /* Two submits with the same checkout key raced past the lookup above. The
-         winner's order is the order. */
-      if (isUniqueConstraintError(error)) {
-        const [raced] = await getDb().select().from(orders).where(eq(orders.idempotencyKey, idempotencyKey)).limit(1);
-        if (raced) {
-          if (raced.customerUserId !== customerUserId) throw new OrderRequestError("Please start a new checkout.", 409, "checkout_conflict");
-          logOrderEvent("replayed", { reference, orderId: raced.id, status: 200 });
-          return orderResponse(raced, 200, reference);
+      try {
+        await env.DB.batch(batchStatements.map((statement) => env.DB.prepare(statement.sql).bind(...statement.values)));
+        break;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        /* Always resolve the checkout key first. A concurrent retry can trip a
+           loyalty or admission assertion after the winning request committed. */
+        if (isUniqueConstraintError(error)) {
+          const [raced] = await getDb().select().from(orders).where(eq(orders.idempotencyKey, idempotencyKey)).limit(1);
+          if (raced) {
+            if (raced.customerUserId !== customerUserId) throw new OrderRequestError("Please start a new checkout.", 409, "checkout_conflict");
+            logOrderEvent("replayed", { reference, orderId: raced.id, status: 200 });
+            return orderResponse(raced, 200, reference);
+          }
         }
+        if (/orders\.order_number/i.test(message) && attempt < 2) continue;
+
+        if (/customer_profiles/i.test(message)) {
+          const counts = await readAdmissionCounts(customerUserId, rollingWindowStartEpoch, scheduledForEpoch);
+          if ((counts?.activeCount ?? 0) >= ORDER_MAX_ACTIVE_PER_ACCOUNT) {
+            throw new OrderRequestError("You already have two active orders. Finish or cancel one before placing another.", 429, "active_order_limit");
+          }
+          if ((counts?.rollingCount ?? 0) >= ORDER_MAX_PER_ACCOUNT_PER_HOUR) {
+            throw new OrderRequestError("This account has reached the hourly order limit. Please try again later.", 429, "hourly_order_limit");
+          }
+          if (scheduledForEpoch !== null && (counts?.slotCount ?? 0) >= ORDER_MAX_PER_SCHEDULED_SLOT) {
+            throw new OrderRequestError("That pickup time just filled up. Choose another time.", 409, "pickup_slot_full");
+          }
+          if (hasClaim) {
+            logOrderEvent("discount_conflict", { reference, status: 409, discountKind: discount.kind });
+            throw new OrderRequestError("That reward or offer was just used and is no longer available. Please review your cart and try again.", 409, "discount_conflict");
+          }
+        }
+        throw error;
       }
-      throw error;
     }
 
     const [createdOrder] = await getDb().select().from(orders).where(eq(orders.idempotencyKey, idempotencyKey)).limit(1);
