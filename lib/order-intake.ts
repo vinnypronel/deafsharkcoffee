@@ -8,6 +8,7 @@ import {
   type ProductSelection,
 } from "../app/menu-data.ts";
 import { effectiveOrderingHours, type WeeklyHours } from "./store-hours.ts";
+import { BodyTooLargeError, readCappedText } from "./http-body.ts";
 
 /* Pure validation and pricing for public pickup orders.
 
@@ -148,17 +149,22 @@ export function requestExceedsBytes(request: Request, maxBytes: number) {
 
 /** Rejects anything that is not a JSON body before the payload is parsed. */
 export async function readOrderJson(request: Request): Promise<Record<string, unknown>> {
-  if (requestExceedsBytes(request, ORDER_MAX_BODY_BYTES)) {
-    throw new OrderRequestError("That order is too large.", 413, "payload_too_large");
-  }
   const contentType = (request.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
   if (contentType !== "application/json") {
     throw new OrderRequestError("Send this order as JSON.", 415, "unsupported_media_type");
   }
 
+  let text: string;
+  try {
+    text = await readCappedText(request, ORDER_MAX_BODY_BYTES);
+  } catch (error) {
+    if (error instanceof BodyTooLargeError) throw new OrderRequestError("That order is too large.", 413, "payload_too_large");
+    throw error;
+  }
+
   let parsed: unknown;
   try {
-    parsed = await request.json();
+    parsed = JSON.parse(text);
   } catch {
     throw new OrderRequestError("We could not read that order. Please try again.", 400, "malformed_json");
   }

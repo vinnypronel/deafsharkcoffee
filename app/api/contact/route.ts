@@ -1,16 +1,19 @@
 import { getDb, ensureSchema } from "../../../db";
 import { contactInquiries } from "../../../db/schema";
-import { cleanEmail, cleanPhone, cleanText, requestExceedsBytes, verifyPublicForm } from "../../../lib/public-form";
+import { BodyTooLargeError, cleanEmail, cleanPhone, cleanText, readCappedJson, verifyPublicForm } from "../../../lib/public-form";
 import { sendStaffNotification } from "../../../lib/transactional-email";
 
 const topics = new Set(["general", "catering", "order", "events", "feedback"]);
 
 export async function POST(request: Request) {
   try {
-    if (requestExceedsBytes(request, 32 * 1024)) {
-      return Response.json({ error: "That message is too large." }, { status: 413 });
+    let payload: Record<string, unknown>;
+    try {
+      payload = (await readCappedJson(request, 32 * 1024)) as Record<string, unknown>;
+    } catch (error) {
+      if (error instanceof BodyTooLargeError) return Response.json({ error: "That message is too large." }, { status: 413 });
+      return Response.json({ error: "We could not read that request." }, { status: 400 });
     }
-    const payload = (await request.json()) as Record<string, unknown>;
     const name = cleanText(payload.name, 100);
     const email = cleanEmail(payload.email);
     const phone = cleanPhone(payload.phone) || null;

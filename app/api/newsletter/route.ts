@@ -1,15 +1,18 @@
 import { getDb, ensureSchema } from "../../../db";
 import { newsletterSubscriptions } from "../../../db/schema";
-import { cleanEmail, cleanText, requestExceedsBytes, verifyPublicForm } from "../../../lib/public-form";
+import { BodyTooLargeError, cleanEmail, cleanText, readCappedJson, verifyPublicForm } from "../../../lib/public-form";
 
 const CONSENT_TEXT = "I agree to receive Deaf Shark Coffee news and promotions by email. I can unsubscribe at any time.";
 
 export async function POST(request: Request) {
   try {
-    if (requestExceedsBytes(request, 8 * 1024)) {
-      return Response.json({ error: "That request is too large." }, { status: 413 });
+    let payload: { email?: string; consent?: boolean; turnstileToken?: string };
+    try {
+      payload = (await readCappedJson(request, 8 * 1024)) as { email?: string; consent?: boolean; turnstileToken?: string };
+    } catch (error) {
+      if (error instanceof BodyTooLargeError) return Response.json({ error: "That request is too large." }, { status: 413 });
+      return Response.json({ error: "We could not read that request." }, { status: 400 });
     }
-    const payload = (await request.json()) as { email?: string; consent?: boolean; turnstileToken?: string };
     const email = cleanEmail(payload.email);
     if (!email) return Response.json({ error: "Enter a valid email address." }, { status: 400 });
     if (payload.consent !== true) return Response.json({ error: "Please agree to receive marketing email." }, { status: 400 });

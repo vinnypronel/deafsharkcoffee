@@ -1,7 +1,7 @@
 import { env } from "cloudflare:workers";
 import { getDb, ensureSchema } from "../../../db";
 import { employmentApplications } from "../../../db/schema";
-import { cleanEmail, cleanPhone, cleanText, requestExceedsBytes, verifyPublicForm } from "../../../lib/public-form";
+import { bodyLengthUnknownOrOver, cleanEmail, cleanPhone, cleanText, verifyPublicForm } from "../../../lib/public-form";
 import { sendStaffNotification } from "../../../lib/transactional-email";
 import { allowedResumeExtensions, isAllowedResumeFile } from "../../../lib/resume-file";
 
@@ -19,7 +19,7 @@ function field(form: FormData, key: string, max: number) {
 export async function POST(request: Request) {
   let uploadedKey: string | null = null;
   try {
-    if (requestExceedsBytes(request, 4 * 1024 * 1024)) {
+    if (bodyLengthUnknownOrOver(request, 4 * 1024 * 1024)) {
       return Response.json({ error: "Application files and fields must total no more than 6 MB." }, { status: 413 });
     }
     const form = await request.formData();

@@ -40,6 +40,10 @@ export function requestExceedsBytes(request: Request, maxBytes: number) {
   return Number.isFinite(length) && length > maxBytes;
 }
 
+/* The body-size guards live in a binding-free module so pure code and unit
+   tests can import them too. Re-exported here for the public form routes. */
+export { BodyTooLargeError, readCappedText, readCappedJson, bodyLengthUnknownOrOver } from "./http-body.ts";
+
 export async function verifyPublicForm(request: Request, token: unknown, expectedAction: string) {
   const secret = env.TURNSTILE_SECRET_KEY?.trim();
   const hostnames = configuredHostnames();
