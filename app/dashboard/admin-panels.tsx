@@ -272,10 +272,13 @@ function LoyaltyManager({ data, message, setMessage, reload }: { data: LoyaltyDa
     if (!reason) return setMessage("Add a reason so every points change has a record.");
     setSaving(member.userId);
     setMessage("Saving points adjustment…");
+    /* A stable id per submit so a retry of the same change is idempotent on the
+       server rather than applying the points twice. */
+    const adjustmentId = crypto.randomUUID();
     const response = await fetch("/api/admin/loyalty", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: member.userId, pointsChange, reason }),
+      body: JSON.stringify({ userId: member.userId, pointsChange, reason, adjustmentId }),
     });
     const result = await response.json() as { error?: string; balanceAfter?: number };
     setSaving(null);
