@@ -5666,14 +5666,22 @@ body.modal-open { touch-action: none; }
     padding-top: 8px;
   }
   .order-section .menu-product-card {
+    /* Close to square: width follows the height instead of spanning the column. */
+    width: min(100%, calc(clamp(190px, 27svh, 240px) * 1.12));
+    margin-inline: auto;
     height: clamp(190px, 27svh, 240px);
-    padding: 8px 12px 34px;
+    padding: 8px 12px 42px;
   }
   .order-section .menu-product-card .product-photo {
     max-height: 100%;
   }
   .order-section .menu-card-pill {
-    bottom: 10px;
+    bottom: 8px;
+    /* The square card is narrow, so long names wrap to two even lines instead of clipping. */
+    white-space: normal;
+    text-wrap: balance;
+    font-size: 13px;
+    line-height: 1.15;
   }
   .standalone-order .mobile-menu-pinned-controls {
     margin-top: 8px;

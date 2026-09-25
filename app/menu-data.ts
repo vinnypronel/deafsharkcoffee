@@ -997,7 +997,7 @@ export const menuProducts: Product[] = [
   },
   {
     id: "fries",
-    name: "Fries",
+    name: "Fries / Sweet Potato Fries",
     category: "Bites",
     price: 5,
     description: "Choose classic French fries or sweet potato fries.",
