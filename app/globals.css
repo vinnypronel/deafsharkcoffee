@@ -5246,7 +5246,9 @@ body.modal-open { touch-action: none; }
   .visit-map-container { min-height: 260px; }
   .contact-map-section { padding: 32px 16px; }
   .contact-map-container { height: 280px; }
-  .configurator { width: 100vw; max-height: 100dvh; height: 100dvh; display: block; border-radius: 0; }
+  .configurator { width: 100vw; max-height: 100dvh; height: 100dvh; display: block; border-radius: 0; overflow-x: clip; touch-action: pan-y pinch-zoom; }
+  /* The scaled drink photo spills past the sheet edges; clip it so the sheet cannot be swiped sideways. */
+  .config-product, .config-options { overflow-x: clip; }
   .config-product { min-height: 44vh; padding: 28px 24px; }
   .config-product .product-hot .product-photo,
   .config-product .product-iced .product-photo {
@@ -5264,6 +5266,8 @@ body.modal-open { touch-action: none; }
      to reach notes, quantity, or the order action. */
   .configurator[data-layout="food"] {
     display: grid;
+    /* One column: the desktop two-column template otherwise returns with the grid. */
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(220px, 35svh) minmax(0, 1fr);
     overflow: hidden;
   }
