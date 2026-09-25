@@ -1914,6 +1914,9 @@ h1, h2, h3, p { margin-top: 0; }
     align-items: flex-start;
     gap: 4px;
     padding-right: 50px;
+    /* Stick just under the pinned image card (header 68 + pin padding 8 + card
+       + pin padding 16 + its 20px cream overhang) instead of hiding behind it. */
+    top: calc(112px + clamp(190px, 27svh, 240px));
   }
   .order-section:not(.standalone-order) .menu-panel-header h3 {
     font-size: clamp(19px, 5.2vw, 26px);
