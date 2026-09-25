@@ -5017,7 +5017,7 @@ body.modal-open { touch-action: none; }
     z-index: 120;
     inset: 0 auto 0 0;
     display: block;
-    width: 6px;
+    width: 3px;
     overflow: visible;
     border: 0;
     border-radius: 0;
@@ -5038,9 +5038,9 @@ body.modal-open { touch-action: none; }
     content: "";
     position: absolute;
     right: -1px;
-    bottom: -3px;
-    width: 8px;
-    height: 7px;
+    bottom: -2px;
+    width: 5px;
+    height: 5px;
     border-radius: 45% 55% 68% 32%;
     background: #d9b184;
     transform-origin: 50% 45%;
@@ -5257,6 +5257,10 @@ body.modal-open { touch-action: none; }
   .config-product .product-visual-compact { height: 220px; }
   .config-product h2 { font-size: 34px; }
   .config-product p { display: none; }
+  /* Name on the left, price on the right. */
+  .config-product-info { flex-direction: row; align-items: last baseline; justify-content: space-between; gap: 14px; }
+  .config-product-info h2 { min-width: 0; }
+  .config-product-info strong { flex: none; }
   .config-options { padding: 34px 20px calc(32px + env(safe-area-inset-bottom)); }
   .removal-option-group:first-of-type { margin-top: 0; padding-right: 0; }
   .option-group > div { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -5265,12 +5269,9 @@ body.modal-open { touch-action: none; }
      into one phone viewport so the customer never has to scroll the sheet just
      to reach notes, quantity, or the order action. */
   .configurator[data-layout="food"] {
-    display: grid;
-    /* One column: the desktop two-column template otherwise returns with the grid. */
-    grid-template-columns: minmax(0, 1fr);
-    /* Rows size to content and the sheet scrolls, so the photo is never squeezed under the title. */
-    grid-template-rows: auto auto;
-    align-content: start;
+    /* Plain stacking like the drink sheet: a fixed-height grid squeezed the top
+       section below its content, so the title overlapped the options. */
+    display: block;
     overflow-x: clip;
     overflow-y: auto;
   }

@@ -48,6 +48,22 @@ type CartItem = {
   selection?: ProductSelection;
 };
 
+/* Lines with the same product and the same choices are one line with a quantity,
+   so adding the same water five times shows "5" once instead of five rows. */
+function cartLineSignature(item: CartItem) {
+  return JSON.stringify([item.id, item.unitPrice, item.options, item.selection ?? null]);
+}
+
+function mergeCartLines(items: CartItem[]): CartItem[] {
+  const merged: CartItem[] = [];
+  for (const item of items) {
+    const match = merged.find((line) => cartLineSignature(line) === cartLineSignature(item));
+    if (match) match.quantity += item.quantity;
+    else merged.push({ ...item });
+  }
+  return merged;
+}
+
 /* Shape returned by /api/site-content for the home page featured carousel. */
 type FeaturedSlideResponse = {
   productId: string;
@@ -807,7 +823,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem("deaf-shark-cart") ?? "null") as { savedAt: number; items: CartItem[] } | null;
-      if (saved && Date.now() - saved.savedAt < 12 * 60 * 60_000 && Array.isArray(saved.items)) setCart(saved.items);
+      if (saved && Date.now() - saved.savedAt < 12 * 60 * 60_000 && Array.isArray(saved.items)) setCart(mergeCartLines(saved.items));
     } catch { /* storage unavailable */ }
     cartRestored.current = true;
   }, []);
@@ -1193,7 +1209,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
 
   function quickAdd(product: Product) {
     if (quantityInCart(cart, product.id) >= MAX_PER_ITEM) return;
-    setCart((current) => [...current, {
+    setCart((current) => mergeCartLines([...current, {
       key: `${product.id}-${Date.now()}`,
       id: product.id,
       name: product.name,
@@ -1201,7 +1217,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
       unitPrice: product.price,
       options: [],
       prepStation: prepStationFor(product),
-    }]);
+    }]));
     setJustAdded(product.id);
     window.clearTimeout(justAddedTimer.current);
     justAddedTimer.current = window.setTimeout(() => setJustAdded(null), 1100);
@@ -1215,12 +1231,8 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
       return;
     }
 
-    if (isCompactMenu) {
-      if (product.configurable) openProduct(product);
-      else quickAdd(product);
-      return;
-    }
-
+    /* A second tap always opens the item sheet, even with no options, so tapping a
+       row never silently adds to the cart. Only the cart button quick-adds. */
     openProduct(product);
   }
 
@@ -1244,11 +1256,11 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
     item = { ...item, quantity: Math.min(item.quantity, allowed) };
     if (editingCartItem) {
       setCart((current) =>
-        current.map((c) => (c.key === editingCartItem.key ? item : c))
+        mergeCartLines(current.map((c) => (c.key === editingCartItem.key ? item : c)))
       );
       setEditingCartItem(null);
     } else {
-      setCart((current) => [...current, item]);
+      setCart((current) => mergeCartLines([...current, item]));
     }
     setSelectedProduct(null);
     setCartOpen(true);
