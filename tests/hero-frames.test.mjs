@@ -48,13 +48,13 @@ function harness(t, reduced = false, delayLast = false, mobile = true, failLast 
   set("createImageBitmap", async (index) => {
     live++;
     peak = Math.max(peak, live);
-    return { index, width: mobile ? 2400 : 4000, height: mobile ? 540 : 900, close() { live--; } };
+    return { index, width: mobile ? 1650 : 4000, height: mobile ? 704 : 900, close() { live--; } };
   });
   const poster = Object.assign(new EventTarget(), { naturalWidth: 960, naturalHeight: 540 });
   const stop = startHeroFrames(
     { getBoundingClientRect: () => { layoutReads++; return { top, bottom: top + 2400, height: 2400 }; } },
     { getBoundingClientRect: () => ({ height: pinHeight }), querySelector: () => ({ getBoundingClientRect: () => ({ height: 732 }) }) },
-    (frame, width, height, sx = 0, sy = 0) => painted.push(frame.index === undefined ? "poster" : frame.index * 10 + sx / (mobile ? 480 : 800) + sy / (mobile ? 270 : 450) * 5), () => true, poster, reduced, mobile,
+    (frame, width, height, sx = 0, sy = 0) => painted.push(frame.index === undefined ? "poster" : frame.index * 10 + sx / (mobile ? 330 : 800) + sy / (mobile ? 352 : 450) * 5), () => true, poster, reduced, mobile,
   );
   t.after(() => {
     stop();
@@ -135,8 +135,8 @@ test("toolbar resize repaints the current frame without flashing the poster", as
 });
 
 test("both shipped sequences contain all twenty-four sheets", () => {
-  for (const size of ["desktop", "mobile"]) {
-    const files = readdirSync(new URL(`../public/hero-frames-v3/${size}/`, import.meta.url));
+  for (const dir of ["hero-frames-v3/desktop", "hero-frames-v4/mobile"]) {
+    const files = readdirSync(new URL(`../public/${dir}/`, import.meta.url));
     assert.equal(files.length, 24);
     for (let i = 0; i < 24; i++) assert.ok(files.includes(`${String(i).padStart(2, "0")}.jpg`));
   }

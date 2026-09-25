@@ -5,7 +5,7 @@ const LAST_FRAME = SHEET_COUNT * FRAMES_PER_SHEET - 1;
 
 // Decode the entire sequence before enabling scrubbing. No media seeks, image
 // decoding or network requests in the scroll loop. Pixel budgets are fixed:
-// mobile 119 MiB, desktop 330 MiB, released on unmount / reduced-motion change.
+// mobile 106 MiB, desktop 330 MiB, released on unmount / reduced-motion change.
 export function startHeroFrames(
   wrap: HTMLElement,
   pin: HTMLElement,
@@ -15,8 +15,9 @@ export function startHeroFrames(
   reduced: boolean,
   mobile: boolean,
 ) {
-  const width = mobile ? 480 : 800;
-  const height = mobile ? 270 : 450;
+  // Mobile frames are a centered 760x810 crop of the 1440x810 source.
+  const width = mobile ? 330 : 800;
+  const height = mobile ? 352 : 450;
   const sheets = new Map<number, ImageBitmap>();
   const controller = new AbortController();
   let disposed = false;
@@ -36,7 +37,12 @@ export function startHeroFrames(
 
   const paintPoster = () => {
     if (!disposed && painted < 0 && needsPaint && poster.naturalWidth) {
-      draw(poster, poster.naturalWidth, poster.naturalHeight);
+      const pw = poster.naturalWidth;
+      const ph = poster.naturalHeight;
+      // Crop the landscape poster the same way as the mobile frames, so the
+      // hand-off from poster to footage does not jump.
+      if (mobile) draw(poster, Math.round(ph * width / height), ph, Math.round((pw - ph * width / height) * 0.5), 0);
+      else draw(poster, pw, ph);
       needsPaint = false;
     }
   };
@@ -97,7 +103,7 @@ export function startHeroFrames(
         const index = next++;
         if (sheets.has(index)) continue;
         try {
-          const response = await fetch(`/hero-frames-v3/${mobile ? "mobile" : "desktop"}/${String(index).padStart(2, "0")}.jpg`, {
+          const response = await fetch(`/${mobile ? "hero-frames-v4/mobile" : "hero-frames-v3/desktop"}/${String(index).padStart(2, "0")}.jpg`, {
             signal: controller.signal, cache: "force-cache",
           });
           if (!response.ok) throw new Error("Hero sheet unavailable");

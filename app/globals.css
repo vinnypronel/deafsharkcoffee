@@ -5102,19 +5102,27 @@ body.modal-open { touch-action: none; }
   .scroll-hero-poster {
     height: calc(100lvh - 68px);
   }
+  /* Phones load a centered portrait crop of the footage (hero-frames-v4), drawn
+     edge to edge at its own resolution so the cup stays sharp and moderate in
+     size. The brown arm patch is a desktop fix and is off here. */
   .scroll-hero-video {
+    --hero-fit: 0;
     --hero-focus-x: .5;
     --hero-focus-y: 0;
-    --hero-offset-y: -.09;
-    --hero-zoom: .82;
+    --hero-offset-y: -.02;
+    --hero-zoom: 1;
     --hero-mirror: 0;
+    --hero-arm-cover: 0;
   }
   .scroll-hero-poster {
-    top: -9%;
+    top: calc((100lvh - 68px) * -.02);
+    height: auto;
+    aspect-ratio: 330 / 352;
     object-fit: cover;
     object-position: 50% 0;
-    transform: scale(.82);
-    transform-origin: 50% 0;
+    transform: none;
+    -webkit-mask-image: linear-gradient(to bottom, #000 65%, transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 65%, transparent 100%);
   }
   .scroll-hero-poster-fill {
     object-position: 50% 0;

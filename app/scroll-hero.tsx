@@ -45,7 +45,9 @@ export default function ScrollHero({
       const rect = canvas.getBoundingClientRect();
       // The source has a fixed resolution. Avoid a multi-megapixel retina
       // backing store that adds raster cost without adding footage detail.
-      const ratio = Math.min(window.devicePixelRatio || 1, mobile ? 1.5 : 1,
+      // Mobile frames are 330px wide, so a 1x canvas already holds every source
+      // pixel and halves the per-frame fill cost while scrolling.
+      const ratio = Math.min(window.devicePixelRatio || 1, 1,
         (mobile ? 1440 : 1920) / Math.max(rect.width, rect.height, 1));
       const width = Math.max(1, Math.round(rect.width * ratio));
       const height = Math.max(1, Math.round(rect.height * ratio));
