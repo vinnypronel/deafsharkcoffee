@@ -5257,7 +5257,9 @@ body.modal-open { touch-action: none; }
   .visit-map-container { min-height: 260px; }
   .contact-map-section { padding: 32px 16px; }
   .contact-map-container { height: 280px; }
-  .configurator { width: 100vw; max-height: 100dvh; height: 100dvh; display: block; border-radius: 0; overflow-x: clip; touch-action: pan-y pinch-zoom; }
+  .configurator { width: 100vw; max-height: 100dvh; height: 100dvh; display: block; border-radius: 0; overflow-x: clip; touch-action: pan-y pinch-zoom; background: #f6ebdc; }
+  /* One cream for the whole sheet, so the options area does not read as a white band under the photo. */
+  .configurator .add-row { background: rgba(246, 235, 220, .96); }
   /* The scaled drink photo spills past the sheet edges; clip it so the sheet cannot be swiped sideways. */
   .config-product, .config-options { overflow-x: clip; }
   .config-product { min-height: 44vh; padding: 28px 24px; }
