@@ -5268,8 +5268,11 @@ body.modal-open { touch-action: none; }
     display: grid;
     /* One column: the desktop two-column template otherwise returns with the grid. */
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(220px, 35svh) minmax(0, 1fr);
-    overflow: hidden;
+    /* Rows size to content and the sheet scrolls, so the photo is never squeezed under the title. */
+    grid-template-rows: auto auto;
+    align-content: start;
+    overflow-x: clip;
+    overflow-y: auto;
   }
   .configurator[data-layout="food"] .config-product {
     min-height: 0;
@@ -5278,12 +5281,15 @@ body.modal-open { touch-action: none; }
   }
   .configurator[data-layout="food"] .config-product .product-visual {
     width: min(100%, 280px);
-    height: min(22svh, 190px);
-    margin: 0 auto 3px;
+    flex: none;
+    height: auto;
+    margin: 30px auto 8px;
   }
   .configurator[data-layout="food"] .config-product .product-food .product-photo {
-    max-width: min(100%, 230px);
-    max-height: min(100%, 230px);
+    /* Sized by width so the whole square photo shows and its box grows to match. */
+    width: min(60vw, 230px);
+    max-width: none;
+    max-height: none;
     transform: none;
     border-radius: 17px;
     clip-path: inset(0 round 17px);
@@ -5299,7 +5305,7 @@ body.modal-open { touch-action: none; }
   }
   .configurator[data-layout="food"] .config-options {
     min-height: 0;
-    overflow: hidden;
+    overflow: visible;
     padding: 12px 20px calc(9px + env(safe-area-inset-bottom));
   }
   .configurator[data-layout="food"] .option-group {
