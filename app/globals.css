@@ -594,7 +594,11 @@ h1, h2, h3, p { margin-top: 0; }
 .header-order-chip:hover .order-status-icon, .header-order-chip:focus-visible .order-status-icon { width: 17px; margin-left: 8px; opacity: 1; transform: translateX(0) scale(1); }
 /* Ready gets a green check so a finished order stands out at a glance. */
 .header-order-chip.status-ready .order-status-icon { color: #1d6b35; }
-@media (max-width: 720px) { .header-order-chip { min-height: 34px; padding: 0 11px; font-size: 12px; } }
+@media (max-width: 720px) {
+  .header-order-chip { min-height: 30px; padding: 0 9px; font-size: 11px; }
+  /* The chip takes the wordmark's spot on phones, so only the fin shows while an order is active. */
+  .site-header:has(.header-order-chip) .brand-mark-text { display: none; }
+}
 @media (prefers-reduced-motion: reduce) { .header-order-chip, .header-order-chip .order-status-icon { transition: none; } }
 .header-order-popover { position: absolute; z-index: 80; top: calc(100% + 20px); right: 0; width: min(390px, calc(100vw - 28px)); border: 1px solid var(--line); border-radius: 24px; padding: 28px; background: var(--paper); color: var(--ink); box-shadow: 0 26px 80px rgba(20,11,8,.28); }
 .header-order-popover::before { content: ""; position: absolute; top: -8px; right: 30px; width: 16px; height: 16px; transform: rotate(45deg); background: var(--paper); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
@@ -682,7 +686,7 @@ h1, h2, h3, p { margin-top: 0; }
   .order-progress-node { width: 32px; height: 32px; }
   .order-pickup-card { align-items: flex-start; flex-direction: column; gap: 7px; }
   .order-pickup-card > p { max-width: none; text-align: left; }
-  .order-status-footer { grid-template-columns: 1fr; }
+  .order-status-footer p { min-height: 0; padding: 12px 13px; }
 }
 .account-continue { width: 100%; margin: 16px 0 14px; }
 
@@ -4631,12 +4635,16 @@ body.modal-open { touch-action: none; }
 .nav-fullscreen-takeover {
   position: fixed;
   inset: 0;
+  /* dvh tracks the visible area under iOS Safari's toolbars, so the whole
+     sitemap fits on one screen without scrolling. */
+  height: 100dvh;
+  bottom: auto;
   z-index: 35;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  padding: calc(68px + clamp(16px, 3.5vh, 40px)) 24px clamp(24px, 3.5vh, 36px);
+  padding: calc(68px + clamp(8px, 2dvh, 32px)) 24px calc(clamp(12px, 2.5dvh, 32px) + env(safe-area-inset-bottom, 0px));
   background:
     radial-gradient(ellipse 80% 60% at 50% 35%, rgba(214, 158, 46, 0.12) 0%, transparent 70%),
     radial-gradient(ellipse 70% 50% at 50% 85%, rgba(163, 60, 43, 0.1) 0%, transparent 70%),
@@ -4665,10 +4673,10 @@ body.modal-open { touch-action: none; }
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: clamp(14px, 2.8vh, 26px);
+  gap: clamp(2px, 1.2dvh, 18px);
   list-style: none;
   margin: auto 0 0 0;
-  padding: clamp(20px, 4vh, 48px) 0 0 0;
+  padding: 0;
   width: 100%;
 }
 
@@ -4685,11 +4693,11 @@ body.modal-open { touch-action: none; }
   justify-content: center;
   text-align: center;
   gap: 10px;
-  padding: 4px 20px;
+  padding: 2px 20px;
   font-family: Georgia, serif;
-  font-size: clamp(2.1rem, 6.2vw, 3.2rem);
+  font-size: clamp(1.5rem, min(4.4dvh, 8vw), 3rem);
   font-weight: 400;
-  line-height: 1.15;
+  line-height: 1.1;
   letter-spacing: -0.02em;
   color: #fffaf3;
   text-decoration: none;
@@ -4715,9 +4723,9 @@ body.modal-open { touch-action: none; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: clamp(6px, 1.2dvh, 12px);
   margin-top: auto;
-  padding-top: clamp(16px, 2.5vh, 28px);
+  padding-top: clamp(8px, 1.8dvh, 24px);
   opacity: 0;
   transform: translateY(10px);
   transition: opacity 0.4s ease 0.35s, transform 0.4s ease 0.35s;
@@ -4728,7 +4736,7 @@ body.modal-open { touch-action: none; }
   align-items: center;
   justify-content: center;
   width: 100%;
-  margin: clamp(40px, 7vh, 72px) 0 auto 0;
+  margin: clamp(14px, 3.5dvh, 56px) 0 auto 0;
   opacity: 0;
   transform: translateY(10px);
   transition: opacity 0.4s ease 0.35s, transform 0.4s ease 0.35s;
@@ -5230,13 +5238,9 @@ body.modal-open { touch-action: none; }
      left big dead gaps. Let each card be exactly as tall as its content. */
   .visit-cards-row { grid-template-columns: 1fr; gap: 14px; grid-auto-rows: auto; }
   .visit-card { height: auto; min-height: 0; padding-top: 14px; }
-  .visit-hours-card {
-    display: grid;
-    grid-template-columns: minmax(0, max-content);
-    justify-content: end;
-    justify-items: start;
-    text-align: left;
-  }
+  /* No stamp on mobile, so the title gets the full width and reads as two lines. */
+  .visit-brand-stamp { display: none; }
+  .visit-header-block h2 { font-size: clamp(28px, 8.4vw, 36px); }
   .visit-card a,
   .visit-card .visit-action-btn { margin-top: 12px; padding-top: 0; }
   .visit-map-container { min-height: 260px; }
@@ -5647,8 +5651,28 @@ body.modal-open { touch-action: none; }
   .standalone-order .menu-sidebar-heading {
     margin-bottom: 8px;
   }
-  .standalone-order .menu-card-brand {
-    margin: 8px 0;
+  /* Home and menu page: tighter pinned card with no brand line, so the rows get more room. */
+  .order-section .menu-card-brand {
+    display: none;
+  }
+  .order-section .menu-sidebar-heading {
+    margin-bottom: 8px;
+  }
+  .order-section .menu-product-pin {
+    padding-top: 8px;
+  }
+  .order-section .menu-product-card {
+    height: clamp(190px, 27svh, 240px);
+    padding: 8px 12px 34px;
+  }
+  .order-section .menu-product-card .product-photo {
+    max-height: 100%;
+  }
+  .order-section .menu-card-pill {
+    bottom: 10px;
+  }
+  .standalone-order .mobile-menu-pinned-controls {
+    margin-top: 8px;
   }
   .mobile-menu-pinned-controls {
     display: block;

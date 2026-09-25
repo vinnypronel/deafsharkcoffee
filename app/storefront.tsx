@@ -1576,14 +1576,15 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
         <div className="menu-showcase-grid" ref={menuRowsRef}>
           {/* Left Column: Title + Clean Product Card + Brand Tag (Sticky) */}
           <aside className="menu-product-card-wrap">
+            {/* The menu page is its own document, so its title is the h1 there.
+                On the home page this block sits under the hero h1 and stays an h2.
+                It sits outside the pin so it scrolls away on mobile instead of sticking. */}
+            <div className="menu-sidebar-heading">
+              {isMenuPage
+                ? <h1 className="menu-panel-heading">The Full Deaf Shark Menu<img src="/deafshark-logo-640.webp" alt="" className="menu-heading-badge" decoding="async" /></h1>
+                : <h2>Salvadoran roasts, poured fresh.</h2>}
+            </div>
             <div className="menu-product-pin">
-              <div className="menu-sidebar-heading">
-                {/* The menu page is its own document, so its title is the h1 there.
-                    On the home page this block sits under the hero h1 and stays an h2. */}
-                {isMenuPage
-                  ? <h1 className="menu-panel-heading">The Full Deaf Shark Menu<img src="/deafshark-logo-640.webp" alt="" className="menu-heading-badge" decoding="async" /></h1>
-                  : <h2>Salvadoran roasts, poured fresh.</h2>}
-              </div>
               <div className="menu-product-card-sticky-mask">
                 <div className="menu-product-card">
                   <ProductVisual product={menuShowcaseProduct} menuPreview />
