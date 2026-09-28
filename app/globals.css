@@ -4950,6 +4950,8 @@ body.modal-open { touch-action: none; }
   .menu-shell { grid-template-columns: 38% 1fr; }
   .visit-section { grid-template-columns: 1fr 1fr; }
   .visit-section > div:first-child { grid-column: 1 / 3; }
+  /* The map sits under the full-width header here, so it spans both columns too instead of leaving the right half empty. */
+  .visit-section > .visit-map-container { grid-column: 1 / 3; }
   .availability-grid { grid-template-columns: repeat(3, 1fr); }
   .rush-summary { display: none; }
   .rush-bar { grid-template-columns: 1fr 1fr; }
@@ -5265,7 +5267,7 @@ body.modal-open { touch-action: none; }
   .product-row { min-height: 104px; }
   .product-row small { max-width: 240px; }
   .origin-section { display: flex; flex-direction: column; }
-  .take-home-section { display: flex; flex-direction: column; }
+  .take-home-section { display: flex; flex-direction: column; height: auto; min-height: 0; max-height: none; }
   .take-home-image { display: none; }
   .take-home-copy { padding: 46px 22px; }
   .take-home-body { gap: 20px; transform: none; }
@@ -6290,4 +6292,46 @@ video:-moz-full-screen {
   .hero-product-pinned { min-width: 0; }
   .hero-product-pinned .hero-visual-container { width: 100%; min-width: 0; }
   .hero-product-pinned .hero-featured-video-wrap { width: min(92%, 435px); height: auto; aspect-ratio: .8; }
+}
+
+/* Landscape tablets (iPad sideways): the screen is much less wide for its
+   height than the laptop, so the laptop proportions put the cup behind the
+   headline. Scale the headline to the laptop's share of the width and size
+   the footage so the cup sits in the gap before the product panel. */
+@media (min-width: 781px) and (max-width: 1300px) and (orientation: landscape) and (max-aspect-ratio: 16/10) {
+  .hero h1 { font-size: clamp(38px, min(4.4vw, 9.2vh), 106px); }
+  .scroll-hero-video { --hero-zoom: .78; --hero-focus-x: .5; --hero-focus-y: .5; --hero-mirror: 0; --hero-arm-cover: 0; }
+}
+
+/* One-column menu (781px to 960px, portrait tablets): the product card scrolls
+   away instead of staying pinned, so the sticky category tabs and section
+   header never slide over it. */
+@media (min-width: 781px) and (max-width: 960px) {
+  .standalone-order .menu-product-card-wrap { position: relative; top: auto; z-index: auto; }
+}
+
+/* Portrait tablets: three columns left the bag photo and the video as thin
+   strips beside a squeezed text column. Stack it like the phone layout. */
+@media (min-width: 781px) and (max-width: 1180px) and (orientation: portrait) {
+  .take-home-section { display: flex; flex-direction: column; height: auto; min-height: 0; max-height: none; }
+  .take-home-image, .take-home-product-cutout { display: none; }
+  .take-home-copy { padding: 56px clamp(32px, 7vw, 72px) 64px; }
+  .take-home-body { gap: 24px; transform: none; }
+  .take-home-copy h2 { transform: none; }
+  .take-home-action { position: static; width: auto; display: flex; align-items: center; margin-top: 16px; pointer-events: auto; }
+  .take-home-btn { position: static; align-self: center; margin-top: 16px; }
+  .take-home-film { height: clamp(380px, 48vw, 520px); order: -1; padding: 0; }
+  .take-home-film video { object-fit: cover; border-radius: 0; }
+  .take-home-banner {
+    display: block;
+    order: -2;
+    margin: 0;
+    padding: 22px 32px;
+    background: var(--deep);
+    color: var(--paper);
+    font-family: Georgia, serif;
+    font-size: clamp(28px, 4vw, 38px);
+    line-height: 1.15;
+    text-align: center;
+  }
 }
