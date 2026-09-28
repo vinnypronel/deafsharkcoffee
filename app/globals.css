@@ -4385,6 +4385,9 @@ body.modal-open { touch-action: none; }
 .sound-status { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 750; white-space: nowrap; }
 .sound-status i { width: 8px; height: 8px; border-radius: 50%; background: #b9482f; }
 .sound-status.armed i { background: #55bf80; }
+.sound-unlock-bar { width: 100%; display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; gap: 4px 12px; border: 0; padding: 14px 24px; background: #b9482f; color: #fff; font: inherit; text-align: center; cursor: pointer; }
+.sound-unlock-bar strong { font-size: 16px; }
+.sound-unlock-bar span { font-size: 13px; opacity: .85; }
 .order-alert-bar { display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; padding: 14px clamp(16px, 3vw, 32px); }
 .order-alert-copy { display: flex; flex-direction: column; gap: 2px; }
 .order-alert-copy strong { font-size: 17px; font-weight: 850; }

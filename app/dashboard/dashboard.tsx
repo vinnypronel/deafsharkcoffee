@@ -119,9 +119,10 @@ export function Dashboard() {
     }
   }, [CHIME_NOTES]);
 
-  /* Audio cannot start until the page has been interacted with, so rather than
-     asking staff to press a button, the first click, key or tap anywhere on the
-     dashboard arms it. In practice that happens within seconds of opening. */
+  /* Browsers block sound until the page is tapped once after it loads. Every
+     click, key or tap tries to unlock it, and the listeners stay until it
+     actually works (Safari can refuse the first tap), then the effect cleans
+     them up. Until then a banner tells staff to tap. */
   useEffect(() => {
     if (soundArmed) return;
     const arm = () => {
@@ -131,7 +132,7 @@ export function Dashboard() {
       void context.resume().then(() => setSoundArmed(true)).catch(() => {});
     };
     const events = ["pointerdown", "keydown", "touchstart"];
-    events.forEach((name) => window.addEventListener(name, arm, { once: true }));
+    events.forEach((name) => window.addEventListener(name, arm));
     arm();
     return () => events.forEach((name) => window.removeEventListener(name, arm));
   }, [soundArmed]);
@@ -245,10 +246,15 @@ export function Dashboard() {
           <button className={activeView === "history" ? "active" : ""} onClick={() => setActiveView("history")}>Order history</button>
         </div>
         <div className="dashboard-status-cluster">
-          <span className={`sound-status ${soundArmed ? "armed" : "off"}`}><i />{soundArmed ? "Sound on" : "Sound off"}</span>
           <div className={`connection-status ${connection}`}><i />{connection === "live" ? "Live" : "Connecting"}</div>
         </div>
       </header>
+      {!soundArmed && (
+        <button type="button" className="sound-unlock-bar">
+          <strong>Tap anywhere to turn on the new-order sound</strong>
+          <span>The browser keeps sound off until the screen is tapped once after it loads.</span>
+        </button>
+      )}
 
 
       {alarmActive && (
