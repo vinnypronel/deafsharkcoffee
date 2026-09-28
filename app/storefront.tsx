@@ -31,7 +31,7 @@ import {
 } from "./menu-data";
 import { CustomerHeader, SiteFooter } from "./site-chrome";
 import { OrderOnlineLink } from "./order-online-link";
-import { CUSTOM_CHECKOUT_ENABLED } from "./ordering";
+import { CUSTOM_CHECKOUT_ENABLED, ORDER_READY_SMS_ENABLED } from "./ordering";
 import TurnstileWidget from "./turnstile-widget";
 import { PHONE_INPUT_MAX_LENGTH, formatPhoneInput } from "../lib/phone-format";
 import "./drink-visuals.css";
@@ -2512,10 +2512,10 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onC
         </fieldset>
         {fulfillmentType === "scheduled" && <label className={fieldErrors.scheduledFor ? "has-error" : undefined}><span>Scheduled pickup</span><input type="datetime-local" value={scheduledFor} min={localInputValue(firstScheduledDate)} max={localInputValue(lastScheduledDate)} step={scheduling.slotMinutes * 60} onChange={(event) => { setScheduledFor(event.target.value); if (fieldErrors.scheduledFor) setFieldErrors((current) => ({ ...current, scheduledFor: undefined })); }} aria-invalid={fieldErrors.scheduledFor ? true : undefined} aria-describedby={fieldErrors.scheduledFor ? "checkout-schedule-error" : undefined} />{fieldErrors.scheduledFor && <small className="checkout-field-error" id="checkout-schedule-error" role="alert"><i aria-hidden="true">!</i>{fieldErrors.scheduledFor}</small>}</label>}
         <div className="checkout-pickup-info"><strong>Payment due at pickup</strong><span>No card information is collected on this website.</span></div>
-        <label className="checkout-sms-consent" htmlFor="order-ready-text-consent" aria-label="Receive one order-ready text message">
+        {ORDER_READY_SMS_ENABLED && <label className="checkout-sms-consent" htmlFor="order-ready-text-consent" aria-label="Receive one order-ready text message">
           <input id="order-ready-text-consent" type="checkbox" checked={smsOptIn} onChange={(event) => setSmsOptIn(event.target.checked)} />
           <span><strong>Text me once when this order is ready.</strong><small>Optional. Message and data rates may apply. Reply STOP to opt out.</small></span>
-        </label>
+        </label>}
         {(rewardOffer || studentVerified || welcomeOfferReady) && (
           <fieldset className="checkout-rewards">
             <legend>Rewards and discounts</legend>

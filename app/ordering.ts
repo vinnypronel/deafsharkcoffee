@@ -11,6 +11,11 @@ const orderingEnabled = process.env.NEXT_PUBLIC_ORDERING_ENABLED?.trim().toLower
 /** Orders are created by this site and routed to the staff order screens. */
 export const CUSTOM_CHECKOUT_ENABLED = orderingEnabled;
 
+/* The order-ready text needs Twilio credentials on the Worker. Until
+   `NEXT_PUBLIC_ORDER_READY_SMS_ENABLED` is exactly "true" the checkout does not
+   offer it, so nobody waits at the counter for a text that cannot be sent. */
+export const ORDER_READY_SMS_ENABLED = process.env.NEXT_PUBLIC_ORDER_READY_SMS_ENABLED?.trim().toLowerCase() === "true";
+
 export type OrderingMode = "hosted" | "integrated";
 
 export interface OrderingAdapter {
