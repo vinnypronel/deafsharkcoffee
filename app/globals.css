@@ -6258,3 +6258,36 @@ video:-moz-full-screen {
 .forms-tabs button { min-height: 42px; border: 0; border-radius: 7px; padding: 0 18px; background: transparent; color: var(--muted); font: inherit; font-weight: 800; cursor: pointer; }
 .forms-tabs button.active { background: var(--deep); color: white; }
 .forms-tabs button span { margin-left: 6px; font-size: 12px; opacity: .75; }
+
+/* Tablets and phones: the page only scrolls up and down. Page-level swipes are
+   vertical (pinch zoom stays), and the hero product's slide-in is clipped so it
+   cannot widen the page. Strips that scroll sideways on their own still do. */
+@media (max-width: 1180px) {
+  html, body { touch-action: pan-y pinch-zoom; overscroll-behavior-x: none; }
+  .hero-product-mobile, .hero-product-pinned { overflow-x: clip; }
+}
+
+/* Portrait tablets load the desktop footage but got the phone framing, which
+   shrank the whole frame to the screen width. Scale it up so the cup reads at
+   a similar size to desktop, and drop the desktop-only arm patch. */
+@media (min-width: 768px) and (max-width: 1180px) and (orientation: portrait) {
+  .scroll-hero-video {
+    --hero-fit: 0;
+    --hero-zoom: 1.6;
+    --hero-focus-x: .5;
+    --hero-focus-y: 0;
+    --hero-offset-y: -.03;
+    --hero-mirror: 0;
+    --hero-arm-cover: 0;
+  }
+  .scroll-hero-poster { display: none; }
+}
+/* From 781px the product panel sits on the right, so keep the cup in the open
+   left side, and size the panel's photo card from the column width so it is
+   not cut off at the screen edge. */
+@media (min-width: 781px) and (max-width: 1180px) and (orientation: portrait) {
+  .scroll-hero-video { --hero-zoom: 1.35; --hero-focus-x: 1; }
+  .hero-product-pinned { min-width: 0; }
+  .hero-product-pinned .hero-visual-container { width: 100%; min-width: 0; }
+  .hero-product-pinned .hero-featured-video-wrap { width: min(92%, 435px); height: auto; aspect-ratio: .8; }
+}
