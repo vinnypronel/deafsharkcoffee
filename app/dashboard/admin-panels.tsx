@@ -145,7 +145,7 @@ export function AdminPanels({ view }: { view: View }) {
   );
 
   if (view === "history") return (
-    <AdminSection eyebrow="Sales records" title="Complete order history" description="Every website order is retained here with its date, payment method, pickup type, total, and final status.">
+    <AdminSection title="Complete order history" description="Every website order is retained here with its date, payment method, pickup type, total, and final status.">
       <OrderHistoryTable orders={records.orders} />
     </AdminSection>
   );
