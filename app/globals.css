@@ -4363,10 +4363,10 @@ body.modal-open { touch-action: none; }
 
 /* Dashboard */
 .dashboard-page { min-height: 100vh; background: #eee9e1; }
-.dashboard-header { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px 24px; padding: 12px 24px; background: var(--deep); color: white; }
+.dashboard-header { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 12px 24px; padding: 12px 24px; background: var(--deep); color: white; }
 /* Row one: brand, the Orders / Website switch, live status. Row two: that section's tabs. */
 .dashboard-nav { display: contents; }
-.dashboard-sections { justify-self: center; display: flex; gap: 4px; padding: 4px; border-radius: 10px; background: rgba(255,255,255,.08); }
+.dashboard-sections { justify-self: end; display: flex; gap: 4px; padding: 4px; border-radius: 10px; background: rgba(255,255,255,.08); }
 .dashboard-sections button { min-height: 36px; border: 0; border-radius: 7px; padding: 0 20px; background: transparent; color: rgba(255,255,255,.7); font: inherit; font-size: 14px; font-weight: 800; letter-spacing: .02em; cursor: pointer; }
 .dashboard-sections button:hover { color: #fff; }
 .dashboard-sections button.active { background: var(--gold); color: var(--deep); }
@@ -5504,7 +5504,7 @@ body.modal-open { touch-action: none; }
   .account-backdrop { padding: 0; }
   .account-modal { width: 100vw; height: 100dvh; max-height: none; min-height: 100dvh; border-radius: 0; padding: 58px 22px 110px; }
 
-  .dashboard-header { grid-template-columns: auto minmax(0, 1fr) auto; padding: 10px 16px; }
+  .dashboard-header { grid-template-columns: auto minmax(0, 1fr); padding: 10px 16px; }
   .dashboard-brand strong { display: none; }
   .dashboard-sections button { padding: 0 14px; }
   .dashboard-tabs { position: fixed; z-index: 20; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); left: 12px; justify-content: stretch; box-shadow: 0 14px 40px rgba(0,0,0,.25); background: var(--deep); }
@@ -6334,4 +6334,47 @@ video:-moz-full-screen {
     line-height: 1.15;
     text-align: center;
   }
+}
+
+/* Home menu on one-column tablets (781px to 960px): pin the product card like
+   the phone layout. The heading scrolls away, the card stays under the site
+   header at a compact size, and the section title sticks just below it. */
+@media (min-width: 781px) and (max-width: 960px) {
+  .order-section:not(.standalone-order) .menu-showcase-grid { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .order-section:not(.standalone-order) .menu-product-card-wrap { position: static; top: auto; display: contents; }
+  .order-section:not(.standalone-order) .menu-sidebar-heading { margin-bottom: 10px; }
+  .order-section:not(.standalone-order) .menu-product-pin {
+    position: sticky;
+    top: 68px;
+    z-index: 12;
+    isolation: isolate;
+    display: block;
+    padding: 10px 0 16px;
+    background: #faf2e4;
+  }
+  .order-section:not(.standalone-order) .menu-product-pin::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: -12px -40px -20px;
+    background: #faf2e4;
+    pointer-events: none;
+  }
+  .order-section:not(.standalone-order) .menu-product-card-sticky-mask { position: relative; display: block; padding: 0; background: transparent; }
+  .order-section:not(.standalone-order) .menu-product-card {
+    position: relative;
+    top: auto;
+    width: min(100%, calc(clamp(220px, 24svh, 290px) * 1.12));
+    height: clamp(220px, 24svh, 290px);
+    max-height: none;
+    aspect-ratio: auto;
+    margin-inline: auto;
+    padding: 8px 12px 42px;
+    box-shadow: none;
+  }
+  .order-section:not(.standalone-order) .menu-product-card .product-photo { max-height: 100%; }
+  .order-section:not(.standalone-order) .menu-card-pill { bottom: 8px; white-space: normal; text-wrap: balance; font-size: 14px; line-height: 1.15; }
+  .order-section:not(.standalone-order) .menu-card-brand { display: none; }
+  .order-section:not(.standalone-order) .menu-list-panel { position: relative; z-index: 1; }
+  .order-section:not(.standalone-order) .menu-panel-header { top: calc(114px + clamp(220px, 24svh, 290px)); }
 }

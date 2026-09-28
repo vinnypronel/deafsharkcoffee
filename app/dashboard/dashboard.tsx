@@ -271,9 +271,6 @@ export function Dashboard() {
             ))}
           </div>
         </div>
-        <div className="dashboard-status-cluster">
-          <div className={`connection-status ${connection}`}><i />{connection === "live" ? "Live" : "Connecting"}</div>
-        </div>
       </header>
       {!soundArmed && (
         <button type="button" className="sound-unlock-bar">
