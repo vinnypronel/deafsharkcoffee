@@ -17,7 +17,11 @@ import {
   hasSyrupOptionsForProduct,
   menuProducts,
   MILK_OPTIONS,
+  ingredientForOption,
+  ingredientKey,
   modifierGroupsForProduct,
+  NO_INGREDIENTS_OUT,
+  outIngredientsFrom,
   prepStationFor,
   priceProductSelection,
   SYRUP_OPTIONS,
@@ -261,15 +265,23 @@ function ProductConfigurator({
   maxQuantity = MAX_PER_ITEM,
   onClose,
   onAdd,
+  outIngredients = NO_INGREDIENTS_OUT,
 }: {
   product: Product;
   initialItem?: CartItem;
+  /** Ingredient keys the shop marked out today. */
+  outIngredients?: ReadonlySet<string>;
   /** How many more of this item the cart can take. */
   maxQuantity?: number;
   onClose: () => void;
   onAdd: (item: CartItem) => void;
 }) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  /* The ingredient behind a choice, when the shop marked it out today. */
+  const outFor = (label: string) => {
+    const ingredient = ingredientForOption(label);
+    return ingredient && outIngredients.has(ingredientKey(ingredient.name)) ? ingredient : null;
+  };
   const isDrink = DRINK_CATEGORIES.includes(product.category);
   const isFood = ["Breakfast", "Sandwiches", "Bites", "Desserts"].includes(product.category);
   const isSmoothie = !!product.bases?.length;
@@ -298,13 +310,19 @@ function ProductConfigurator({
         extraShot: 0,
         syrups: [],
         modifiers: Object.fromEntries(
-          modifierGroups.map((group) => [
-            group.label,
-            group.required && group.options[0] ? [group.options[0].label] : [],
-          ]),
+          modifierGroups.map((group) => {
+            const first = group.options.find((option) => !outFor(option.label)) ?? group.options[0];
+            return [group.label, group.required && first ? [first.label] : []];
+          }),
         ),
         notes: "",
         quantity: 1,
+        ...(defaultMilk !== "None" && outFor(defaultMilk)
+          ? { milk: (MILK_OPTIONS.find((option) => !outFor(option)) ?? defaultMilk) as MilkChoice }
+          : {}),
+        ...(product.flavors?.[0] && outFor(product.flavors[0]) && product.category !== "Coffee Beans"
+          ? { flavor: product.flavors.find((option) => !outFor(option)) ?? product.flavors[0] }
+          : {}),
       };
     }
     const opts = initialItem.options || [];
@@ -381,7 +399,17 @@ function ProductConfigurator({
      `priceProductSelection` applies the same rule server-side. */
   const visibleModifierGroups: ModifierGroup[] = modifierGroupsForProduct(product, config.temperature);
 
-  const pricedSelection = priceProductSelection(product, config);
+  /* An item being edited can still hold a choice that ran out since it was
+     added. Price it without the check so the screen renders, and block the
+     save with a message instead. */
+  let outMessage = "";
+  let pricedSelection: ReturnType<typeof priceProductSelection>;
+  try {
+    pricedSelection = priceProductSelection(product, config, outIngredients);
+  } catch (error) {
+    outMessage = error instanceof Error ? error.message : "One of these choices is not available today.";
+    pricedSelection = priceProductSelection(product, config);
+  }
   const unitPrice = pricedSelection.unitPrice;
   const selectedProductPhoto = product.flavorPhotos?.[config.flavor] ?? product.photo;
 
@@ -407,7 +435,7 @@ function ProductConfigurator({
   };
 
   function add() {
-    if (maxQuantity < 1) return;
+    if (maxQuantity < 1 || outMessage) return;
     onAdd({
       key: initialItem?.key ?? `${product.id}-${Date.now()}`,
       id: product.id,
@@ -455,6 +483,7 @@ function ProductConfigurator({
               label={product.flavorLabel || "Flavor"}
               values={product.flavors as string[]}
               selected={config.flavor}
+              isOut={product.category === "Coffee Beans" ? undefined : (value) => Boolean(outFor(value))}
               onSelect={(value) => setConfig({ ...config, flavor: value })}
             />
           )}
@@ -489,6 +518,7 @@ function ProductConfigurator({
               label="Milk"
               values={MILK_OPTIONS as unknown as string[]}
               selected={config.milk === "None" ? "Whole" : config.milk}
+              isOut={(value) => Boolean(outFor(value))}
               onSelect={(value) => setConfig({ ...config, milk: value as MilkChoice })}
             />
           )}
@@ -501,6 +531,7 @@ function ProductConfigurator({
               values={["None", ...MILK_OPTIONS] as unknown as string[]}
               labels={{ None: "No milk" }}
               selected={config.milk}
+              isOut={(value) => value !== "None" && Boolean(outFor(value))}
               onSelect={(value) => setConfig({ ...config, milk: value as MilkChoice })}
             />
           )}
@@ -510,11 +541,13 @@ function ProductConfigurator({
               <div className="syrup-grid">
                 {SYRUP_OPTIONS.map((flavor) => {
                   const isSelected = config.syrups.includes(flavor);
+                  const out = Boolean(outFor(flavor));
                   return (
                     <button
                       type="button"
                       key={flavor}
-                      className={`syrup-pill ${isSelected ? "selected" : ""}`}
+                      disabled={out && !isSelected}
+                      className={`syrup-pill ${isSelected ? "selected" : ""} ${out ? "is-out" : ""}`}
                       onClick={() => {
                         setConfig({
                           ...config,
@@ -526,7 +559,7 @@ function ProductConfigurator({
                       aria-pressed={isSelected}
                     >
                       <span className="syrup-name">{flavor}</span>
-                      <small>+{money(SYRUP_PRICE)}</small>
+                      <small>{out ? "Out today" : `+${money(SYRUP_PRICE)}`}</small>
                     </button>
                   );
                 })}
@@ -563,6 +596,7 @@ function ProductConfigurator({
                   selected={selected[0] ?? ""}
                   suffix={suffix}
                   allowDeselect={!group.required}
+                  isOut={(value) => Boolean(outFor(value))}
                   onSelect={(value) => setConfig({
                     ...config,
                     modifiers: { ...config.modifiers, [group.label]: value === "None" ? [] : [value] },
@@ -575,12 +609,16 @@ function ProductConfigurator({
                 <legend>{group.label}</legend>
                 <div className="syrup-grid">
                   {group.options.map((option) => {
-                    const isSelected = selected.includes(option.label);
+                    const out = outFor(option.label);
+                    /* A removal whose ingredient is out is applied for the customer. */
+                    const madeWithout = Boolean(out?.removal);
+                    const isSelected = madeWithout || selected.includes(option.label);
                     return (
                       <button
                         type="button"
                         key={option.label}
-                        className={`syrup-pill ${isSelected ? "selected" : ""}`}
+                        disabled={Boolean(out) && (madeWithout || !isSelected)}
+                        className={`syrup-pill ${isSelected ? "selected" : ""} ${out ? "is-out" : ""}`}
                         onClick={() => setConfig({
                           ...config,
                           modifiers: {
@@ -593,7 +631,7 @@ function ProductConfigurator({
                         aria-pressed={isSelected}
                       >
                         <span className="syrup-name">{option.label}</span>
-                        {option.price ? <small>+{money(option.price)}</small> : null}
+                        {out ? <small>{madeWithout ? "Out today, made without" : "Out today"}</small> : option.price ? <small>+{money(option.price)}</small> : null}
                       </button>
                     );
                   })}
@@ -605,6 +643,7 @@ function ProductConfigurator({
             <span>Special instructions</span>
             <textarea value={config.notes} onChange={(event) => setConfig({ ...config, notes: event.target.value })} placeholder="Allergies or preparation notes" maxLength={180} />
           </label>
+          {outMessage && <p className="config-out-message" role="alert">{outMessage}</p>}
           <div className="add-row">
             <div className="quantity-control" aria-label="Quantity">
               <button onClick={() => setConfig({ ...config, quantity: Math.max(1, config.quantity - 1) })} aria-label="Decrease quantity">−</button>
@@ -612,7 +651,7 @@ function ProductConfigurator({
               <button onClick={() => setConfig({ ...config, quantity: Math.min(Math.max(maxQuantity, 1), config.quantity + 1) })} disabled={config.quantity >= maxQuantity} aria-label="Increase quantity" title={config.quantity >= maxQuantity ? `Limit of ${MAX_PER_ITEM} per item` : undefined}>+</button>
             </div>
             {CUSTOM_CHECKOUT_ENABLED ? (
-              <button className="primary-button add-button" onClick={add} disabled={maxQuantity < 1}>{maxQuantity < 1 ? `Limit of ${MAX_PER_ITEM} reached` : <>{initialItem ? "Update item" : "Add to order"} · {money(unitPrice * Math.min(config.quantity, maxQuantity))}</>}</button>
+              <button className="primary-button add-button" onClick={add} disabled={maxQuantity < 1 || Boolean(outMessage)}>{maxQuantity < 1 ? `Limit of ${MAX_PER_ITEM} reached` : <>{initialItem ? "Update item" : "Add to order"} · {money(unitPrice * Math.min(config.quantity, maxQuantity))}</>}</button>
             ) : (
               <OrderOnlineLink className="primary-button add-button" ariaLabel={`Order ${product.name} online`}>
                 Order online
@@ -626,22 +665,24 @@ function ProductConfigurator({
   );
 }
 
-function OptionGroup({ label, values, selected, suffix, labels, allowDeselect, onSelect }: { label: string; values: string[]; selected: string; suffix?: Record<string, string>; /* Display text for values whose stored form differs, e.g. "None" shown as "No milk". */ labels?: Record<string, string>; allowDeselect?: boolean; onSelect: (value: string) => void }) {
+function OptionGroup({ label, values, selected, suffix, labels, allowDeselect, isOut, onSelect }: { label: string; values: string[]; selected: string; suffix?: Record<string, string>; /* Display text for values whose stored form differs, e.g. "None" shown as "No milk". */ labels?: Record<string, string>; allowDeselect?: boolean; /* True for a choice the shop marked out today. */ isOut?: (value: string) => boolean; onSelect: (value: string) => void }) {
   return (
     <fieldset className="option-group">
       <legend>{label}</legend>
       <div>
         {values.map((value) => {
           const isSelected = selected === value;
+          const out = Boolean(isOut?.(value));
           return (
             <button
               type="button"
               key={value}
-              className={isSelected ? "selected" : ""}
+              className={`${isSelected ? "selected" : ""} ${out ? "is-out" : ""}`}
               onClick={() => onSelect(allowDeselect && isSelected ? "None" : value)}
               aria-pressed={isSelected}
+              disabled={out && !isSelected}
             >
-              {labels?.[value] ?? value} {suffix?.[value] && <small>{suffix[value]}</small>}
+              {labels?.[value] ?? value} {out ? <small>Out today</small> : suffix?.[value] && <small>{suffix[value]}</small>}
             </button>
           );
         })}
@@ -1979,6 +2020,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
           maxQuantity={MAX_PER_ITEM - quantityInCart(cart, selectedProduct.id, editingCartItem?.key)}
           onClose={closeProduct}
           onAdd={handleSaveConfiguredItem}
+          outIngredients={outIngredientsFrom(availability)}
         />
       )}
       {CUSTOM_CHECKOUT_ENABLED && (

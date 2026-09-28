@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { menuProducts, type PrepStation } from "../menu-data";
 import { AdminPanels } from "./admin-panels";
+import { AvailabilityPanel } from "./availability-panel";
 import { StationBoard } from "../kds/station-board";
 
 type OrderItem = {
@@ -60,12 +61,36 @@ function formatDateTime(value: string) {
   return `${calendarDate} · ${time}`;
 }
 
+type DashboardView = "orders" | "coffee" | "kitchen" | "menu" | "history" | "loyalty" | "promotions" | "website" | "menuItems" | "hours" | "events" | "forms";
+
+/* Two sections so the counter screen only shows what running orders needs,
+   and editing the public site lives in its own place. */
+const DASHBOARD_SECTIONS: Array<{ key: "orders" | "website"; label: string; tabs: Array<{ view: DashboardView; label: string }> }> = [
+  { key: "orders", label: "Orders", tabs: [
+    { view: "orders", label: "Live orders" },
+    { view: "coffee", label: "Coffee" },
+    { view: "kitchen", label: "Food" },
+    { view: "menu", label: "Available today" },
+    { view: "history", label: "Order history" },
+    { view: "loyalty", label: "Customers" },
+    { view: "promotions", label: "Promotions" },
+  ] },
+  { key: "website", label: "Website", tabs: [
+    { view: "website", label: "Homepage" },
+    { view: "menuItems", label: "Menu items" },
+    { view: "hours", label: "Hours" },
+    { view: "events", label: "Events" },
+    { view: "forms", label: "Forms" },
+  ] },
+];
+
 export function Dashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [availability, setAvailability] = useState<Record<string, boolean>>({});
   const [prepTime, setPrepTime] = useState(15);
   const [paused, setPaused] = useState(false);
-  const [activeView, setActiveView] = useState<"orders" | "coffee" | "kitchen" | "menu" | "website" | "hours" | "events" | "forms" | "history" | "loyalty" | "promotions">("orders");
+  const [activeView, setActiveView] = useState<DashboardView>("orders");
+  const activeSection = DASHBOARD_SECTIONS.find((section) => section.tabs.some((tab) => tab.view === activeView))?.key ?? "orders";
   const [mobileColumn, setMobileColumn] = useState<Order["status"]>("new");
   const [connection, setConnection] = useState<"live" | "waiting">("waiting");
   const [soundArmed, setSoundArmed] = useState(false);
@@ -232,18 +257,19 @@ export function Dashboard() {
     <main className="dashboard-page">
       <header className="dashboard-header">
         <Link className="dashboard-brand" href="/"><img src="/favicon.png" alt="" /><span><strong>Deaf Shark Coffee</strong></span></Link>
-        <div className="dashboard-tabs">
-          <button className={activeView === "orders" ? "active" : ""} onClick={() => setActiveView("orders")}>Live orders <span>{openOrders.length}</span></button>
-          <button className={activeView === "coffee" ? "active" : ""} onClick={() => setActiveView("coffee")}>Coffee</button>
-          <button className={activeView === "kitchen" ? "active" : ""} onClick={() => setActiveView("kitchen")}>Food</button>
-          <button className={activeView === "menu" ? "active" : ""} onClick={() => setActiveView("menu")}>Menu</button>
-          <button className={activeView === "website" ? "active" : ""} onClick={() => setActiveView("website")}>Homepage</button>
-          <button className={activeView === "hours" ? "active" : ""} onClick={() => setActiveView("hours")}>Hours</button>
-          <button className={activeView === "events" ? "active" : ""} onClick={() => setActiveView("events")}>Events</button>
-          <button className={activeView === "forms" ? "active" : ""} onClick={() => setActiveView("forms")}>Forms</button>
-          <button className={activeView === "loyalty" ? "active" : ""} onClick={() => setActiveView("loyalty")}>Customers</button>
-          <button className={activeView === "promotions" ? "active" : ""} onClick={() => setActiveView("promotions")}>Promotions</button>
-          <button className={activeView === "history" ? "active" : ""} onClick={() => setActiveView("history")}>Order history</button>
+        <div className="dashboard-nav">
+          <div className="dashboard-sections" role="tablist" aria-label="Dashboard section">
+            {DASHBOARD_SECTIONS.map((section) => (
+              <button key={section.key} type="button" role="tab" aria-selected={activeSection === section.key} className={activeSection === section.key ? "active" : ""} onClick={() => setActiveView(section.tabs[0].view)}>{section.label}</button>
+            ))}
+          </div>
+          <div className="dashboard-tabs">
+            {DASHBOARD_SECTIONS.find((section) => section.key === activeSection)!.tabs.map((tab) => (
+              <button key={tab.view} type="button" className={activeView === tab.view ? "active" : ""} onClick={() => setActiveView(tab.view)}>
+                {tab.label}{tab.view === "orders" && <span>{openOrders.length}</span>}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="dashboard-status-cluster">
           <div className={`connection-status ${connection}`}><i />{connection === "live" ? "Live" : "Connecting"}</div>
@@ -294,45 +320,10 @@ export function Dashboard() {
           </div>
         </section>
       ) : activeView === "menu" ? (
-        <section className="menu-control-area">
-          <div className="menu-control-heading"><div><h1>What is available right now?</h1><p>Changes appear on the customer menu within a few seconds.</p></div><span>{menuProducts.filter((product) => availability[product.id] === false).length} sold out</span></div>
-          <div className="availability-grid">
-            {menuProducts.map((product) => {
-              const available = availability[product.id] !== false;
-              return (
-                <div key={product.id} className={`availability-card ${available ? "is-available" : "is-sold-out"}`}>
-                  <div className="avail-info">
-                    <small>{product.category}</small>
-                    <strong>{product.name}</strong>
-                    <i>${product.price.toFixed(2)}</i>
-                  </div>
-                  <div className="avail-actions">
-                    <button
-                      type="button"
-                      className={`avail-btn btn-available ${available ? "active" : ""}`}
-                      onClick={() => setItemAvailability(product.id, true)}
-                      aria-pressed={available}
-                    >
-                      Available
-                    </button>
-                    <button
-                      type="button"
-                      className={`avail-btn btn-soldout ${!available ? "active" : ""}`}
-                      onClick={() => setItemAvailability(product.id, false)}
-                      aria-pressed={!available}
-                    >
-                      Sold Out
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <AdminPanels view="menu" />
-        </section>
+        <AvailabilityPanel availability={availability} onChange={setItemAvailability} />
       ) : activeView === "coffee" || activeView === "kitchen" ? (
         <StationBoard station={activeView} embedded />
-      ) : <AdminPanels view={activeView} />}
+      ) : <AdminPanels view={activeView === "menuItems" ? "menu" : activeView} />}
     </main>
   );
 }

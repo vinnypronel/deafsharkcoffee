@@ -123,8 +123,7 @@ export function AdminPanels({ view }: { view: View }) {
             <label>Menu item<select value={item.productId} onChange={(event) => setFeatured((all) => all.map((entry, i) => i === index ? { ...entry, productId: event.target.value } : entry))}>{menuProducts.map((product) => <option value={product.id} key={product.id}>{product.name}</option>)}</select></label>
             <div className="admin-field-row"><label>Category<input value={item.categoryLabel} onChange={(event) => setFeatured((all) => all.map((entry, i) => i === index ? { ...entry, categoryLabel: event.target.value } : entry))} /></label><label>Item title<input value={item.title} onChange={(event) => setFeatured((all) => all.map((entry, i) => i === index ? { ...entry, title: event.target.value } : entry))} /></label></div>
             <div className="admin-field-row"><label>Button text<input value={item.buttonLabel} onChange={(event) => setFeatured((all) => all.map((entry, i) => i === index ? { ...entry, buttonLabel: event.target.value } : entry))} /></label><label>Price ($)<input type="number" min="0" step="0.01" value={(item.priceCents / 100).toFixed(2)} onChange={(event) => setFeatured((all) => all.map((entry, i) => i === index ? { ...entry, priceCents: Math.round(Number(event.target.value) * 100) } : entry))} /></label></div>
-            <label>Video or image URL<input value={item.mediaUrl} onChange={(event) => setFeatured((all) => all.map((entry, i) => i === index ? { ...entry, mediaUrl: event.target.value } : entry))} /></label>
-            <label className="admin-upload">Upload replacement<input type="file" accept="image/*,video/mp4,video/webm" onChange={(event) => { const file = event.target.files?.[0]; if (file) upload(file, (url) => setFeatured((all) => all.map((entry, i) => i === index ? { ...entry, mediaUrl: url } : entry))); }} /></label>
+            <label className="admin-upload">Replace video or photo<input type="file" accept="image/*,video/mp4,video/webm" onChange={(event) => { const file = event.target.files?.[0]; if (file) upload(file, (url) => setFeatured((all) => all.map((entry, i) => i === index ? { ...entry, mediaUrl: url } : entry))); }} /></label>
             <button className="admin-save" onClick={() => save({ kind: "featured", ...item }, `Slide ${item.slot} published.`)}>Save slide</button>
           </article>
         ))}
@@ -157,11 +156,33 @@ export function AdminPanels({ view }: { view: View }) {
   );
 
   return (
-    <AdminSection eyebrow="Inbox" title="Submitted forms" description="Contact messages, employment applications, and newsletter subscriptions are stored with submission dates.">
-      <div className="record-summary"><span><strong>{records.contacts.length}</strong> contact messages</span><span><strong>{records.applications.length}</strong> applications</span><span><strong>{records.subscribers.length}</strong> subscribers</span></div>
-      <RecordsBlock title="Contact messages" rows={records.contacts.map((row) => ({ id: row.id, date: row.createdAt, heading: row.name, meta: `${row.email}${row.phone ? ` · ${row.phone}` : ""} · ${row.topic}`, body: row.message }))} />
-      <RecordsBlock title="Employment applications" rows={records.applications.map((row) => ({ id: row.id, date: row.createdAt, heading: row.fullName, meta: `${row.email} · ${row.phone} · ${row.position} · ${row.employmentType}`, body: [row.experience, row.why].filter(Boolean).join("\n\n") || "No additional notes." }))} />
-      <RecordsBlock title="Newsletter subscriptions" rows={records.subscribers.map((row) => ({ id: row.id, date: row.consentedAt, heading: row.email, meta: row.status, body: row.consentText }))} />
+    <FormsInbox records={records} />
+  );
+}
+
+type FormsFilter = "all" | "contact" | "employment";
+
+/* Contact and job forms side by side, with tabs to narrow to one kind. The
+   newsletter list only shows under All, since it is sign-ups, not messages. */
+function FormsInbox({ records }: { records: Records }) {
+  const [filter, setFilter] = useState<FormsFilter>("all");
+  const tabs: Array<{ key: FormsFilter; label: string; count: number }> = [
+    { key: "all", label: "All", count: records.contacts.length + records.applications.length },
+    { key: "contact", label: "Contact", count: records.contacts.length },
+    { key: "employment", label: "Employment", count: records.applications.length },
+  ];
+  return (
+    <AdminSection title="Contact / Employment forms" description="Every contact message and job application sent from the website, newest first.">
+      <div className="forms-tabs" role="tablist" aria-label="Which forms to show">
+        {tabs.map((tab) => (
+          <button key={tab.key} type="button" role="tab" aria-selected={filter === tab.key} className={filter === tab.key ? "active" : ""} onClick={() => setFilter(tab.key)}>
+            {tab.label} <span>{tab.count}</span>
+          </button>
+        ))}
+      </div>
+      {filter !== "employment" && <RecordsBlock title="Contact messages" rows={records.contacts.map((row) => ({ id: row.id, date: row.createdAt, heading: row.name, meta: `${row.email}${row.phone ? ` · ${row.phone}` : ""} · ${row.topic}`, body: row.message }))} />}
+      {filter !== "contact" && <RecordsBlock title="Employment applications" rows={records.applications.map((row) => ({ id: row.id, date: row.createdAt, heading: row.fullName, meta: `${row.email} · ${row.phone} · ${row.position} · ${row.employmentType}`, body: [row.experience, row.why].filter(Boolean).join("\n\n") || "No additional notes." }))} />}
+      {filter === "all" && <RecordsBlock title="Newsletter sign-ups" rows={records.subscribers.map((row) => ({ id: row.id, date: row.consentedAt, heading: row.email, meta: row.status, body: row.consentText }))} />}
     </AdminSection>
   );
 }
@@ -240,8 +261,7 @@ function MenuContentManager({ menu, setMenu, message, save, upload }: {
           <label>Category<select value={item.category} onChange={(event) => update(item.productId, { category: event.target.value })}>{menuCategories.map((category) => <option value={category} key={category}>{category}</option>)}</select></label>
           <label>Description<textarea rows={3} value={item.description} onChange={(event) => update(item.productId, { description: event.target.value })} /></label>
           <label>Base price ($)<input type="number" min="0" step="0.01" value={(item.priceCents / 100).toFixed(2)} onChange={(event) => update(item.productId, { priceCents: Math.round(Number(event.target.value) * 100) })} /></label>
-          <label>Image URL<input value={item.photoUrl} onChange={(event) => update(item.productId, { photoUrl: event.target.value })} placeholder="Upload an image or paste its URL" /></label>
-          <label className="admin-upload">Upload replacement<input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (file) upload(file, (url) => update(item.productId, { photoUrl: url })); }} /></label>
+          <label className="admin-upload">Replace photo<input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (file) upload(file, (url) => update(item.productId, { photoUrl: url })); }} /></label>
           <button className="admin-save" onClick={() => save({ kind: "menu", ...item }, `${item.name} published.`)}>Save item</button>
         </article>)}
       </div>
@@ -322,7 +342,7 @@ function LoyaltyManager({ data, message, setMessage, reload }: { data: LoyaltyDa
   }
 
   return (
-    <AdminSection eyebrow="Customer rewards" title="Customers" description="Review customer contact details and balances, redeem welcome offers, and make traceable points corrections. Names and mobile numbers are read-only for staff.">
+    <AdminSection title="Customer Accounts" description="Review customer contact details and balances, redeem welcome offers, and make traceable points corrections. Names and mobile numbers are read-only for staff.">
       {message && <AdminNotice>{message}</AdminNotice>}
       <div className="record-summary"><span><strong>{data.members.length}</strong> members</span><span><strong>{data.members.reduce((total, member) => total + member.points, 0)}</strong> active points</span><span><strong>{data.offers.filter((offer) => offer.status === "active").length}</strong> active welcome offers</span></div>
       <label className="loyalty-search">Scan a coupon or find a member<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Scan barcode or search name, email, or phone" /></label>
@@ -419,8 +439,7 @@ function EventEditor({ event, title, setEvent, upload, onSave, onDelete }: { eve
     <div className="admin-field-row"><label>Time<input value={event.timeLabel} onChange={(e) => field("timeLabel", e.target.value)} /></label><label>Location<input value={event.location} onChange={(e) => field("location", e.target.value)} /></label></div>
     <div className="admin-field-row"><label>Entry<input value={event.entryLabel} onChange={(e) => field("entryLabel", e.target.value)} /></label><label>Details<input value={event.details} onChange={(e) => field("details", e.target.value)} /></label></div>
     <div className="admin-field-row"><label>Button text<input value={event.buttonLabel} onChange={(e) => field("buttonLabel", e.target.value)} /></label><label>Button link<input value={event.buttonHref} onChange={(e) => field("buttonHref", e.target.value)} /></label></div>
-    <div className="admin-field-row"><label>Left image URL<input value={event.imageLeftUrl} onChange={(e) => field("imageLeftUrl", e.target.value)} /></label><label>Right image URL<input value={event.imageRightUrl} onChange={(e) => field("imageRightUrl", e.target.value)} /></label></div>
-    <div className="admin-field-row"><label className="admin-upload">Upload left image<input type="file" accept="image/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) upload(file, (url) => field("imageLeftUrl", url)); }} /></label><label className="admin-upload">Upload right image<input type="file" accept="image/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) upload(file, (url) => field("imageRightUrl", url)); }} /></label></div>
+    <div className="admin-field-row"><label className="admin-upload">{event.imageLeftUrl && <img className="admin-upload-thumb" src={event.imageLeftUrl} alt="" />}Left image<input type="file" accept="image/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) upload(file, (url) => field("imageLeftUrl", url)); }} /></label><label className="admin-upload">{event.imageRightUrl && <img className="admin-upload-thumb" src={event.imageRightUrl} alt="" />}Right image<input type="file" accept="image/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) upload(file, (url) => field("imageRightUrl", url)); }} /></label></div>
     <div className="admin-field-row"><label>Image caption<input value={event.imageCaption || ""} onChange={(e) => field("imageCaption", e.target.value)} /></label><label>Display order<input type="number" min="0" value={event.sortOrder} onChange={(e) => field("sortOrder", Number(e.target.value))} /></label></div>
     <label className="admin-check"><input type="checkbox" checked={event.published} onChange={(e) => field("published", e.target.checked)} /> Show this event publicly</label>
     <div className="admin-editor-actions"><button className="admin-save" onClick={onSave}>{event.id ? "Save event" : "Add event"}</button>{onDelete && <button className="admin-delete" onClick={onDelete}>Delete event</button>}</div>

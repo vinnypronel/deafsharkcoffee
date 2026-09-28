@@ -2,6 +2,7 @@ import {
   applyMenuContentOverride,
   menuProducts,
   prepStationFor,
+  outIngredientsFrom,
   priceProductSelection,
   type MenuContentOverride,
   type PrepStation,
@@ -270,6 +271,7 @@ export function priceCart(
     overrides?: Map<string, MenuContentOverride>;
   } = {},
 ): PricedOrderItem[] {
+  const outIngredients = context.availability ? outIngredientsFrom(context.availability) : undefined;
   return items.map((item) => {
     const baseProduct = menuProducts.find((candidate) => candidate.id === item.id);
     if (!baseProduct) {
@@ -290,7 +292,7 @@ export function priceCart(
 
     let priced;
     try {
-      priced = priceProductSelection(product, item.selection);
+      priced = priceProductSelection(product, item.selection, outIngredients);
     } catch (error) {
       /* `priceProductSelection` throws on an unknown size, milk, syrup, modifier,
          shot count, or over-long note. Those are customer input problems, not faults. */

@@ -310,7 +310,17 @@ export const modifierGroupsForProduct = (product: Product, temperature?: "Hot" |
 
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
 
-export function priceProductSelection(product: Product, input: ProductSelection = {}): PricedSelection {
+/* `out` holds the ingredient keys staff marked out today (see ingredientKey).
+   A chosen option that needs one is refused; a "No X" removal whose X is out
+   is added automatically, so the ticket says the item is made without it. */
+export function priceProductSelection(product: Product, input: ProductSelection = {}, out: ReadonlySet<string> = NO_INGREDIENTS_OUT): PricedSelection {
+  const isOut = (optionLabel: string) => {
+    const ingredient = ingredientForOption(optionLabel);
+    return Boolean(ingredient && out.has(ingredientKey(ingredient.name)));
+  };
+  const refuseIfOut = (optionLabel: string) => {
+    if (isOut(optionLabel)) throw new Error(`${ingredientForOption(optionLabel)!.name} is out today. Please choose something else for ${product.name}.`);
+  };
   const isDrink = DRINK_CATEGORIES.includes(product.category);
   const isSmoothie = Boolean(product.bases?.length);
   const availableTemperatures = temperaturesForProduct(product);
@@ -335,11 +345,13 @@ export function priceProductSelection(product: Product, input: ProductSelection 
   if (hasMilkOptions && milk !== "None" && !MILK_OPTIONS.includes(milk as (typeof MILK_OPTIONS)[number])) {
     throw new Error(`Invalid milk choice for ${product.name}.`);
   }
+  if (hasMilkOptions && milk !== "None") refuseIfOut(milk);
 
   const flavor = input.flavor ?? product.flavors?.[0] ?? "";
   if (product.flavors?.length && !product.flavors.includes(flavor)) {
     throw new Error(`Invalid choice for ${product.name}.`);
   }
+  if (product.flavors?.length && product.category !== "Coffee Beans") refuseIfOut(flavor);
   const base = input.base ?? product.bases?.[0] ?? "";
   if (product.bases?.length && !product.bases.includes(base)) {
     throw new Error(`Invalid smoothie base for ${product.name}.`);
@@ -351,12 +363,14 @@ export function priceProductSelection(product: Product, input: ProductSelection 
   if (smoothieUsesMilk && !MILK_OPTIONS.includes(smoothieMilk as (typeof MILK_OPTIONS)[number])) {
     throw new Error(`Invalid milk choice for ${product.name}.`);
   }
+  if (smoothieUsesMilk) refuseIfOut(smoothieMilk);
 
   const hasSyrupOptions = hasSyrupOptionsForProduct(product);
   const syrups = [...new Set(input.syrups ?? [])];
   if ((!hasSyrupOptions && syrups.length) || syrups.some((value) => !SYRUP_OPTIONS.includes(value as (typeof SYRUP_OPTIONS)[number]))) {
     throw new Error(`Invalid syrup choice for ${product.name}.`);
   }
+  syrups.forEach(refuseIfOut);
 
   const hasShotOptions = hasExtraShotOptionsForProduct(product);
   const extraShot = input.extraShot ?? 0;
@@ -367,13 +381,21 @@ export function priceProductSelection(product: Product, input: ProductSelection 
   const modifierGroups = modifierGroupsForProduct(product, temperature);
   const modifiers: Record<string, string[]> = {};
   for (const group of modifierGroups) {
-    const selected = [...new Set(input.modifiers?.[group.label] ?? (group.required && group.options[0] ? [group.options[0].label] : []))];
+    const firstAvailable = group.options.find((option) => !isOut(option.label)) ?? group.options[0];
+    const selected = [...new Set(input.modifiers?.[group.label] ?? (group.required && firstAvailable ? [firstAvailable.label] : []))];
+    for (const option of group.options) {
+      if (ingredientForOption(option.label)?.removal && isOut(option.label) && !selected.includes(option.label)) {
+        if (group.type === "single") selected.splice(0, selected.length);
+        selected.push(option.label);
+      }
+    }
     if ((group.required && selected.length === 0) || (group.type === "single" && selected.length > 1)) {
       throw new Error(`Choose a valid ${group.label.toLowerCase()} option for ${product.name}.`);
     }
     if (selected.some((value) => !group.options.some((option) => option.label === value))) {
       throw new Error(`Invalid ${group.label.toLowerCase()} option for ${product.name}.`);
     }
+    selected.filter((value) => !ingredientForOption(value)?.removal).forEach(refuseIfOut);
     modifiers[group.label] = selected;
   }
 
@@ -1239,3 +1261,66 @@ export const featuredProducts = [
   { ...menuProducts.find((product) => product.id === "ocean-blend-bag")!, featuredCategoryLabel: "Coffee Beans" },
   { ...menuProducts.find((product) => product.id === "chicken-pesto")!, featuredCategoryLabel: "Sandwiches" },
 ];
+
+/* Ingredients staff can mark out for the day. Each is read from a menu choice:
+   "No lettuce" and "Add bacon" point at Lettuce and Bacon, milks, syrups and
+   tea flavors are their own ingredient. Choices that are not ingredients
+   (ice level, "No sweetener", a regular coffee) have none. */
+const NOT_INGREDIENTS = new Set(["Regular ice", "Light ice", "No ice", "No sweetener", "Regular", "Extra meat", "Extra cheese", "Water"]);
+const INGREDIENT_ALIASES: Record<string, string> = { swiss: "Swiss cheese", provolone: "Provolone cheese" };
+
+export const NO_INGREDIENTS_OUT: ReadonlySet<string> = new Set();
+
+export function ingredientForOption(optionLabel: string): { name: string; removal: boolean } | null {
+  if (!optionLabel || NOT_INGREDIENTS.has(optionLabel)) return null;
+  const clean = optionLabel.replace(/\s*\(.*\)\s*$/, "").trim();
+  const named = (raw: string) => {
+    const alias = INGREDIENT_ALIASES[raw.toLowerCase()];
+    return alias ?? raw.charAt(0).toUpperCase() + raw.slice(1);
+  };
+  const removal = clean.match(/^No (.+)$/i);
+  if (removal) return { name: named(removal[1]), removal: true };
+  const added = clean.match(/^(?:Add|Extra|Swap to) (.+)$/i);
+  if (added) return { name: named(added[1]), removal: false };
+  return { name: named(clean), removal: false };
+}
+
+export function ingredientKey(name: string) {
+  return `ing:${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`;
+}
+
+export function outIngredientsFrom(availability: Record<string, boolean> | Map<string, boolean>): Set<string> {
+  const entries = availability instanceof Map ? [...availability.entries()] : Object.entries(availability);
+  return new Set(entries.filter(([key, available]) => key.startsWith("ing:") && available === false).map(([key]) => key));
+}
+
+export type Ingredient = { key: string; name: string; group: string; usedIn: number };
+
+const INGREDIENT_GROUP_ORDER = ["Milk", "Syrups", "Teas, sodas and flavors", "Breads", "Sandwich ingredients", "Sides", "Coffee", "Sweeteners"];
+
+/** Every ingredient on the menu, grouped the way the counter thinks about them. */
+export function ingredientCatalog(): Ingredient[] {
+  const found = new Map<string, Ingredient & { products: Set<string> }>();
+  const add = (name: string, group: string, productId: string) => {
+    const key = ingredientKey(name);
+    const entry = found.get(key) ?? { key, name, group, usedIn: 0, products: new Set<string>() };
+    entry.products.add(productId);
+    found.set(key, entry);
+  };
+  const groupFor = (label: string) => label === "Bread" ? "Breads" : label === "Fries choice" ? "Sides" : label === "Coffee type" ? "Coffee" : label === "Sweetener" ? "Sweeteners" : "Sandwich ingredients";
+  for (const product of menuProducts) {
+    if (hasMilkOptionsForProduct(product) || product.bases?.includes("Milk")) MILK_OPTIONS.forEach((milk) => add(milk, "Milk", product.id));
+    if (hasSyrupOptionsForProduct(product)) SYRUP_OPTIONS.forEach((syrup) => add(syrup, "Syrups", product.id));
+    if (product.flavors?.length && product.category !== "Coffee Beans") product.flavors.forEach((flavor) => add(flavor, "Teas, sodas and flavors", product.id));
+    for (const group of modifierGroupsForProduct(product)) {
+      for (const option of group.options) {
+        const ingredient = ingredientForOption(option.label);
+        if (ingredient) add(ingredient.name, groupFor(group.label), product.id);
+      }
+    }
+  }
+  return [...found.values()]
+    .map(({ products, ...entry }) => ({ ...entry, usedIn: products.size }))
+    .sort((a, b) => INGREDIENT_GROUP_ORDER.indexOf(a.group) - INGREDIENT_GROUP_ORDER.indexOf(b.group) || a.name.localeCompare(b.name));
+}
+
