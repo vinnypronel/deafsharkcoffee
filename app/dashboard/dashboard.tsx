@@ -68,8 +68,6 @@ type DashboardView = "orders" | "coffee" | "kitchen" | "menu" | "history" | "loy
 const DASHBOARD_SECTIONS: Array<{ key: "orders" | "website"; label: string; tabs: Array<{ view: DashboardView; label: string }> }> = [
   { key: "orders", label: "Orders", tabs: [
     { view: "orders", label: "Live orders" },
-    { view: "coffee", label: "Coffee" },
-    { view: "kitchen", label: "Food" },
     { view: "menu", label: "Available today" },
     { view: "history", label: "Order history" },
     { view: "loyalty", label: "Customers" },
