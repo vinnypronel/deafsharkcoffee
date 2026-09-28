@@ -7,10 +7,11 @@ import { menuProducts, type Product } from "./menu-data";
 import { PHONE_INPUT_MAX_LENGTH, formatPhoneInput } from "../lib/phone-format";
 import { OrderOnlineLink } from "./order-online-link";
 import { OrderStatus } from "./order-status";
+import { CUSTOM_CHECKOUT_ENABLED } from "./ordering";
 import TurnstileWidget from "./turnstile-widget";
 const BIRTHDAY_MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-const ORDER_STATUS_LABELS: Record<string, string> = { new: "Received", preparing: "In preparation", ready: "Ready for pickup" };
+const ORDER_STATUS_LABELS: Record<string, string> = { new: "Received", preparing: "In preparation", ready: "Ready for pickup", cancelled: "Cancelled" };
 
 /* One line icon per order stage, drawn in the button text color: a steaming
    cup once the order is received, a pickup bag while it is being made, and a
@@ -80,6 +81,14 @@ async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit, ti
   } finally {
     window.clearTimeout(timeout);
   }
+}
+
+function seenCancelledOrder(orderNumber: string) {
+  try { return window.localStorage.getItem(`ds-cancel-seen-${orderNumber}`) === "1"; } catch { return false; }
+}
+
+function markCancelledOrderSeen(orderNumber: string) {
+  try { window.localStorage.setItem(`ds-cancel-seen-${orderNumber}`, "1"); } catch { /* storage blocked */ }
 }
 
 export function BrandMark({ dark = false }: { dark?: boolean }) {
@@ -193,9 +202,18 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
       try {
         const response = await fetch("/api/customer-orders", { cache: "no-store", credentials: "include" });
         if (!response.ok) { if (!stopped) setActiveOrder(null); return; }
-        const data = await response.json() as { orders?: Array<{ orderNumber: string; status: string }> };
-        const open = (data.orders ?? []).find((order) => ["new", "preparing", "ready"].includes(order.status));
-        if (!stopped) setActiveOrder(open ?? null);
+        const data = await response.json() as { orders?: Array<{ orderNumber: string; status: string; createdAt?: string | number }> };
+        const list = data.orders ?? [];
+        const open = list.find((order) => ["new", "preparing", "ready"].includes(order.status));
+        /* While ordering is closed, orders that slipped through were cancelled by
+           the shop. Surface the latest one (last 30 days) until the customer has
+           opened it, so they learn it will not be made. */
+        const cancelledNotice = !CUSTOM_CHECKOUT_ENABLED && !open
+          ? list.find((order) => order.status === "cancelled"
+            && Date.now() - new Date(order.createdAt ?? 0).getTime() < 30 * 86_400_000
+            && !seenCancelledOrder(order.orderNumber))
+          : undefined;
+        if (!stopped) setActiveOrder(open ?? cancelledNotice ?? null);
       } catch {
         if (!stopped) setActiveOrder(null);
       }
@@ -748,7 +766,14 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
             <button
               type="button"
               className={`header-order-chip status-${activeOrder.status}`}
-              onClick={() => { setMobileMenuOpen(false); setTrackingOrder(activeOrder.orderNumber); }}
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setTrackingOrder(activeOrder.orderNumber);
+                if (activeOrder.status === "cancelled") {
+                  markCancelledOrderSeen(activeOrder.orderNumber);
+                  setActiveOrder(null);
+                }
+              }}
               aria-label={`Order status: ${ORDER_STATUS_LABELS[activeOrder.status] ?? "Received"}`}
               title={ORDER_STATUS_LABELS[activeOrder.status] ?? "Received"}
             >

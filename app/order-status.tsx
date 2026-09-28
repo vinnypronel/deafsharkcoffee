@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { CUSTOM_CHECKOUT_ENABLED } from "./ordering";
 
 type CustomerOrder = {
   orderNumber: string;
@@ -128,8 +129,17 @@ export function OrderStatus({ orderNumber, onClose }: { orderNumber: string; onC
             <>
               {cancelled ? (
                 <div className="order-status-cancelled">
-                  <strong>This order was cancelled</strong>
-                  <span>Call us if you have a question about this order.</span>
+                  {CUSTOM_CHECKOUT_ENABLED ? (
+                    <>
+                      <strong>This order was cancelled</strong>
+                      <span>Call us if you have a question about this order.</span>
+                    </>
+                  ) : (
+                    <>
+                      <strong>Online ordering is not open yet</strong>
+                      <span>Sorry, you should not have been able to place this order yet, so it was cancelled and will not be made. You were not charged. Online ordering will be available soon. Until then, please order at the counter or call us at (908) 481-8884.</span>
+                    </>
+                  )}
                 </div>
               ) : (
                 <ol className="order-progress" aria-label="Order progress">
