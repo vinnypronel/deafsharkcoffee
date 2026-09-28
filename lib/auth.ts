@@ -5,6 +5,7 @@ import { getDb } from "../db";
 import * as schema from "../db/schema";
 import { sendPasswordResetEmail, sendVerificationEmail, transactionalEmailConfigured } from "./transactional-email";
 import { ACCOUNTS_ENABLED } from "../app/accounts";
+import { issueWelcomeOffer } from "./welcome-offer";
 
 function createAuth() {
   const googleClientId = env.GOOGLE_CLIENT_ID?.trim();
@@ -51,6 +52,22 @@ function createAuth() {
     socialProviders: googleClientId && googleClientSecret
       ? { google: { clientId: googleClientId, clientSecret: googleClientSecret } }
       : {},
+    /* Every new account gets its sign-up coupon the moment it is created,
+       whichever way it signed up. A failure here must never block sign-up;
+       the account page issues it again on the next visit. */
+    databaseHooks: {
+      user: {
+        create: {
+          after: async (user) => {
+            try {
+              await issueWelcomeOffer(user.id);
+            } catch {
+              console.error(JSON.stringify({ event: "welcome_offer_issue_failed" }));
+            }
+          },
+        },
+      },
+    },
     rateLimit: {
       enabled: true,
       window: 60,

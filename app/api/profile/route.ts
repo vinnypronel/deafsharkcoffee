@@ -1,3 +1,4 @@
+import { issueWelcomeOffer } from "../../../lib/welcome-offer";
 import { and, desc, eq, like, sql } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../db";
 import { customerProfiles, loyaltyTransactions, memberOffers } from "../../../db/schema";
@@ -25,13 +26,7 @@ async function ensureWelcomeBenefits(user: { id: string; email: string; name: st
 
   const [current] = await db.select().from(customerProfiles).where(eq(customerProfiles.userId, user.id)).limit(1);
   if (!current) throw new Error("Customer profile could not be created.");
-  if (env.LOYALTY_ENABLED !== "true") return;
-
-  await db.insert(memberOffers).values({
-    userId: user.id,
-    offerType: WELCOME_OFFER_TYPE,
-    code: `SHARK50-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
-  }).onConflictDoNothing({ target: [memberOffers.userId, memberOffers.offerType] });
+  await issueWelcomeOffer(user.id);
 }
 
 async function getOffer(userId: string, offerType: string) {
