@@ -37,7 +37,7 @@ function OrderStatusIcon({ status }: { status: string }) {
   return <svg {...common}><path d="M5 10h11v3.5a5.5 5.5 0 0 1-5.5 5.5v0A5.5 5.5 0 0 1 5 13.5z" /><path d="M16 11h1.5a2.5 2.5 0 0 1 0 5H16" /><path d="M8.5 3.5c0 1.3 1 1.6 1 3M12.5 3.5c0 1.3 1 1.6 1 3" /></svg>;
 }
 
-type ProfileResponse = { authenticated: boolean; profile?: { displayName: string; email: string; phone?: string | null; points: number; lifetimePoints: number; activity?: Array<{ id: number; pointsChange: number; balanceAfter: number; reason: string; createdAt: string }>; welcomeOffer?: { id: number; code: string; status: string; issuedAt: string; redeemedAt?: string | null } | null; studentVerified?: boolean; studentEmail?: string | null; birthday?: { onFile: boolean; month: number | null; day: number | null; isToday: boolean; eligibleToday: boolean; redeemedThisYear: boolean; maxCents: number }; referral?: { code: string | null; points: number; joined: number; rewarded: number }; promotions?: Array<{ id: number; name: string; summary: string }>; rewards?: { available: { points: number; valueCents: number; label: string } | null; progress: { tier: { points: number; valueCents: number; label: string }; pointsAway: number; percent: number; atTop: boolean } }; legal?: { acceptedCurrent: boolean; termsVersion: string; privacyVersion: string } } };
+type ProfileResponse = { authenticated: boolean; staff?: boolean; profile?: { displayName: string; email: string; phone?: string | null; points: number; lifetimePoints: number; activity?: Array<{ id: number; pointsChange: number; balanceAfter: number; reason: string; createdAt: string }>; welcomeOffer?: { id: number; code: string; status: string; issuedAt: string; redeemedAt?: string | null } | null; studentVerified?: boolean; studentEmail?: string | null; birthday?: { onFile: boolean; month: number | null; day: number | null; isToday: boolean; eligibleToday: boolean; redeemedThisYear: boolean; maxCents: number }; referral?: { code: string | null; points: number; joined: number; rewarded: number }; promotions?: Array<{ id: number; name: string; summary: string }>; rewards?: { available: { points: number; valueCents: number; label: string } | null; progress: { tier: { points: number; valueCents: number; label: string }; pointsAway: number; percent: number; atTop: boolean } }; legal?: { acceptedCurrent: boolean; termsVersion: string; privacyVersion: string } } };
 type AuthConfig = { googleEnabled: boolean; emailEnabled: boolean; emailVerificationEnabled: boolean; passwordRecoveryEnabled: boolean; loyaltyEnabled?: boolean; signupEnabled?: boolean };
 type LenisController = { start: () => void; stop: () => void; scrollTo: (target: number, options?: Record<string, unknown>) => void };
 type WindowWithLenis = Window & { __lenis?: LenisController };
@@ -778,6 +778,25 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
   return (
     <>
       <header className="site-header">
+        {/* Morphing hamburger. Right side on tablet, far left on phones where it replaces the fin logo. */}
+        <button
+          type="button"
+          className={`nav-hamburger ${mobileMenuOpen ? "open" : ""}`}
+          onClick={() => {
+            setSearchOpen(false);
+            if (profileOpen) closeProfile();
+            setMobileMenuOpen((prev) => !prev);
+          }}
+          aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+          aria-expanded={mobileMenuOpen}
+          aria-controls="mobile-nav-takeover"
+        >
+          <span className="hamburger-box" aria-hidden="true">
+            <span className="hamburger-line line-top" />
+            <span className="hamburger-line line-mid" />
+            <span className="hamburger-line line-bot" />
+          </span>
+        </button>
         <nav aria-label="Primary navigation">{links.map(([href, label]) => <Link key={href} href={href} className={active === href ? "active" : ""}>{label}</Link>)}</nav>
         <Link className="header-brand" href="/" aria-label="Deaf Shark Coffee home"><BrandMark /></Link>
         <div className="header-action">
@@ -819,26 +838,6 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
               </span>
             </OrderOnlineLink>
           )}
-
-          {/* Morphing Hamburger Button */}
-          <button
-            type="button"
-            className={`nav-hamburger ${mobileMenuOpen ? "open" : ""}`}
-            onClick={() => {
-              setSearchOpen(false);
-              if (profileOpen) closeProfile();
-              setMobileMenuOpen((prev) => !prev);
-            }}
-            aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
-            aria-expanded={mobileMenuOpen}
-            aria-controls="mobile-nav-takeover"
-          >
-            <span className="hamburger-box" aria-hidden="true">
-              <span className="hamburger-line line-top" />
-              <span className="hamburger-line line-mid" />
-              <span className="hamburger-line line-bot" />
-            </span>
-          </button>
 
         </div>
       </header>
@@ -1261,7 +1260,23 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                 {authConfig.emailEnabled && <small>Email accounts require verification. Password recovery links expire after one hour.</small>}
               </>
             )}
-            {profile?.authenticated && profile.profile && (
+            {profile?.authenticated && profile.staff && profile.profile && (
+              <>
+                <span className="account-welcome">Admin account</span>
+                <h2>{profile.profile.displayName}</h2>
+                <p>{profile.profile.email}</p>
+                <div className="account-admin-card">
+                  <strong>Signed in as a verified admin</strong>
+                  <p>Live orders, the menu, website edits, and accounts are managed from the staff dashboard.</p>
+                  <a className="primary-button" href="/dashboard">Open staff dashboard</a>
+                </div>
+                <button type="button" className="account-signout" onClick={handleSignOut} disabled={authBusy}>
+                  Sign out
+                </button>
+                {signOutError && <small className="account-form-message error" role="alert">{signOutError}</small>}
+              </>
+            )}
+            {profile?.authenticated && !profile.staff && profile.profile && (
               <>
                 <span className="account-welcome">Welcome back</span>
                 <h2>{profile.profile.displayName}</h2>

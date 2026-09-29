@@ -3,6 +3,7 @@ import { and, desc, eq, like, sql } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../db";
 import { customerProfiles, loyaltyTransactions, memberOffers } from "../../../db/schema";
 import { getCustomerSession } from "../../../lib/auth";
+import { isStaffEmail } from "../../../lib/staff-auth";
 import { env } from "cloudflare:workers";
 import { WELCOME_OFFER_TYPE, bestAvailableTier, nextTierProgress } from "../../../lib/loyalty";
 import { BIRTHDAY_DRINK_MAX_CENTS, birthdayOfferType, birthdayStatus } from "../../../lib/birthday";
@@ -42,6 +43,20 @@ export async function GET(request: Request) {
   await ensureSchema();
 
   const user = session.user;
+  /* Admin accounts run the shop; they do not collect points or coupons, so
+     the account panel only needs who is signed in and a way to the dashboard. */
+  if (user.emailVerified === true && isStaffEmail(user.email)) {
+    return Response.json({
+      authenticated: true,
+      staff: true,
+      profile: {
+        displayName: user.name || user.email.split("@")[0],
+        email: user.email,
+        points: 0,
+        lifetimePoints: 0,
+      },
+    });
+  }
   await ensureWelcomeBenefits(user);
   const [profile] = await getDb().select().from(customerProfiles).where(eq(customerProfiles.userId, user.id)).limit(1);
   const birthday = birthdayStatus({ month: profile.birthdayMonth, day: profile.birthdayDay, setAt: profile.birthdaySetAt });

@@ -1,7 +1,7 @@
-import { and, desc, eq, like } from "drizzle-orm";
+import { and, desc, eq, inArray, like, sql } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../../db";
-import { customerProfiles, loyaltyTransactions, memberOffers } from "../../../../db/schema";
-import { requireStaff } from "../../../../lib/staff-auth";
+import { customerProfiles, loyaltyTransactions, memberOffers, users } from "../../../../db/schema";
+import { requireStaff, staffEmailList } from "../../../../lib/staff-auth";
 import { loyaltyChangeStatements } from "../../../../lib/loyalty-ledger";
 import { env } from "cloudflare:workers";
 import { BIRTHDAY_DRINK_MAX_CENTS, birthdayOfferType, birthdayStatus } from "../../../../lib/birthday";
@@ -11,11 +11,24 @@ export async function GET(request: Request) {
   if (staff.response) return staff.response;
   await ensureSchema();
 
-  const [members, transactions, offers] = await Promise.all([
+  const staffEmails = staffEmailList();
+  const [allMembers, transactions, offers, staffUsers] = await Promise.all([
     getDb().select().from(customerProfiles).orderBy(desc(customerProfiles.updatedAt)).limit(500),
     getDb().select().from(loyaltyTransactions).orderBy(desc(loyaltyTransactions.createdAt)).limit(250),
     getDb().select().from(memberOffers).orderBy(desc(memberOffers.issuedAt)).limit(500),
+    staffEmails.length
+      ? getDb().select({ email: users.email, name: users.name, emailVerified: users.emailVerified, createdAt: users.createdAt })
+        .from(users).where(inArray(sql`lower(${users.email})`, staffEmails))
+      : Promise.resolve([]),
   ]);
+  /* Admin accounts are listed on their own, not as rewards customers. */
+  const staffSet = new Set(staffEmails);
+  const members = allMembers.filter((member) => !staffSet.has(member.email.trim().toLowerCase()));
+  const staffByEmail = new Map(staffUsers.map((user) => [user.email.trim().toLowerCase(), user]));
+  const admins = staffEmails.map((email) => {
+    const user = staffByEmail.get(email);
+    return { email, name: user?.name ?? null, hasAccount: Boolean(user), verified: user?.emailVerified === true, createdAt: user?.createdAt ?? null };
+  });
 
   /* Birthday eligibility is decided here in store time, so the counter screen
      never has to trust the tablet's clock. */
@@ -37,6 +50,7 @@ export async function GET(request: Request) {
     }),
     transactions,
     offers,
+    admins,
   });
 }
 

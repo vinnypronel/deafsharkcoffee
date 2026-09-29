@@ -3,6 +3,7 @@ import { ensureSchema, getDb } from "../../../../db";
 import { events, featuredContent, menuContent } from "../../../../db/schema";
 import { requireStaff } from "../../../../lib/staff-auth";
 import { categories, menuProducts } from "../../../menu-data";
+import { MenuRemovalMigrationError, readRemovedMenuIds, writeMenuItemRemoved } from "../../../../lib/menu-removed";
 
 const text = (value: unknown, max = 500) => typeof value === "string" ? value.trim().slice(0, max) : "";
 const safeHref = (value: unknown) => {
@@ -18,12 +19,13 @@ export async function GET(request: Request) {
   const staff = await requireStaff(request);
   if (staff.response) return staff.response;
   await ensureSchema();
-  const [featured, allEvents, menu] = await Promise.all([
+  const [featured, allEvents, menu, removedMenu] = await Promise.all([
     getDb().select().from(featuredContent).orderBy(asc(featuredContent.slot)),
     getDb().select().from(events).orderBy(asc(events.sortOrder), asc(events.id)),
     getDb().select().from(menuContent).orderBy(asc(menuContent.productId)),
+    readRemovedMenuIds(),
   ]);
-  return Response.json({ featured, events: allEvents, menu });
+  return Response.json({ featured, events: allEvents, menu, removedMenu });
 }
 
 export async function PATCH(request: Request) {
@@ -51,6 +53,18 @@ export async function PATCH(request: Request) {
       updatedAt: new Date(),
     };
     await getDb().insert(featuredContent).values(values).onConflictDoUpdate({ target: featuredContent.slot, set: values });
+    return Response.json({ success: true });
+  }
+
+  if (kind === "menu-removed") {
+    const product = menuProducts.find((item) => item.id === text(payload.productId, 100));
+    if (!product) return Response.json({ error: "Choose a valid menu item." }, { status: 400 });
+    try {
+      await writeMenuItemRemoved(product, payload.removed === true);
+    } catch (error) {
+      if (error instanceof MenuRemovalMigrationError) return Response.json({ error: error.message }, { status: 503 });
+      throw error;
+    }
     return Response.json({ success: true });
   }
 

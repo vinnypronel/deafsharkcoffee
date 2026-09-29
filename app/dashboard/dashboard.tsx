@@ -116,7 +116,7 @@ const DASHBOARD_SECTIONS: Array<{ key: "orders" | "website"; label: string; tabs
     { view: "orders", label: "Live orders" },
     { view: "menu", label: "Available today" },
     { view: "history", label: "Order history" },
-    { view: "loyalty", label: "Customers" },
+    { view: "loyalty", label: "Accounts" },
     { view: "promotions", label: "Promotions" },
   ] },
   { key: "website", label: "Website", tabs: [
@@ -292,6 +292,9 @@ export function Dashboard() {
 
   const openOrders = orders.filter((order) => ["new", "preparing", "ready"].includes(order.status));
   const newCount = orders.filter((order) => order.status === "new").length;
+  /* The feed holds the latest 80 orders, which covers a full day at this shop. */
+  const todayKey = new Date().toDateString();
+  const completedToday = orders.filter((order) => order.status === "complete" && new Date(order.createdAt).toDateString() === todayKey).length;
   const newOrderIds = useMemo(
     () => orders.filter((order) => order.status === "new").map((order) => order.id),
     [orders],
@@ -387,7 +390,7 @@ export function Dashboard() {
 
       {(activeView === "orders" || activeView === "menu") && <section className="rush-bar">
         <div><button type="button" className="test-sound-button" onClick={() => { const context = getAudioContext(); void context.resume().then(() => { setSoundArmed(context.state === "running"); playAlert(); }); }}>Test sound</button><span>Current customer wait time</span><button onClick={() => changePrepTime(prepTime - 5)}>−</button><strong>{prepTime} min</strong><button onClick={() => changePrepTime(prepTime + 5)}>+</button></div>
-        <div className="rush-summary"><span><strong>{newCount}</strong> new</span><span><strong>{orders.filter((order) => order.status === "preparing").length}</strong> preparing</span></div>
+        <div className="rush-summary"><span><strong>{newCount}</strong> new</span><span><strong>{orders.filter((order) => order.status === "preparing").length}</strong> preparing</span><span><strong>{orders.filter((order) => order.status === "ready").length}</strong> ready</span><span><strong>{completedToday}</strong> completed today</span></div>
         <div className="pause-control">
           {paused ? (
             <>

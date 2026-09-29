@@ -162,11 +162,18 @@ export function OrderStatus({ orderNumber, onClose }: { orderNumber: string; onC
 
               {!cancelled && order.status !== "complete" && (
                 <div className="order-pickup-card">
-                  <div>
-                    <span>{order.fulfillmentType === "scheduled" ? "Scheduled pickup" : "Estimated pickup"}</span>
-                    <strong>{pickupWindow(order)}</strong>
-                  </div>
-                  <p>We’ll keep this tracker updated automatically.</p>
+                  {order.status === "ready" ? (
+                    <div>
+                      <span>Your order is ready</span>
+                      <strong>Pickup now</strong>
+                    </div>
+                  ) : (
+                    <div>
+                      <span>{order.fulfillmentType === "scheduled" ? "Scheduled pickup" : "Estimated pickup"}</span>
+                      <strong>{pickupWindow(order)}</strong>
+                    </div>
+                  )}
+                  <p>{order.status === "ready" ? "Head to the counter whenever you are ready." : "We’ll keep this tracker updated automatically."}</p>
                 </div>
               )}
 

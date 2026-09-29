@@ -57,7 +57,7 @@ test("protects the counter dashboard for anonymous visitors", async () => {
   assert.equal(response.status, 200);
   const html = await response.text();
   assert.match(html, /Deaf Shark Coffee/i);
-  assert.match(html, /Staff access required/i);
+  assert.match(html, /Staff login/i);
   assert.doesNotMatch(html, /Pause online orders/i);
 });
 
@@ -88,7 +88,8 @@ test("server-renders the expanded photographed menu", async () => {
   assert.match(html, /Desserts/i);
   assert.match(html, /Chocoflan/i);
   assert.match(html, /Tres Leches/i);
-  assert.match(html, /Passion Fruit Dessert/i);
+  assert.match(html, /Tiramisu/i);
+  assert.doesNotMatch(html, /Passion Fruit Dessert/i);
   assert.match(html, /role="tab"[^>]*><span class="category-nav-label">Matcha<\/span>/i);
   assert.match(html, /role="tab"[^>]*><span class="category-nav-label">Tea<\/span>/i);
   assert.match(html, /role="tab"[^>]*><span class="category-nav-label">Smoothies<\/span>/i);

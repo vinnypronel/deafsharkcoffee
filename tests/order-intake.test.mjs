@@ -171,7 +171,7 @@ test("prices and routes the fall drinks and desserts from the posted menus", () 
   for (const [id, price] of [
     ["chocoflan", 7],
     ["tres-leches", 6],
-    ["passion-fruit-dessert", 7.75],
+    ["tiramisu", 7],
   ]) {
     const [dessert] = priceCart([{ id, quantity: 1 }]);
     assert.equal(dessert.unitPrice, price);

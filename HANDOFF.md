@@ -6,7 +6,7 @@ Launch online pickup ordering and customer accounts on deafsharkcoffee.com (vine
 ## 2. State
 DONE and live (last commit dd2587d, pushed and deployed, 95/95 tests pass):
 - Ordering + sign-up ON. Sign-up reward = one 50% off one drink coupon, issued at account creation (lib/welcome-offer.ts via better-auth databaseHooks in lib/auth.ts), never expires, one per account, used once at checkout, returned if the order is cancelled. All 13 accounts have one.
-- New-order alert emails go to admin@deafsharkcoffee.com only (Worker secret ADMIN_EMAILS). Dashboard access (STAFF_EMAILS): admin@, webdev@deafsharkcoffee.com, pronelweb@gmail.com, miguelmerino@msn.com, all verified.
+- New-order alert emails go to admin@deafsharkcoffee.com only (Worker secret ADMIN_EMAILS). Dashboard access (STAFF_EMAILS): admin@, pronelweb@gmail.com, miguelmerino@msn.com, jandreina19@hotmail.com, all verified. webdev@ account deleted 2026-09-29 (backup in backups/).
 - Dashboard: Orders / Website switch; Orders tabs = Live orders, Available today, Order history, Customers, Promotions. Available today marks items and ingredients out (out choices greyed for customers, removable ingredients auto "No X" on the ticket, server refuses out choices).
 - Timed pause (migration 0022 applied to prod): staff pick 15/30/45/60/90/120 min or until resumed; customers see a live countdown on the item sheet, cart, checkout. Files: lib/pause-state.ts, app/pause-notice.tsx.
 - Sound: red bar whenever browser audio is not running, iOS silent switch bypass (audioSession "playback"), Test sound button. Page cannot read device volume (browser limit).

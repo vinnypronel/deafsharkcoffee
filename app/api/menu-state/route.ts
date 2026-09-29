@@ -5,6 +5,7 @@ import { requireStaff } from "../../../lib/staff-auth";
 import { effectiveOrderingHours, validateWeeklyHours } from "../../../lib/store-hours";
 import { readStoreHours, StoreHoursMigrationError, writeStoreHours } from "../../../lib/store-hours-store";
 import { readPauseState, validPauseMinutes, writePauseUntil } from "../../../lib/pause-state";
+import { readRemovedMenuIds } from "../../../lib/menu-removed";
 
 const DEFAULT_SETTINGS = {
   id: 1,
@@ -26,17 +27,19 @@ async function readSettings() {
 export async function GET() {
   try {
     await ensureSchema();
-    const [items, content, settings, storeHours, pause] = await Promise.all([
+    const [items, content, settings, storeHours, pause, removed] = await Promise.all([
       getDb().select().from(menuAvailability).orderBy(desc(menuAvailability.updatedAt)),
       getDb().select().from(menuContent).orderBy(desc(menuContent.updatedAt)),
       readSettings(),
       readStoreHours(),
       readPauseState(),
+      readRemovedMenuIds(),
     ]);
     const hours = effectiveOrderingHours({ ...settings, weeklyHours: storeHours.weeklyHours });
     return Response.json({
       availability: Object.fromEntries(items.map((item) => [item.productId, item.available])),
       menu: content,
+      removed,
       prepTime: settings.prepTimeMinutes,
       paused: pause.paused,
       pausedUntil: pause.pausedUntil,

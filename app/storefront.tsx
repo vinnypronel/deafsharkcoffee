@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { type CSSProperties, type MouseEvent, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { StoreHours } from "./store-hours";
 import { PauseNotice } from "./pause-notice";
@@ -51,6 +51,14 @@ type CartItem = {
   options: string[];
   prepStation: PrepStation;
   selection?: ProductSelection;
+};
+
+type CartFlight = {
+  id: number;
+  fromX: number;
+  fromY: number;
+  toX: number;
+  toY: number;
 };
 
 /* Lines with the same product and the same choices are one line with a quantity,
@@ -291,7 +299,7 @@ function ProductConfigurator({
   /** How many more of this item the cart can take. */
   maxQuantity?: number;
   onClose: () => void;
-  onAdd: (item: CartItem) => void;
+  onAdd: (item: CartItem, source?: HTMLElement | null) => void;
 }) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   /* The ingredient behind a choice, when the shop marked it out today. */
@@ -451,7 +459,7 @@ function ProductConfigurator({
     });
   };
 
-  function add() {
+  function add(event: MouseEvent<HTMLButtonElement>) {
     if (maxQuantity < 1 || outMessage) return;
     onAdd({
       key: initialItem?.key ?? `${product.id}-${Date.now()}`,
@@ -462,7 +470,7 @@ function ProductConfigurator({
       options: pricedSelection.options,
       prepStation: prepStationFor(product),
       selection: pricedSelection.selection,
-    });
+    }, event.currentTarget);
   }
 
   return (
@@ -895,6 +903,10 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   }, [cart]);
   const [justAdded, setJustAdded] = useState<string | null>(null);
   const justAddedTimer = useRef<number | undefined>(undefined);
+  const [cartFlight, setCartFlight] = useState<CartFlight | null>(null);
+  const cartFlightTimer = useRef<number | undefined>(undefined);
+  const [cartPulse, setCartPulse] = useState(false);
+  const cartPulseTimer = useRef<number | undefined>(undefined);
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [availability, setAvailability] = useState<Record<string, boolean>>({});
@@ -1199,6 +1211,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
           const data = await response.json() as {
             availability?: Record<string, boolean>;
             menu?: MenuContentOverride[];
+            removed?: string[];
             prepTime?: number;
             paused?: boolean;
             pausedUntil?: number | null;
@@ -1207,7 +1220,10 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
           setAvailability(data.availability ?? {});
           if (Array.isArray(data.menu)) {
             const overrides = new Map<string, MenuContentOverride>(data.menu.map((item: MenuContentOverride) => [item.productId, item]));
-            const nextProducts = menuProducts.map((product) => applyMenuContentOverride(product, overrides.get(product.id)));
+            const removed = new Set(Array.isArray(data.removed) ? data.removed : []);
+            const nextProducts = menuProducts
+              .filter((product) => !removed.has(product.id))
+              .map((product) => applyMenuContentOverride(product, overrides.get(product.id)));
             setProducts((current) => JSON.stringify(current) === JSON.stringify(nextProducts) ? current : nextProducts);
           }
           if (typeof data.prepTime === "number") setPrepTime(data.prepTime);
@@ -1243,6 +1259,14 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   const isModalOpen = Boolean(selectedProduct || cartOpen || checkoutOpen || confirmation || activeVideoModal);
 
   useEffect(() => {
+    return () => {
+      window.clearTimeout(justAddedTimer.current);
+      window.clearTimeout(cartFlightTimer.current);
+      window.clearTimeout(cartPulseTimer.current);
+    };
+  }, []);
+
+  useEffect(() => {
     if (isModalOpen) {
       document.body.classList.add("modal-open");
       (window as unknown as { __lenis?: { stop: () => void } }).__lenis?.stop();
@@ -1275,7 +1299,26 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
     window.requestAnimationFrame(() => productDialogTrigger.current?.focus());
   }
 
-  function quickAdd(product: Product) {
+  function launchCartFeedback(source?: HTMLElement | null) {
+    const start = source?.getBoundingClientRect();
+    const target = document.querySelector<HTMLElement>(".header-cart")?.getBoundingClientRect();
+    const fromX = start ? start.left + start.width / 2 : window.innerWidth / 2;
+    const fromY = start ? start.top + start.height / 2 : window.innerHeight / 2;
+    const toX = target ? target.left + target.width / 2 : window.innerWidth - 42;
+    const toY = target ? target.top + target.height / 2 : 34;
+
+    window.clearTimeout(cartFlightTimer.current);
+    window.clearTimeout(cartPulseTimer.current);
+    setCartFlight({ id: Date.now(), fromX, fromY, toX, toY });
+    setCartPulse(false);
+    cartFlightTimer.current = window.setTimeout(() => {
+      setCartFlight(null);
+      setCartPulse(true);
+      cartPulseTimer.current = window.setTimeout(() => setCartPulse(false), 420);
+    }, 640);
+  }
+
+  function quickAdd(product: Product, source?: HTMLElement | null) {
     if (quantityInCart(cart, product.id) >= MAX_PER_ITEM) return;
     setCart((current) => mergeCartLines([...current, {
       key: `${product.id}-${Date.now()}`,
@@ -1286,6 +1329,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
       options: [],
       prepStation: prepStationFor(product),
     }]));
+    launchCartFeedback(source);
     setJustAdded(product.id);
     window.clearTimeout(justAddedTimer.current);
     justAddedTimer.current = window.setTimeout(() => setJustAdded(null), 1100);
@@ -1302,9 +1346,9 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
     openProduct(product);
   }
 
-  function addHeroProduct() {
+  function addHeroProduct(event: MouseEvent<HTMLButtonElement>) {
     if (heroProduct.configurable) openProduct(heroProduct);
-    else quickAdd(heroProduct);
+    else quickAdd(heroProduct, event.currentTarget);
   }
 
   function handleEditCartItem(item: CartItem) {
@@ -1316,7 +1360,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
     }
   }
 
-  function handleSaveConfiguredItem(item: CartItem) {
+  function handleSaveConfiguredItem(item: CartItem, source?: HTMLElement | null) {
     const allowed = MAX_PER_ITEM - quantityInCart(cart, item.id, editingCartItem?.key);
     if (allowed < 1) return;
     item = { ...item, quantity: Math.min(item.quantity, allowed) };
@@ -1328,8 +1372,9 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
     } else {
       setCart((current) => mergeCartLines([...current, item]));
     }
+    launchCartFeedback(source);
     setSelectedProduct(null);
-    setCartOpen(true);
+    window.setTimeout(() => setCartOpen(true), 360);
   }
 
   function scrollToCategory(category: MenuCategory) {
@@ -1420,7 +1465,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
           CUSTOM_CHECKOUT_ENABLED ? <button
             type="button"
             className={`item-quick-add ${justAdded === product.id ? "added" : ""}`}
-            onClick={() => product.configurable ? openProduct(product) : quickAdd(product)}
+            onClick={(event) => product.configurable ? openProduct(product) : quickAdd(product, event.currentTarget)}
             aria-label={`${product.configurable ? "Customize" : "Add"} ${product.name}`}
             title={`${product.configurable ? "Customize" : "Add"} ${product.name}`}
           >
@@ -1453,7 +1498,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
               <button
                 type="button"
                 className={`item-selected-cart ${justAdded === product.id ? "added" : ""}`}
-                onClick={() => product.configurable ? openProduct(product) : quickAdd(product)}
+                onClick={(event) => product.configurable ? openProduct(product) : quickAdd(product, event.currentTarget)}
                 aria-label={`${product.configurable ? "Customize" : justAdded === product.id ? "Added" : "Add"} ${product.name}${product.configurable ? "" : " to cart"}`}
                 title={product.configurable ? "Customize" : justAdded === product.id ? "Added" : "Add to cart"}
               >
@@ -1607,7 +1652,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
       <CustomerHeader
         active={isMenuPage ? "/menu" : "/"}
         action={CUSTOM_CHECKOUT_ENABLED ?
-          <button className="header-cart" onClick={() => setCartOpen(true)} aria-label={`Open cart with ${cartCount} items`}>
+          <button className={`header-cart ${cartPulse ? "cart-pulse" : ""}`} onClick={() => setCartOpen(true)} aria-label={`Open cart with ${cartCount} items`}>
             <img src="/cart-icon-white.png" className="cart-glyph" alt="" aria-hidden="true" />
             <span>{cartCount}</span>
           </button> : <OrderOnlineLink className="header-cart" ariaLabel="Order online">
@@ -1877,7 +1922,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
               loading="lazy"
               decoding="async"
             />
-            <button type="button" className="primary-button take-home-btn" aria-label="Add Ocean Blend to order" onClick={() => quickAdd(oceanBlend)}>
+            <button type="button" className="primary-button take-home-btn" aria-label="Add Ocean Blend to order" onClick={(event) => quickAdd(oceanBlend, event.currentTarget)}>
               <span>Add a bag · {money(oceanBlend.price)}</span>
               <span className="btn-cart-glyph" />
             </button>
@@ -2061,6 +2106,13 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
           onClose={() => setCartOpen(false)}
           onEdit={handleEditCartItem}
           onRemove={(key) => setCart((current) => current.filter((item) => item.key !== key))}
+          onQuantity={(key, delta) => setCart((current) => {
+            const line = current.find((item) => item.key === key);
+            if (!line) return current;
+            const room = MAX_PER_ITEM - quantityInCart(current, line.id, key);
+            const next = Math.max(1, Math.min(room, line.quantity + delta));
+            return current.map((item) => (item.key === key ? { ...item, quantity: next } : item));
+          })}
           onCheckout={() => {
             if (ordersPaused) return;
             setCartOpen(false);
@@ -2070,6 +2122,22 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
           pausedUntil={pausedUntil}
           onPauseEnd={endPause}
         />
+      )}
+      {cartFlight && (
+        <span
+          key={cartFlight.id}
+          className="cart-flight"
+          style={{
+            "--from-x": `${cartFlight.fromX}px`,
+            "--from-y": `${cartFlight.fromY}px`,
+            "--to-x": `${cartFlight.toX}px`,
+            "--to-y": `${cartFlight.toY}px`,
+          } as CSSProperties}
+          aria-hidden="true"
+        >
+          <span className="universal-cart-glyph" />
+          <span className="quick-add-plus" />
+        </span>
       )}
       {CUSTOM_CHECKOUT_ENABLED && checkoutOpen && (
         <Checkout prepTime={prepTime} scheduling={scheduling} ordersPaused={ordersPaused} pausedUntil={pausedUntil} onPauseEnd={endPause} cart={cart} subtotal={subtotal} onClose={() => setCheckoutOpen(false)} onComplete={(number, eta) => { setCheckoutOpen(false); setCart([]); setConfirmation({ number, eta }); }} />
@@ -2346,6 +2414,7 @@ function CartDrawer({
   onClose,
   onEdit,
   onRemove,
+  onQuantity,
   onCheckout,
 }: {
   isOpen: boolean;
@@ -2357,6 +2426,7 @@ function CartDrawer({
   onClose: () => void;
   onEdit: (item: CartItem) => void;
   onRemove: (key: string) => void;
+  onQuantity: (key: string, delta: number) => void;
   onCheckout: () => void;
 }) {
   return (
@@ -2399,11 +2469,15 @@ function CartDrawer({
           {cart.length === 0 && <div className="empty-cart"><img src="/favicon.png" alt="" /><h3>Your cart is ready when you are.</h3><p>Choose a drink, breakfast, sandwich, or bite from the menu.</p><a className="primary-button empty-cart-menu-button" href="/menu" onClick={onClose}>Go to menu</a></div>}
           {cart.map((item) => (
             <article key={item.key} className="cart-item">
-              <span>{item.quantity}</span>
               <div>
                 <strong>{item.name}</strong>
                 {item.options.length > 0 && <small>{item.options.join(" · ")}</small>}
                 <div className="cart-item-actions">
+                  <div className="cart-qty" aria-label={`Quantity of ${item.name}`}>
+                    <button type="button" onClick={() => onQuantity(item.key, -1)} disabled={item.quantity <= 1} aria-label={`Decrease ${item.name} quantity`}>−</button>
+                    <span aria-live="polite">{item.quantity}</span>
+                    <button type="button" onClick={() => onQuantity(item.key, 1)} disabled={cart.reduce((sum, line) => (line.id === item.id ? sum + line.quantity : sum), 0) >= MAX_PER_ITEM} aria-label={`Increase ${item.name} quantity`} title={`Limit of ${MAX_PER_ITEM} per item`}>+</button>
+                  </div>
                   <button type="button" className="cart-edit-btn" onClick={() => onEdit(item)}>Edit</button>
                   <span className="cart-action-sep">·</span>
                   <button type="button" className="cart-remove-btn" onClick={() => onRemove(item.key)}>Remove</button>

@@ -10,6 +10,10 @@ function staffEmails() {
   );
 }
 
+export function staffEmailList() {
+  return [...staffEmails()];
+}
+
 export function isStaffEmail(email: string) {
   return staffEmails().has(email.trim().toLowerCase());
 }

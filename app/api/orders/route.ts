@@ -31,6 +31,7 @@ import { CUSTOM_CHECKOUT_ENABLED } from "../../ordering";
 import { requirePickupAccount } from "../../../lib/checkout-policy";
 import { readStoreHours } from "../../../lib/store-hours-store";
 import { readPauseState } from "../../../lib/pause-state";
+import { readRemovedMenuIds } from "../../../lib/menu-removed";
 import { sendStaffNotification } from "../../../lib/transactional-email";
 import { memberOffers } from "../../../db/schema";
 import { WELCOME_OFFER_TYPE, resolveDiscount, type DiscountChoice } from "../../../lib/loyalty";
@@ -144,7 +145,7 @@ export async function POST(request: Request) {
       return orderResponse(alreadyPlaced, 200, reference);
     }
 
-    const [settingsRow, availabilityRows, menuRows, storeHours, profileRows, offerRows, pause] = await Promise.all([
+    const [settingsRow, availabilityRows, menuRows, storeHours, profileRows, offerRows, pause, removedIds] = await Promise.all([
       getDb().select().from(storeSettings).limit(1),
       getDb().select().from(menuAvailability),
       getDb().select().from(menuContent),
@@ -160,6 +161,7 @@ export async function POST(request: Request) {
           )).limit(1)
         : Promise.resolve([]),
       readPauseState(),
+      readRemovedMenuIds(),
     ]);
     const storedSettings = settingsRow[0] as OrderSettings | undefined;
     if (!storedSettings) throw new Error("Store settings row is missing.");
@@ -167,6 +169,8 @@ export async function POST(request: Request) {
     const settings: OrderSettings = { ...storedSettings, paused: pause.paused, weeklyHours: storeHours.weeklyHours };
 
     const availability = new Map(availabilityRows.map((item) => [item.productId, item.available]));
+    /* A deleted item can still sit in an old cart; refuse it like a sold-out one. */
+    for (const id of removedIds) availability.set(id, false);
     const overrides = new Map<string, MenuContentOverride>(
       menuRows.map((item) => [item.productId, item as MenuContentOverride]),
     );

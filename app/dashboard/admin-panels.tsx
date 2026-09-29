@@ -3,14 +3,13 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { categories as menuCategories, menuProducts } from "../menu-data";
-import { OfferBarcode } from "../offer-barcode";
 import { PromotionsManager } from "./promotions-manager";
-import { WELCOME_OFFER_TYPE, bestAvailableTier, nextTierProgress } from "../../lib/loyalty";
+import { bestAvailableTier, nextTierProgress } from "../../lib/loyalty";
 import { DISPLAY_WEEK, WEEKDAY_NAMES, parseWeeklyHours, type DayHours, type Weekday, type WeeklyHours } from "../../lib/store-hours";
 
 type View = "menu" | "website" | "hours" | "events" | "forms" | "history" | "loyalty" | "promotions";
 type Featured = { slot: number; productId: string; categoryLabel: string; title: string; buttonLabel: string; priceCents: number; mediaUrl: string };
-type MenuDraft = { productId: string; name: string; category: string; description: string; priceCents: number; photoUrl: string };
+type MenuDraft = { productId: string; name: string; category: string; description: string; priceCents: number; photoUrl: string; removed?: boolean };
 type EventDraft = { id?: number; title: string; description: string; dateLabel: string; timeLabel: string; location: string; entryLabel: string; details: string; buttonLabel: string; buttonHref: string; imageLeftUrl: string; imageRightUrl: string; imageCaption: string | null; published: boolean; sortOrder: number; createdAt?: string };
 type OrderRecord = { id: number; orderNumber: string; customerName: string; phone: string; itemsJson: string; fulfillmentType: string; pickupEta: string; paymentMethod: string; totalCents: number; status: string; createdAt: string | Date };
 type OrderHistoryItem = { name: string; quantity: number; unitPrice?: number; options: string[] };
@@ -22,7 +21,8 @@ type LoyaltyMember = { userId: string; email: string; displayName: string; phone
 const BIRTHDAY_MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 type LoyaltyTransaction = { id: number; userId: string; orderId?: number | null; pointsChange: number; balanceAfter: number; reason: string; createdAt: string };
 type MemberOffer = { id: number; userId: string; offerType: string; code: string; status: string; issuedAt: string; redeemedAt?: string | null; redeemedBy?: string | null };
-type LoyaltyData = { members: LoyaltyMember[]; transactions: LoyaltyTransaction[]; offers: MemberOffer[] };
+type AdminAccount = { email: string; name: string | null; hasAccount: boolean; verified: boolean; createdAt: string | null };
+type LoyaltyData = { members: LoyaltyMember[]; transactions: LoyaltyTransaction[]; offers: MemberOffer[]; admins: AdminAccount[] };
 
 const emptyEvent: EventDraft = {
   title: "", description: "", dateLabel: "", timeLabel: "", location: "900 Green Lane, Union NJ 07083",
@@ -42,7 +42,7 @@ export function AdminPanels({ view }: { view: View }) {
   const [menu, setMenu] = useState<MenuDraft[]>([]);
   const [events, setEvents] = useState<EventDraft[]>([]);
   const [records, setRecords] = useState<Records>({ orders: [], contacts: [], applications: [], subscribers: [] });
-  const [loyalty, setLoyalty] = useState<LoyaltyData>({ members: [], transactions: [], offers: [] });
+  const [loyalty, setLoyalty] = useState<LoyaltyData>({ members: [], transactions: [], offers: [], admins: [] });
   const [message, setMessage] = useState("");
   const [newEvent, setNewEvent] = useState<EventDraft>(emptyEvent);
 
@@ -57,10 +57,12 @@ export function AdminPanels({ view }: { view: View }) {
         featured?: Featured[];
         events?: EventDraft[];
         menu?: MenuDraft[];
+        removedMenu?: string[];
       };
       setFeatured(data.featured ?? []);
       setEvents(data.events ?? []);
       const overrides = new Map<string, MenuDraft>((data.menu ?? []).map((item) => [item.productId, item]));
+      const removedMenu = new Set(data.removedMenu ?? []);
       setMenu(menuProducts.map((product) => {
         const override = overrides.get(product.id);
         return {
@@ -70,13 +72,14 @@ export function AdminPanels({ view }: { view: View }) {
           description: override?.description || product.description,
           priceCents: override?.priceCents ?? Math.round(product.price * 100),
           photoUrl: override?.photoUrl ?? product.photo ?? "",
+          removed: removedMenu.has(product.id),
         };
       }));
     }
     if (recordsResponse.ok) setRecords(await recordsResponse.json() as Records);
     if (loyaltyResponse.ok) {
       const data = await loyaltyResponse.json() as Partial<LoyaltyData>;
-      setLoyalty({ members: data.members ?? [], transactions: data.transactions ?? [], offers: data.offers ?? [] });
+      setLoyalty({ members: data.members ?? [], transactions: data.transactions ?? [], offers: data.offers ?? [], admins: data.admins ?? [] });
     }
   }, []);
 
@@ -246,7 +249,12 @@ function MenuContentManager({ menu, setMenu, message, save, upload }: {
 }) {
   const [search, setSearch] = useState("");
   const query = search.trim().toLowerCase();
-  const visible = menu.filter((item) => !query || `${item.name} ${item.category}`.toLowerCase().includes(query));
+  const visible = menu.filter((item) => !item.removed && (!query || `${item.name} ${item.category}`.toLowerCase().includes(query)));
+  const deleted = menu.filter((item) => item.removed);
+  const setRemoved = (item: MenuDraft, removed: boolean) => {
+    if (removed && !window.confirm(`Delete ${item.name} from the menu? Customers will no longer see or order it. You can restore it below.`)) return;
+    void save({ kind: "menu-removed", productId: item.productId, removed }, removed ? `${item.name} deleted from the menu.` : `${item.name} restored to the menu.`);
+  };
   const update = (productId: string, changes: Partial<MenuDraft>) => setMenu((items) => items.map((item) => item.productId === productId ? { ...item, ...changes } : item));
 
   return (
@@ -262,9 +270,19 @@ function MenuContentManager({ menu, setMenu, message, save, upload }: {
           <label>Description<textarea rows={3} value={item.description} onChange={(event) => update(item.productId, { description: event.target.value })} /></label>
           <label>Base price ($)<input type="number" min="0" step="0.01" value={(item.priceCents / 100).toFixed(2)} onChange={(event) => update(item.productId, { priceCents: Math.round(Number(event.target.value) * 100) })} /></label>
           <label className="admin-upload">Replace photo<input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (file) upload(file, (url) => update(item.productId, { photoUrl: url })); }} /></label>
-          <button className="admin-save" onClick={() => save({ kind: "menu", ...item }, `${item.name} published.`)}>Save item</button>
+          <div className="admin-editor-actions">
+            <button className="admin-save" onClick={() => save({ kind: "menu", ...item }, `${item.name} published.`)}>Save item</button>
+            <button className="admin-delete" onClick={() => setRemoved(item, true)}>Delete item</button>
+          </div>
         </article>)}
       </div>
+      {deleted.length > 0 && <div className="admin-menu-deleted">
+        <h3>Deleted items</h3>
+        <p>Hidden from customers and blocked at checkout. Restore an item to put it back on the menu.</p>
+        <ul>
+          {deleted.map((item) => <li key={item.productId}><span><strong>{item.name}</strong> {item.category}</span><button className="admin-save" onClick={() => setRemoved(item, false)}>Restore</button></li>)}
+        </ul>
+      </div>}
     </AdminSection>
   );
 }
@@ -274,15 +292,14 @@ function LoyaltyManager({ data, message, setMessage, reload }: { data: LoyaltyDa
   const [changes, setChanges] = useState<Record<string, string>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<string | null>(null);
+  const [section, setSection] = useState<"customers" | "admins">("customers");
   const query = search.trim().toLowerCase();
   const memberNames = new Map(data.members.map((member) => [member.userId, member.displayName]));
-  /* Birthday redemptions live in the same offers table, so only the welcome
-     coupon belongs in this map. */
-  const offersByMember = new Map(data.offers.filter((offer) => offer.offerType === WELCOME_OFFER_TYPE).map((offer) => [offer.userId, offer]));
+  /* Coupons apply automatically at online checkout, so staff only look
+     customers up by who they are. */
   const members = data.members.filter((member) => {
     if (!query) return true;
-    const offerCode = offersByMember.get(member.userId)?.code;
-    return [member.displayName, member.email, member.phone, offerCode].some((value) => value?.toLowerCase().includes(query));
+    return [member.displayName, member.email, member.phone].some((value) => value?.toLowerCase().includes(query));
   });
 
   async function adjust(member: LoyaltyMember) {
@@ -325,30 +342,25 @@ function LoyaltyManager({ data, message, setMessage, reload }: { data: LoyaltyDa
     await reload();
   }
 
-  async function redeem(member: LoyaltyMember, offer: MemberOffer) {
-    if (!window.confirm(`Mark ${member.displayName}'s 50% off coffee offer as redeemed?`)) return;
-    setSaving(`offer:${offer.id}`);
-    setMessage("Redeeming in-store offer…");
-    const response = await fetch("/api/admin/loyalty", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ offerId: offer.id, action: "redeem" }),
-    });
-    const result = await response.json() as { error?: string };
-    setSaving(null);
-    if (!response.ok) return setMessage(result.error || "Could not redeem this offer.");
-    setMessage(`${member.displayName}'s in-store offer was redeemed.`);
-    await reload();
-  }
 
   return (
-    <AdminSection title="Customer Accounts" description="Review customer contact details and balances, redeem welcome offers, and make traceable points corrections. Names and mobile numbers are read-only for staff.">
+    <AdminSection title="Accounts" description="Customers and the verified admin accounts that can open this dashboard. Customer names and mobile numbers are read-only for staff. Welcome coupons apply automatically at online checkout.">
       {message && <AdminNotice>{message}</AdminNotice>}
-      <div className="record-summary"><span><strong>{data.members.length}</strong> members</span><span><strong>{data.members.reduce((total, member) => total + member.points, 0)}</strong> active points</span><span><strong>{data.offers.filter((offer) => offer.status === "active").length}</strong> active welcome offers</span></div>
-      <label className="loyalty-search">Scan a coupon or find a member<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Scan barcode or search name, email, or phone" /></label>
+      <div className="accounts-switch" role="tablist" aria-label="Account type">
+        <button type="button" role="tab" aria-selected={section === "customers"} className={section === "customers" ? "active" : ""} onClick={() => setSection("customers")}>Customers <span>{data.members.length}</span></button>
+        <button type="button" role="tab" aria-selected={section === "admins"} className={section === "admins" ? "active" : ""} onClick={() => setSection("admins")}>Verified admins <span>{data.admins.filter((admin) => admin.verified).length}</span></button>
+      </div>
+      {section === "admins" && <section className="records-block admin-accounts">
+        <p className="admin-accounts-note">Admins sign in on the staff login screen and go straight to this dashboard. They do not earn points or get coupons. To add or remove an admin, ask your web developer to update the admin list.</p>
+        <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Account created</th></tr></thead><tbody>
+          {data.admins.map((admin) => <tr key={admin.email}><td>{admin.name || "Not signed up yet"}</td><td>{admin.email}</td><td>{admin.verified ? "Verified" : admin.hasAccount ? "Email not verified" : "No account yet"}</td><td>{admin.createdAt ? when(admin.createdAt) : "Not yet"}</td></tr>)}
+        </tbody></table></div>
+      </section>}
+      {section === "customers" && <>
+      <div className="record-summary"><span><strong>{data.members.length}</strong> members</span><span><strong>{data.members.reduce((total, member) => total + member.points, 0)}</strong> active points</span></div>
+      <label className="loyalty-search">Find a member<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name, email, or phone" /></label>
       <div className="loyalty-member-grid">
         {members.map((member) => {
-          const offer = offersByMember.get(member.userId);
           return <article className="loyalty-member-card" key={member.userId}>
             <header><div><strong>{member.displayName}</strong><small>{member.email}{member.phone ? ` · ${member.phone}` : ""}</small></div><span>{member.points} pts</span></header>
             <div className="loyalty-progress"><i style={{ width: `${nextTierProgress(member.points).percent}%` }} /></div>
@@ -356,10 +368,6 @@ function LoyaltyManager({ data, message, setMessage, reload }: { data: LoyaltyDa
             {member.birthday?.isToday && <div className={`member-offer member-birthday${member.birthday.redeemedThisYear ? " member-offer-redeemed" : ""}`}>
               <div><strong>Birthday today: free drink up to ${(member.birthday.maxCents / 100).toFixed(0)}</strong><small>{member.birthday.redeemedThisYear ? "Already redeemed this year" : member.birthday.eligibleToday ? "In store only. Any drink, up to $8." : "Not eligible: birthday was added today"}</small></div>
               {member.birthday.eligibleToday && !member.birthday.redeemedThisYear && <button className="admin-save" disabled={saving === `birthday:${member.userId}`} onClick={() => redeemBirthday(member)}>{saving === `birthday:${member.userId}` ? "Saving…" : "Redeem birthday drink"}</button>}
-            </div>}
-            {offer && <div className={`member-offer member-offer-${offer.status}`}>
-              <div><strong>50% off one coffee</strong><OfferBarcode value={offer.code} compact /><small>{offer.status === "active" ? "In-store offer ready" : `Redeemed ${when(offer.redeemedAt)}`}</small></div>
-              {offer.status === "active" && <button className="admin-save" disabled={saving === `offer:${offer.id}`} onClick={() => redeem(member, offer)}>{saving === `offer:${offer.id}` ? "Saving…" : "Mark redeemed"}</button>}
             </div>}
             <div className="loyalty-adjustment">
               <label>Points<input type="number" step="1" value={changes[member.userId] ?? ""} onChange={(event) => setChanges((current) => ({ ...current, [member.userId]: event.target.value }))} placeholder="+25 or -25" /></label>
@@ -371,6 +379,7 @@ function LoyaltyManager({ data, message, setMessage, reload }: { data: LoyaltyDa
         {members.length === 0 && <p className="empty-records">No matching loyalty members.</p>}
       </div>
       <section className="records-block"><h2>Recent points activity</h2><div className="admin-table-wrap"><table className="admin-table loyalty-ledger"><thead><tr><th>Date</th><th>Customer</th><th>Change</th><th>Balance</th><th>Reason</th></tr></thead><tbody>{data.transactions.map((entry) => <tr key={entry.id}><td>{when(entry.createdAt)}</td><td>{memberNames.get(entry.userId) || "Customer"}</td><td><strong className={entry.pointsChange >= 0 ? "points-positive" : "points-negative"}>{entry.pointsChange >= 0 ? "+" : ""}{entry.pointsChange}</strong></td><td>{entry.balanceAfter}</td><td>{entry.reason === "completed_order" ? `Completed order${entry.orderId ? ` #${entry.orderId}` : ""}` : entry.reason === "signup_bonus" ? "New member bonus" : entry.reason.replace(/^staff_adjustment:/, "Staff: ")}</td></tr>)}</tbody></table></div></section>
+      </>}
     </AdminSection>
   );
 }
