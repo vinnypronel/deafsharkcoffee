@@ -268,8 +268,6 @@ export function Dashboard() {
   }
 
 
-  const todayTotal = useMemo(() => orders.filter((order) => order.status !== "cancelled").reduce((sum, order) => sum + order.totalCents, 0) / 100, [orders]);
-
   async function updateOrder(id: number, status: Order["status"]) {
     setOrders((current) => current.map((order) => order.id === id ? { ...order, status } : order));
     await fetch(`/api/orders/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
@@ -344,7 +342,7 @@ export function Dashboard() {
 
       {(activeView === "orders" || activeView === "menu") && <section className="rush-bar">
         <div><button type="button" className="test-sound-button" onClick={() => { const context = getAudioContext(); void context.resume().then(() => { setSoundArmed(context.state === "running"); playAlert(); }); }}>Test sound</button><span>Current customer wait time</span><button onClick={() => changePrepTime(prepTime - 5)}>−</button><strong>{prepTime} min</strong><button onClick={() => changePrepTime(prepTime + 5)}>+</button></div>
-        <div className="rush-summary"><span><strong>{newCount}</strong> new</span><span><strong>{orders.filter((order) => order.status === "preparing").length}</strong> preparing</span><span><strong>${todayTotal.toFixed(2)}</strong> order value</span></div>
+        <div className="rush-summary"><span><strong>{newCount}</strong> new</span><span><strong>{orders.filter((order) => order.status === "preparing").length}</strong> preparing</span></div>
         <div className="pause-control">
           {paused ? (
             <>
@@ -401,14 +399,47 @@ const ORDER_ITEMS_VISIBLE = 3;
 
 function OrderCard({ order, onAdvance, onCancel }: { order: Order; onAdvance: () => void; onCancel: () => void }) {
   const [expanded, setExpanded] = useState(false);
+  const [expandedDetails, setExpandedDetails] = useState<Record<string, boolean>>({});
   const overflowCount = Math.max(0, order.items.length - ORDER_ITEMS_VISIBLE);
   const visibleItems = expanded || overflowCount === 0 ? order.items : order.items.slice(0, ORDER_ITEMS_VISIBLE);
   return (
     <article className="order-card">
-      <div className="order-card-top"><div><span className={`source-badge source-${order.source}`}>{order.source === "website" ? "Website" : order.source}</span><strong>#{order.orderNumber.replace("DS", "")}</strong></div><time dateTime={order.createdAt}>{formatDateTime(order.createdAt)}</time></div>
+      <div className="order-card-top"><div><span className={`source-badge source-${order.source}`}>{order.source === "website" ? "Website" : order.source}</span></div><time dateTime={order.createdAt}>{formatDateTime(order.createdAt)}</time></div>
       <div className="customer-line"><strong>{order.customerName}</strong><span>{order.fulfillmentType === "scheduled" ? "Scheduled" : "ASAP"} pickup · {order.pickupEta}</span></div>
       <div className="order-items">
-        {visibleItems.map((item, index) => <div key={`${item.id}-${index}`}><b>{item.quantity}</b><span><strong>{item.name}</strong>{(item.prepStation || (item.options && item.options.length > 0)) && <small>{[item.prepStation ? `${item.prepStation.toLowerCase()} station` : "", ...(item.options ?? [])].filter(Boolean).join(" · ")}</small>}</span></div>)}
+        {visibleItems.map((item, index) => {
+          const detailKey = `${item.id}-${index}`;
+          const details = [item.prepStation ? `${item.prepStation.toLowerCase()} station` : "", ...(item.options ?? [])].filter(Boolean);
+          const itemDetailsId = `order-${order.id}-item-${index}-details`;
+          const detailsExpanded = Boolean(expandedDetails[detailKey]);
+          return (
+            <div key={detailKey}>
+              <b>{item.quantity}</b>
+              <span>
+                <strong>{item.name}</strong>
+                {details.length > 0 && (
+                  <>
+                    <button
+                      type="button"
+                      className="order-item-details-toggle"
+                      aria-expanded={detailsExpanded}
+                      aria-controls={itemDetailsId}
+                      onClick={() => setExpandedDetails((current) => ({ ...current, [detailKey]: !current[detailKey] }))}
+                    >
+                      {detailsExpanded ? "Hide details" : "Show details"}
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+                    </button>
+                    {detailsExpanded && (
+                      <ul className="order-item-details" id={itemDetailsId}>
+                        {details.map((detail) => <li key={detail}>{detail}</li>)}
+                      </ul>
+                    )}
+                  </>
+                )}
+              </span>
+            </div>
+          );
+        })}
         {overflowCount > 0 && (
           <button type="button" className="order-items-more" aria-expanded={expanded} onClick={() => setExpanded((current) => !current)}>
             {expanded ? "Show less" : `${overflowCount} more ${overflowCount === 1 ? "item" : "items"}`}

@@ -122,8 +122,8 @@ export async function POST(request: Request) {
     }
 
     const idempotencyKey = normalizeIdempotencyKey(payload.idempotencyKey);
-    const customerName = normalizeCustomerName(payload.customerName);
-    const phone = normalizePhone(payload.phone);
+    let customerName = normalizeCustomerName(payload.customerName);
+    let phone = normalizePhone(payload.phone);
     const cartItems = normalizeCartItems(payload.items);
 
     await ensureSchema();
@@ -181,6 +181,8 @@ export async function POST(request: Request) {
     if (!loyaltyProfile || !hasCurrentLegalAcceptance(loyaltyProfile)) {
       throw new OrderRequestError("Open your account and accept the current Terms, Privacy Policy, and age requirement before ordering.", 403, "legal_acceptance_required");
     }
+    customerName = normalizeCustomerName(loyaltyProfile.displayName);
+    phone = normalizePhone(loyaltyProfile.phone);
     const welcomeOffer = offerRows[0];
     const choice: DiscountChoice = (() => {
       const raw = payload.discount as { kind?: unknown; points?: unknown } | undefined;
@@ -218,9 +220,8 @@ export async function POST(request: Request) {
     const smsOptIn = payload.smsOptIn === true;
 
     if (session) {
-      /* Ensure a profile row exists, but never overwrite the saved phone here:
-         name and phone are locked after signup, so an order form cannot change
-         the number the shop calls. The order row carries its own phone. */
+      /* Ensure a profile row exists, but never overwrite the saved contact here:
+         the order above has already copied name and phone from the account. */
       await getDb().insert(customerProfiles).values({
         userId: session.user.id,
         email: session.user.email,

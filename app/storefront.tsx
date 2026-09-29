@@ -38,7 +38,7 @@ import { CustomerHeader, SiteFooter } from "./site-chrome";
 import { OrderOnlineLink } from "./order-online-link";
 import { CUSTOM_CHECKOUT_ENABLED, ORDER_READY_SMS_ENABLED } from "./ordering";
 import TurnstileWidget from "./turnstile-widget";
-import { PHONE_INPUT_MAX_LENGTH, formatPhoneInput } from "../lib/phone-format";
+import { formatPhoneInput } from "../lib/phone-format";
 import "./drink-visuals.css";
 import { MenuPreviewPhoto, menuPreviewSrc, warmMenuPhoto } from "./menu-preview-photo";
 
@@ -2425,7 +2425,7 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
   const [scheduledFor, setScheduledFor] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [fieldErrors, setFieldErrors] = useState<{ name?: string; phone?: string; scheduledFor?: string }>({});
+  const [fieldErrors, setFieldErrors] = useState<{ scheduledFor?: string }>({});
   const [scheduleAnchor] = useState(() => Date.now());
   const [turnstileToken, setTurnstileToken] = useState("");
   const [turnstileResetKey, setTurnstileResetKey] = useState(0);
@@ -2499,12 +2499,14 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setError("");
-    const nextFieldErrors: { name?: string; phone?: string; scheduledFor?: string } = {};
-    if (!name.trim()) nextFieldErrors.name = "Enter the name we should put on the order.";
-    if (phone.replace(/\D/g, "").length !== 10) nextFieldErrors.phone = "Enter a complete 10-digit mobile number.";
+    const nextFieldErrors: { scheduledFor?: string } = {};
     if (fulfillmentType === "scheduled" && !scheduledFor) nextFieldErrors.scheduledFor = "Choose your pickup date and time.";
     setFieldErrors(nextFieldErrors);
     if (Object.keys(nextFieldErrors).length) return;
+    if (!name.trim() || phone.replace(/\D/g, "").length !== 10) {
+      setError("Your account is missing the name or mobile number needed for pickup orders.");
+      return;
+    }
     if (!turnstileToken) {
       setError("Please complete the security check before placing your order.");
       return;
@@ -2573,15 +2575,17 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
           <button type="button" className="primary-button" onClick={() => window.dispatchEvent(new Event("deaf-shark-open-account"))}>Open my account</button>
         </div>}
         {account === "member" && legalAccepted && <>
-        <label className={fieldErrors.name ? "has-error" : undefined}><span>Name for the order</span><input value={name} onChange={(event) => { setName(event.target.value); if (fieldErrors.name) setFieldErrors((current) => ({ ...current, name: undefined })); }} placeholder="Your name" aria-invalid={fieldErrors.name ? true : undefined} aria-describedby={fieldErrors.name ? "checkout-name-error" : undefined} />{fieldErrors.name && <small className="checkout-field-error" id="checkout-name-error" role="alert"><i aria-hidden="true">!</i>{fieldErrors.name}</small>}</label>
-        <label className={fieldErrors.phone ? "has-error" : undefined}><span>Mobile number</span><input type="tel" value={phone} onChange={(event) => { setPhone(formatPhoneInput(event.target.value)); if (fieldErrors.phone) setFieldErrors((current) => ({ ...current, phone: undefined })); }} placeholder="(908)-555-0123" maxLength={PHONE_INPUT_MAX_LENGTH} aria-invalid={fieldErrors.phone ? true : undefined} aria-describedby={fieldErrors.phone ? "checkout-phone-error checkout-phone-note" : "checkout-phone-note"} />{fieldErrors.phone && <small className="checkout-field-error" id="checkout-phone-error" role="alert"><i aria-hidden="true">!</i>{fieldErrors.phone}</small>}<small className="field-note" id="checkout-phone-note">The shop can use this number if there is a question about your order.</small></label>
+        <div className="checkout-account-contact">
+          <span>Ordering from your account</span>
+          <div><strong>{name || "Account name"}</strong><small>{phone || "Mobile number on file"}</small></div>
+        </div>
         <fieldset className="payment-options pickup-options">
           <legend>Pickup time</legend>
           <label htmlFor="fulfillment-asap" aria-label="As soon as possible"><input id="fulfillment-asap" type="radio" name="fulfillment" checked={fulfillmentType === "asap"} onChange={() => setFulfillmentType("asap")} /><span><strong>As soon as possible</strong><small>Estimated in about {prepTime} minutes</small></span></label>
           {scheduling.enabled && <label htmlFor="fulfillment-scheduled" aria-label="Schedule pickup"><input id="fulfillment-scheduled" type="radio" name="fulfillment" checked={fulfillmentType === "scheduled"} onChange={() => { setFulfillmentType("scheduled"); if (!scheduledFor) setScheduledFor(localInputValue(firstScheduledDate)); }} /><span><strong>Schedule pickup</strong><small>Choose a time within the next few hours</small></span></label>}
         </fieldset>
         {fulfillmentType === "scheduled" && <label className={fieldErrors.scheduledFor ? "has-error" : undefined}><span>Scheduled pickup</span><input type="datetime-local" value={scheduledFor} min={localInputValue(firstScheduledDate)} max={localInputValue(lastScheduledDate)} step={scheduling.slotMinutes * 60} onChange={(event) => { setScheduledFor(event.target.value); if (fieldErrors.scheduledFor) setFieldErrors((current) => ({ ...current, scheduledFor: undefined })); }} aria-invalid={fieldErrors.scheduledFor ? true : undefined} aria-describedby={fieldErrors.scheduledFor ? "checkout-schedule-error" : undefined} />{fieldErrors.scheduledFor && <small className="checkout-field-error" id="checkout-schedule-error" role="alert"><i aria-hidden="true">!</i>{fieldErrors.scheduledFor}</small>}</label>}
-        <div className="checkout-pickup-info"><strong>Payment due at pickup</strong><span>No card information is collected on this website.</span></div>
+        <div className="checkout-pickup-info"><strong>Payment due at pickup</strong></div>
         {ORDER_READY_SMS_ENABLED && <label className="checkout-sms-consent" htmlFor="order-ready-text-consent" aria-label="Receive one order-ready text message">
           <input id="order-ready-text-consent" type="checkbox" checked={smsOptIn} onChange={(event) => setSmsOptIn(event.target.checked)} />
           <span><strong>Text me once when this order is ready.</strong><small>Optional. Message and data rates may apply. Reply STOP to opt out.</small></span>

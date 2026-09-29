@@ -4087,6 +4087,11 @@ body.modal-open { touch-action: none; }
 .checkout-rewards input:disabled { opacity: .45; cursor: not-allowed; }
 .checkout-rewards label span { display: flex; flex-direction: column; gap: 2px; font-weight: 700; font-size: 14px; }
 .checkout-rewards label small { color: var(--muted); font-weight: 400; font-size: 12.5px; }
+.checkout-account-contact { display: grid; gap: 8px; margin: 12px 0 22px; border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; background: #fff; }
+.checkout-account-contact > span { color: var(--muted); font-size: 12px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+.checkout-account-contact div { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; color: var(--ink); }
+.checkout-account-contact strong { font-size: 16px; }
+.checkout-account-contact small { color: var(--muted); font-size: 13px; }
 .checkout-total { margin: 25px 0 16px; padding-top: 14px; border-top: 1px solid var(--line); }
 .checkout-total div { display: flex; justify-content: space-between; padding: 6px 0; }
 .checkout-total div:last-child { margin-top: 6px; font-size: 20px; }
@@ -4575,8 +4580,9 @@ body.modal-open { touch-action: none; }
 /* Tightened so more tickets fit on one screen during a rush. */
 .order-card { border: 1px solid rgba(45,26,18,.1); border-radius: 14px; padding: 12px 13px; background: white; box-shadow: 0 6px 20px rgba(45,26,18,.05); }
 .order-card-top, .customer-line, .payment-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.order-card-top > div { display: flex; align-items: center; gap: 8px; }
-.order-card-top time { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.order-card-top { align-items: flex-start; }
+.order-card-top > div { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; }
+.order-card-top time { min-width: 0; color: var(--muted); font-size: 12px; line-height: 1.25; text-align: right; }
 .source-badge { display: inline-flex; min-height: 24px; align-items: center; border-radius: 999px; padding: 0 8px; background: var(--teal); color: white; font-size: 10px; font-weight: 850; text-transform: uppercase; letter-spacing: .06em; }
 .customer-line { margin: 9px 0 8px; }
 .customer-line strong { font-size: 15.5px; }
@@ -4586,6 +4592,11 @@ body.modal-open { touch-action: none; }
 .order-items b { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 7px; background: var(--cream); font-size: 11px; }
 .order-items span { display: flex; flex-direction: column; gap: 2px; }
 .order-items small { color: var(--muted); font-size: 11px; line-height: 1.4; }
+.order-item-details-toggle { width: fit-content; display: inline-flex; align-items: center; gap: 5px; border: 0; padding: 2px 0; background: transparent; color: var(--teal); font: inherit; font-size: 11.5px; font-weight: 800; cursor: pointer; }
+.order-item-details-toggle svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; transition: transform .18s ease; }
+.order-item-details-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
+.order-item-details { display: grid; gap: 2px; margin: 3px 0 0; padding: 0; color: var(--muted); font-size: 11.5px; line-height: 1.35; list-style: none; }
+.order-item-details li::before { content: "- "; }
 .payment-line { padding: 9px 0; font-size: 12px; }
 .payment-line span { color: var(--muted); }
 .advance-button { width: 100%; min-height: 42px; border: 0; border-radius: 11px; background: var(--teal); color: white; font-weight: 850; cursor: pointer; }
@@ -4594,7 +4605,7 @@ body.modal-open { touch-action: none; }
 .order-items-more { width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 2px; border: 0; padding: 6px 0 2px; background: transparent; color: var(--teal); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
 .order-items-more svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; transition: transform .18s ease; }
 .order-items-more[aria-expanded="true"] svg { transform: rotate(180deg); }
-@media (prefers-reduced-motion: reduce) { .order-items-more svg { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .order-items-more svg, .order-item-details-toggle svg { transition: none; } }
 .empty-orders { min-height: 280px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--muted); text-align: center; }
 .empty-orders img { width: 72px; opacity: .12; margin-bottom: 18px; }
 .empty-orders strong { color: var(--ink); }
@@ -6395,6 +6406,96 @@ video:-moz-full-screen {
   .dashboard-header { grid-template-columns: auto minmax(0, 1fr); }
   .dashboard-sections { grid-column: 2; }
   .dashboard-tabs { grid-column: 1 / -1; grid-row: 2; }
+}
+
+/* Landscape tablets should keep the counter's desktop board, just compressed:
+   one header row, the full controls bar, and all three order columns visible. */
+@media (min-width: 781px) and (max-width: 1180px) and (orientation: landscape) {
+  .dashboard-header {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 8px 18px;
+    padding: 8px 18px;
+  }
+  .dashboard-brand strong { display: inline; }
+  .dashboard-tabs {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: center;
+  }
+  .dashboard-tabs button,
+  .dashboard-tabs a {
+    min-height: 34px;
+    padding-inline: 12px;
+    font-size: 13px;
+  }
+  .dashboard-sections {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  .dashboard-sections button {
+    min-height: 32px;
+    padding-inline: 16px;
+    font-size: 13px;
+  }
+  .sound-unlock-bar {
+    padding: 10px 18px;
+  }
+  .rush-bar {
+    min-height: 68px;
+    grid-template-columns: minmax(0, 1.1fr) auto minmax(0, 1fr);
+    gap: 16px;
+    padding: 10px 18px;
+  }
+  .rush-bar > div:first-child {
+    justify-content: flex-start;
+    gap: 8px;
+  }
+  .rush-bar > div:first-child > span {
+    font-size: 11px;
+  }
+  .rush-bar button {
+    min-height: 40px;
+  }
+  .rush-bar > div:first-child button {
+    width: 40px;
+  }
+  .rush-bar > div:first-child .test-sound-button {
+    width: auto;
+    margin-right: 6px;
+    padding-inline: 12px;
+  }
+  .rush-summary {
+    display: flex;
+    gap: 20px;
+  }
+  .pause-control {
+    justify-content: flex-end;
+  }
+  .pause-button {
+    padding-inline: 16px;
+  }
+  .orders-area {
+    padding: 16px;
+  }
+  .mobile-status-tabs {
+    display: none;
+  }
+  .order-board {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+  .order-column {
+    display: block;
+    min-height: calc(100vh - 178px);
+  }
+  .column-header {
+    min-height: 74px;
+    padding: 14px 16px;
+  }
+  .column-header h2 {
+    font-size: 19px;
+  }
 }
 
 /* Any screen taller than it is wide (portrait tablets, rotated monitors) uses
