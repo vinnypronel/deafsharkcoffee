@@ -2431,7 +2431,7 @@ h1, h2, h3, p { margin-top: 0; }
   opacity: 0;
 }
 .origin-story-button::before {
-  left: calc(100% - 38px);
+  left: calc(100% - 52px);
   width: 0;
   height: 2px;
   background: currentColor;
@@ -2439,7 +2439,7 @@ h1, h2, h3, p { margin-top: 0; }
   transition: width .34s cubic-bezier(.16, 1, .3, 1), opacity .18s ease;
 }
 .origin-story-button::after {
-  left: calc(100% - 40px);
+  left: calc(100% - 54px);
   width: 8px;
   height: 8px;
   border-top: 2px solid currentColor;
@@ -2453,12 +2453,13 @@ h1, h2, h3, p { margin-top: 0; }
 }
 .origin-story-button:hover::before,
 .origin-story-button:focus-visible::before {
-  width: 44px;
+  /* Line and head finish about 20px inside the right edge, within the button. */
+  width: 30px;
   opacity: 1;
 }
 .origin-story-button:hover::after,
 .origin-story-button:focus-visible::after {
-  left: calc(100% - 5px);
+  left: calc(100% - 31px);
   opacity: 1;
 }
 
