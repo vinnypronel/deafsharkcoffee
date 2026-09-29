@@ -6397,6 +6397,10 @@ video:-moz-full-screen {
    larger screen. The site header is 68px tall up to 1050px, 84px above. */
 @media (min-width: 781px) and (orientation: portrait) {
   :root { --portrait-header-h: 68px; }
+  /* The product card fills the tan panel: up to 84% of the width, or as tall as
+     fits between the label above and the name and button below. The label,
+     dots and caption all line up with this same width. */
+  .hero-product-mobile { --hero-card-w: min(84vw, calc((100svh - var(--portrait-header-h) - 200px) * .82)); }
   .scroll-hero-pin {
     top: var(--portrait-header-h) !important;
     height: calc(100dvh - var(--portrait-header-h)) !important;
@@ -6425,9 +6429,9 @@ video:-moz-full-screen {
   }
   .hero h1 { max-width: min(82vw, 720px); font-size: clamp(56px, 8.4vw, 96px); line-height: .96; }
   .hero-actions { flex-direction: row; flex-wrap: wrap; gap: 14px; margin-top: 24px; }
-  .hero-featured-video-wrap { width: min(62vw, 560px); height: auto; aspect-ratio: .82; max-width: 560px; margin-top: 0; }
+  .hero-featured-video-wrap { width: var(--hero-card-w); height: auto; aspect-ratio: .82; max-width: none; margin-top: 0; }
   .hero-product-caption {
-    width: min(62vw, 560px);
+    width: var(--hero-card-w);
     left: 50%;
     right: auto;
     transform: translateX(-50%);
@@ -6448,8 +6452,8 @@ video:-moz-full-screen {
   .product-dots button.active { width: clamp(38px, 5vw, 56px); height: clamp(9px, 1.2vw, 13px); }
   .hero-product-caption .hero-add-btn { min-height: clamp(46px, 5.6vw, 58px); padding: 0 clamp(16px, 2.2vw, 24px); font-size: clamp(14px, 1.8vw, 17px); border-radius: 8px; }
   .hero-product-caption .hero-add-btn { flex-shrink: 0; margin-left: auto; }
-  .product-dots { top: 40px; right: max(calc((100% - min(62vw, 560px)) / 2), 32px); }
-  .hero-product-category { top: 40px; left: max(calc((100% - min(62vw, 560px)) / 2), 32px); }
+  .product-dots { top: 40px; right: max(calc((100% - var(--hero-card-w)) / 2), 32px); }
+  .hero-product-category { top: 40px; left: max(calc((100% - var(--hero-card-w)) / 2), 32px); }
   /* The desktop pull of the menu section over the hero would cover the product
      panel that now sits between them. */
   .order-section:not(.standalone-order) { margin-top: -72px; padding-bottom: 0; }
