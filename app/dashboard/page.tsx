@@ -8,11 +8,10 @@ export const dynamic = "force-dynamic";
 function AccessRequired() {
   return (
     <main className="staff-access-page">
-      <img src="/favicon.png" alt="Deaf Shark Coffee" />
-      <span>Deaf Shark staff</span>
+      <img src="/email-logo-fin.png" alt="Deaf Shark Coffee" />
       <h1>Staff access required.</h1>
       <p>Use the account button and sign in with the approved Deaf Shark administrator email. Orders, website editing, events, and submitted forms all live here.</p>
-      <div><Link className="primary-button" href="/?account=signin&returnTo=/dashboard">Open admin sign in</Link><Link className="soft-button" href="/">Return home</Link></div>
+      <div><Link className="primary-button" href="/?account=signin&returnTo=/dashboard">Sign in</Link><Link className="staff-home-button" href="/">Return home</Link></div>
     </main>
   );
 }
