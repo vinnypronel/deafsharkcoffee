@@ -1484,7 +1484,7 @@ export function SiteFooter() {
           <div className="footer-col">
             <h4>SERVICE &amp; VISIT</h4>
             <ul>
-              <li><a href="/contact">Catering &amp; Inquiries</a></li>
+              <li><a href="/contact#catering">Catering &amp; Inquiries</a></li>
               <li><a href="/contact">Location &amp; Hours</a></li>
               <li>
                 <a href="https://maps.google.com/?q=900+Green+Lane+Union+NJ+07083" target="_blank" rel="noopener noreferrer">

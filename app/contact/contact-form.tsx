@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import TurnstileWidget from "../turnstile-widget";
 import { PHONE_INPUT_MAX_LENGTH, formatPhoneInput } from "../../lib/phone-format";
 
@@ -20,6 +20,23 @@ export default function ContactForm() {
   const [phone, setPhone] = useState("");
   const [turnstileToken, setTurnstileToken] = useState("");
   const [turnstileResetKey, setTurnstileResetKey] = useState(0);
+  const sectionRef = useRef<HTMLElement>(null);
+  const topicRef = useRef<HTMLSelectElement>(null);
+
+  /* The footer's Catering link opens /contact#catering: bring the form into
+     view with Catering already chosen. Scrolled from here because the page's
+     smooth scrolling and entry transition swallow a plain anchor jump. */
+  useEffect(() => {
+    if (window.location.hash !== "#catering") return;
+    if (topicRef.current) topicRef.current.value = "catering";
+    const timer = window.setTimeout(() => {
+      const top = (sectionRef.current?.getBoundingClientRect().top ?? 0) + window.scrollY - 90;
+      const lenis = (window as unknown as { __lenis?: { scrollTo: (target: number, options?: Record<string, unknown>) => void } }).__lenis;
+      if (lenis) lenis.scrollTo(top, { immediate: true });
+      else window.scrollTo({ top, behavior: "auto" });
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -84,7 +101,7 @@ export default function ContactForm() {
   }
 
   return (
-    <section className="contact-form-section" aria-labelledby="contact-form-heading">
+    <section ref={sectionRef} id="catering" className="contact-form-section" aria-labelledby="contact-form-heading">
       <div className="contact-form-intro">
         <h2 id="contact-form-heading">Send us a message.</h2>
         <p>Use this form for catering, events, order questions, feedback, or anything else the team can help with.</p>
@@ -103,7 +120,7 @@ export default function ContactForm() {
         <label className={fieldErrors.name ? "has-error" : undefined}><span>Name *</span><input name="name" autoComplete="name" maxLength={100} aria-invalid={fieldErrors.name ? true : undefined} aria-describedby={fieldErrors.name ? "contact-name-error" : undefined} /><FieldError id="contact-name-error">{fieldErrors.name}</FieldError></label>
         <label className={fieldErrors.email ? "has-error" : undefined}><span>Email *</span><input name="email" type="email" autoComplete="email" maxLength={254} aria-invalid={fieldErrors.email ? true : undefined} aria-describedby={fieldErrors.email ? "contact-email-error" : undefined} /><FieldError id="contact-email-error">{fieldErrors.email}</FieldError></label>
         <label><span>Phone</span><input name="phone" type="tel" autoComplete="tel" value={phone} maxLength={PHONE_INPUT_MAX_LENGTH} placeholder="(908)-555-0123" onChange={(event) => setPhone(formatPhoneInput(event.target.value))} /></label>
-        <label><span>Topic *</span><select name="topic" defaultValue="general"><option value="general">General question</option><option value="catering">Catering</option><option value="order">Order help</option><option value="events">Events</option><option value="feedback">Feedback</option></select></label>
+        <label><span>Topic *</span><select ref={topicRef} name="topic" defaultValue="general"><option value="general">General question</option><option value="catering">Catering</option><option value="order">Order help</option><option value="events">Events</option><option value="feedback">Feedback</option></select></label>
         <label className={`contact-message${fieldErrors.message ? " has-error" : ""}`}><span>Message *</span><textarea name="message" rows={6} minLength={10} maxLength={3000} aria-invalid={fieldErrors.message ? true : undefined} aria-describedby={fieldErrors.message ? "contact-message-error" : undefined} /><FieldError id="contact-message-error">{fieldErrors.message}</FieldError></label>
         <TurnstileWidget action="contact" onToken={setTurnstileToken} resetKey={turnstileResetKey} />
         {error && <p className="form-error contact-form-error" role="alert">{error}</p>}
