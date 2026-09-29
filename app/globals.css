@@ -33,7 +33,7 @@ body::-webkit-scrollbar {
   height: 0;
 }
 .desktop-scroll-thumb { display: none; }
-@media (min-width: 1181px) {
+@media (min-width: 1181px) and (orientation: landscape) {
   /* A real handle: grab it and drag to move through the page. The 7px bar sits
      inside a wider invisible hit area so it is easy to catch with a mouse. */
   .desktop-scroll-thumb {
@@ -5085,46 +5085,6 @@ body.modal-open { touch-action: none; }
     padding-left: 0;
     overflow-x: clip;
   }
-  .mobile-scroll-progress {
-    position: fixed;
-    z-index: 120;
-    inset: 0 auto 0 0;
-    display: block;
-    width: 3px;
-    overflow: visible;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    box-shadow: none;
-    pointer-events: none;
-  }
-  .mobile-scroll-progress-fill {
-    position: absolute;
-    inset: 0 0 auto;
-    min-height: 0;
-    border-radius: 0 0 4px 0;
-    background: #c99a6b;
-    box-shadow: none;
-    transition: opacity .12s ease;
-  }
-  .mobile-scroll-progress-fill::after {
-    content: "";
-    position: absolute;
-    right: -1px;
-    bottom: -2px;
-    width: 5px;
-    height: 5px;
-    border-radius: 45% 55% 68% 32%;
-    background: #d9b184;
-    transform-origin: 50% 45%;
-    animation: coffee-progress-swoosh 1.25s ease-in-out infinite alternate;
-  }
-  @keyframes coffee-progress-swoosh {
-    from { transform: translateX(-1px) rotate(-9deg) scaleX(.9); }
-    to { transform: translateX(1px) rotate(10deg) scaleX(1.08); }
-  }
-  body.modal-open .mobile-scroll-progress,
-  body:has(.nav-fullscreen-takeover.open) .mobile-scroll-progress { opacity: 0; }
   .site-header { height: 68px; grid-template-columns: 1fr auto; padding: 0 16px; border-bottom: 0; }
   .header-brand { grid-column: 1; justify-self: start; }
   .header-action { grid-column: 2; gap: 8px; }
@@ -5672,7 +5632,7 @@ body.modal-open { touch-action: none; }
 .mobile-menu-pinned-controls {
   display: none;
 }
-@media (max-width: 780px) {
+@media (max-width: 960px), (orientation: portrait) {
   .order-section .menu-showcase-grid {
     grid-template-columns: minmax(0, 1fr);
     gap: 0;
@@ -5969,6 +5929,9 @@ body.modal-open { touch-action: none; }
     outline: 2px solid var(--teal);
     outline-offset: 2px;
   }
+}
+
+@media (max-width: 780px) {
   .take-home-section {
     position: relative;
     z-index: 30;
@@ -6313,25 +6276,34 @@ video:-moz-full-screen {
   .hero-product-pinned .hero-featured-video-wrap { width: min(92%, 435px); height: auto; aspect-ratio: .8; }
 }
 
-/* Landscape tablets (iPad sideways): the screen is much less wide for its
-   height than the laptop, so the laptop proportions put the cup behind the
-   headline. Scale the headline to the laptop's share of the width and size
-   the footage so the cup sits in the gap before the product panel. */
-@media (min-width: 781px) and (max-width: 1300px) and (orientation: landscape) and (max-aspect-ratio: 16/10) {
-  .hero h1 { font-size: clamp(38px, min(4.4vw, 9.2vh), 106px); }
+/* Include large landscape tablets (1366/1376px) and browser-toolbar height
+   changes. Keep the desktop column proportions, scaling the headline and
+   fitting the card between its label and caption inside the pinned viewport. */
+@media (min-width: 781px) and (max-width: 1400px) and (orientation: landscape) {
+  .hero { height: 100%; grid-template-columns: minmax(0, 64fr) minmax(0, 36fr); }
+  .hero-copy { min-width: 0; padding-right: 2.8vw; }
+  .hero h1 { font-size: min(4.4vw, 9.2dvh); }
   .scroll-hero-video { --hero-zoom: .78; --hero-focus-x: .5; --hero-focus-y: .5; --hero-mirror: 0; --hero-arm-cover: 0; }
+  .hero-actions { gap: clamp(10px, 1.3vw, 18px); }
+  .hero-actions .hero-cta-btn { padding-inline: clamp(14px, 1.7vw, 24px); font-size: clamp(12px, 1.05vw, 14.5px); }
+  .hero-product-pinned {
+    min-width: 0;
+    grid-template-rows: minmax(0, 1fr);
+    padding: clamp(52px, 5vw, 70px) clamp(24px, 2.8vw, 40px) clamp(80px, 6.5vw, 92px);
+  }
+  .hero-product-pinned .hero-visual-container { min-width: 0; min-height: 0; height: 100%; }
+  .hero-product-pinned .hero-featured-video-wrap { width: 100%; height: 100%; min-height: 0; margin-top: 0; aspect-ratio: auto; }
+  .hero-product-pinned .hero-product-category { left: 2.8vw; }
+  .hero-product-pinned .product-dots { right: 2.8vw; }
+  .hero-product-pinned .hero-product-caption { left: 2.8vw; right: 2.8vw; bottom: 20px; gap: 8px; }
+  .hero-product-pinned .hero-product-caption strong { font-size: clamp(16px, 1.6vw, 23px); white-space: normal; }
+  .hero-product-pinned .hero-add-btn { margin-top: 0; padding-inline: 10px; font-size: clamp(11px, .95vw, 13px); }
 }
 
-/* One-column menu (781px to 960px, portrait tablets): the product card scrolls
-   away instead of staying pinned, so the sticky category tabs and section
-   header never slide over it. */
-@media (min-width: 781px) and (max-width: 960px) {
-  .standalone-order .menu-product-card-wrap { position: relative; top: auto; z-index: auto; }
-}
 
 /* Portrait tablets: three columns left the bag photo and the video as thin
    strips beside a squeezed text column. Stack it like the phone layout. */
-@media (min-width: 781px) and (max-width: 1180px) and (orientation: portrait) {
+@media (min-width: 781px) and (orientation: portrait) {
   .take-home-section { display: flex; flex-direction: column; height: auto; min-height: 0; max-height: none; }
   .take-home-image, .take-home-product-cutout { display: none; }
   .take-home-copy { padding: 56px clamp(32px, 7vw, 72px) 64px; }
@@ -6436,7 +6408,15 @@ video:-moz-full-screen {
     min-height: 0;
     margin-bottom: clamp(112px, 14svh, 200px);
   }
-  .mobile-order-overlay-stage:not(.is-standalone) { position: relative; isolation: isolate; display: block; background: #be8e5d; }
+  /* Bring the carousel over the final pinned hero viewport as it scrolls in. */
+  .mobile-order-overlay-stage:not(.is-standalone) {
+    position: relative;
+    z-index: 1;
+    isolation: isolate;
+    display: block;
+    margin-top: calc(var(--portrait-header-h) - 100svh);
+    background: #be8e5d;
+  }
   .scroll-hero-video { height: calc(100lvh - var(--portrait-header-h)); --hero-zoom: 1.6; --hero-focus-x: .5; --hero-focus-y: 0; --hero-offset-y: -.03; --hero-mirror: 0; --hero-arm-cover: 0; }
   .scroll-hero-veil { background: linear-gradient(90deg, rgba(20, 10, 6, .82) 0%, rgba(20, 10, 6, .58) 58%, rgba(20, 10, 6, .3) 100%); }
   .hero-copy {
@@ -6478,4 +6458,125 @@ video:-moz-full-screen {
 }
 @media (min-width: 1051px) and (orientation: portrait) {
   :root { --portrait-header-h: 84px; }
+}
+
+/* Keep carousel arrows on the desktop side panel only. */
+.hero-slide-arrow { display: none; }
+@media (min-width: 781px) and (orientation: landscape) {
+  .hero-product-pinned .hero-slide-arrow {
+    position: absolute;
+    top: 50%;
+    z-index: 5;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 6px;
+    border: 0;
+    border-radius: 50%;
+    background: #111;
+    color: #fff;
+    cursor: pointer;
+    transform: translateY(-50%);
+  }
+  .hero-slide-arrow-prev { left: 4px; }
+  .hero-slide-arrow-next { right: 4px; }
+  .hero-slide-arrow svg { width: 20px; height: 20px; }
+  .hero-slide-arrow:hover { background: #333; }
+  .hero-slide-arrow:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+}
+
+/* Scale the phone menu's pinned image and controls for stacked tablet layouts. */
+@media (min-width: 781px) and (max-width: 960px), (min-width: 781px) and (orientation: portrait) {
+  .standalone-order { padding: 24px clamp(24px, 4vw, 64px) 64px; }
+  .standalone-order .menu-product-card-wrap { position: static; top: auto; display: contents; }
+  .standalone-order .menu-product-pin { top: var(--portrait-header-h, 68px); }
+  .standalone-order .menu-product-pin::before { inset-inline: calc(-1 * clamp(24px, 4vw, 64px)); }
+  .standalone-order .menu-product-card {
+    width: min(100%, calc(clamp(260px, 30svh, 440px) * 1.12));
+    height: clamp(260px, 30svh, 440px);
+    padding-bottom: 48px;
+  }
+  .standalone-order .menu-card-pill { font-size: clamp(16px, 1.6vw, 21px); }
+  .standalone-order .mobile-category-nav-shell { grid-template-columns: 40px minmax(0, 1fr) 40px; }
+  .standalone-order .mobile-category-nav > button { min-height: 48px; padding-inline: 16px; font-size: clamp(16px, 1.6vw, 21px); }
+  .standalone-order .mobile-category-arrow { width: 40px; height: 48px; font-size: 34px; }
+  .standalone-order .mobile-pinned-category-header { min-height: 64px; padding-block: 14px; }
+  .standalone-order .mobile-pinned-category-header h3 { font-size: clamp(28px, 3vw, 38px); }
+  .standalone-order .mobile-pinned-category-header span { font-size: clamp(12px, 1.3vw, 16px); }
+  .standalone-order .menu-item-row { min-height: 90px; }
+  .standalone-order .menu-item-row .item-name-line strong { font-size: clamp(19px, 2vw, 26px); white-space: normal; }
+  .standalone-order .item-info small { font-size: clamp(14px, 1.5vw, 18px); }
+}
+
+/* Show the coffee progress indicator on every portrait layout. */
+@media (max-width: 780px), (orientation: portrait) {
+  .mobile-scroll-progress {
+    position: fixed;
+    z-index: 120;
+    inset: 0 auto 0 0;
+    display: block;
+    width: 3px;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    pointer-events: none;
+  }
+  .mobile-scroll-progress-fill {
+    position: absolute;
+    inset: 0 0 auto;
+    min-height: 0;
+    border-radius: 0 0 4px 0;
+    background: #c99a6b;
+    box-shadow: none;
+    transition: opacity .12s ease;
+  }
+  .mobile-scroll-progress-fill::after {
+    content: "";
+    position: absolute;
+    right: -1px;
+    bottom: -2px;
+    width: 5px;
+    height: 5px;
+    border-radius: 45% 55% 68% 32%;
+    background: #d9b184;
+    transform-origin: 50% 45%;
+    animation: coffee-progress-swoosh 1.25s ease-in-out infinite alternate;
+  }
+  @keyframes coffee-progress-swoosh {
+    from { transform: translateX(-1px) rotate(-9deg) scaleX(.9); }
+    to { transform: translateX(1px) rotate(10deg) scaleX(1.08); }
+  }
+  body.modal-open .mobile-scroll-progress,
+  body:has(.nav-fullscreen-takeover.open) .mobile-scroll-progress { opacity: 0; }
+}
+
+/* Keep the bag beside its details, with the order button below both columns. */
+@media (max-width: 780px), (orientation: portrait) {
+  .take-home-copy {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    align-items: center;
+    column-gap: clamp(12px, 3vw, 40px);
+    row-gap: clamp(24px, 4vw, 40px);
+  }
+  .take-home-body, .take-home-action { display: contents; }
+  .take-home-copy h2 { grid-column: 1 / -1; white-space: normal; }
+  .take-home-features { grid-column: 1; grid-row: 2; align-self: center; gap: clamp(14px, 2.2vw, 24px); }
+  .take-home-features li { font-size: clamp(15px, 2.4vw, 25px); gap: clamp(8px, 1.4vw, 16px); text-align: left; }
+  .take-home-product-cutout {
+    display: block;
+    position: static;
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: center;
+    width: 100%;
+    max-width: 340px;
+    height: auto;
+    max-height: none;
+    object-fit: contain;
+  }
+  .take-home-btn { position: static; grid-column: 1 / -1; justify-self: center; margin-top: 0; }
 }

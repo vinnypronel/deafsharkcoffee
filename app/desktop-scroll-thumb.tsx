@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import type Lenis from "lenis";
 
-const DESKTOP_QUERY = "(min-width: 1181px)";
+const DESKTOP_QUERY = "(min-width: 1181px) and (orientation: landscape)";
 const MIN_THUMB_HEIGHT = 48;
 const HIDE_DELAY = 650;
 /* How close to the right edge the pointer has to be to reveal the thumb. */

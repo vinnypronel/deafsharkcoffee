@@ -69,6 +69,19 @@ function mergeCartLines(items: CartItem[]): CartItem[] {
   return merged;
 }
 
+/* Match the stacked menu layouts, including portrait tablets. Touch-only
+   screens also need a preview tap because they cannot hover. */
+function usesMenuTapPreview() {
+  return window.matchMedia("(max-width: 960px), (orientation: portrait), (hover: none)").matches;
+}
+
+/* Read the rendered sticky stack so category jumps also work after rotation. */
+function pinnedMenuBottom() {
+  const pin = document.querySelector<HTMLElement>(".standalone-order .menu-product-pin");
+  if (!pin || getComputedStyle(pin).position !== "sticky") return null;
+  return (parseFloat(getComputedStyle(pin).top) || 0) + pin.getBoundingClientRect().height + 12;
+}
+
 /* Shape returned by /api/site-content for the home page featured carousel. */
 type FeaturedSlideResponse = {
   productId: string;
@@ -841,7 +854,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
     const syncHover = () => {
       frame = 0;
       const pointer = menuPointerRef.current;
-      if (!pointer || !window.matchMedia("(hover: hover)").matches) return;
+      if (!pointer || usesMenuTapPreview()) return;
       const row = document.elementFromPoint(pointer.x, pointer.y)?.closest<HTMLElement>("[data-menu-product-id]");
       if (!row || !root.contains(row)) return;
       const product = byId.get(row.dataset.menuProductId ?? "");
@@ -1092,14 +1105,9 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
         const stickyNav = document.querySelector(".standalone-order .category-nav-wrap");
         const stickyNavHeight = stickyNav?.getBoundingClientRect().height ?? 46;
         const standardTop = 84 + stickyNavHeight + 8;
-        const mobilePin = document.querySelector(".standalone-order .menu-product-pin");
-        const mobileTop = 68 + (mobilePin?.getBoundingClientRect().height ?? 0) + 12;
-        const desiredTop =
-          window.innerWidth <= 780
-            ? mobileTop
-            : category === "Coffee Beans"
-            ? Math.max(standardTop, window.innerHeight - 180)
-            : standardTop;
+        const desiredTop = pinnedMenuBottom() ?? (category === "Coffee Beans"
+          ? Math.max(standardTop, window.innerHeight - 180)
+          : standardTop);
         const destination = Math.max(0, targetTop - desiredTop);
         const lenis = (window as unknown as {
           __lenis?: { scrollTo: (target: number, options?: Record<string, unknown>) => void };
@@ -1275,9 +1283,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   }
 
   function activateMenuProduct(product: Product) {
-    const isCompactMenu = window.matchMedia("(max-width: 780px)").matches;
-
-    if (isCompactMenu && menuShowcaseProduct.id !== product.id) {
+    if (usesMenuTapPreview() && menuShowcaseProduct.id !== product.id) {
       setMenuShowcaseProduct(product);
       return;
     }
@@ -1323,15 +1329,11 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
     const nav = document.querySelector(".standalone-order .category-nav-wrap");
     const navHeight = nav ? nav.getBoundingClientRect().height : 46;
     const standardTop = 84 + navHeight + 8;
-    const mobilePin = document.querySelector(".standalone-order .menu-product-pin");
-    const mobileTop = 68 + (mobilePin?.getBoundingClientRect().height ?? 0) + 12;
     /* Coffee Beans is a short final section. Keep the last refrigerator rows
        in view above it instead of over-scrolling the heading to the top. */
-    const desiredTop = window.innerWidth <= 780
-      ? mobileTop
-      : category === "Coffee Beans"
-        ? Math.max(standardTop, window.innerHeight - 180)
-        : standardTop;
+    const desiredTop = pinnedMenuBottom() ?? (category === "Coffee Beans"
+      ? Math.max(standardTop, window.innerHeight - 180)
+      : standardTop);
     const y = window.scrollY + target.getBoundingClientRect().top - desiredTop;
     window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
     setActiveCategory(category);
@@ -1381,7 +1383,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
       <div className="menu-item-row-wrap" key={product.id} data-menu-product-id={product.id}
         onPointerEnter={(event) => {
           // Continuous pointer events can otherwise commit after the next paint.
-          if (event.pointerType === "mouse") flushSync(() => setMenuShowcaseProduct((current) => current.id === product.id ? current : product));
+          if (event.pointerType === "mouse" && !usesMenuTapPreview()) flushSync(() => setMenuShowcaseProduct((current) => current.id === product.id ? current : product));
         }}
         onFocus={(event) => {
           // Touch focus precedes click; changing selection there would turn a
@@ -1503,11 +1505,9 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
       /* the section whose header is closest to just under the sticky nav wins */
       let best = blocks[0];
       const finalSection = blocks[blocks.length - 1];
-      const mobilePin = document.querySelector(".standalone-order .menu-product-pin");
-      const activeLine = window.innerWidth <= 780
-        ? 68 + (mobilePin?.getBoundingClientRect().height ?? 0) + 12
-        : 150;
-      const coffeeBeansFramed = window.innerWidth > 780
+      const pinnedBottom = pinnedMenuBottom();
+      const activeLine = pinnedBottom ?? 150;
+      const coffeeBeansFramed = pinnedBottom === null
         && finalSection.getBoundingClientRect().top <= window.innerHeight - 170;
       if (coffeeBeansFramed) {
         best = finalSection;
@@ -1552,6 +1552,16 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
           <ProductVisual product={heroProduct} />
         )}
       </div>
+      {featuredSlides.length > 1 && (
+        <>
+          <button type="button" className="hero-slide-arrow hero-slide-arrow-prev" aria-label="Previous featured video" onClick={goToPrevSlide}>
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m14 6-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </button>
+          <button type="button" className="hero-slide-arrow hero-slide-arrow-next" aria-label="Next featured video" onClick={goToNextSlide}>
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m10 6 6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </button>
+        </>
+      )}
       <div className="hero-product-caption">
         <div key={heroProduct.id} className={`hero-product-text hero-text-swipe hero-swipe-${swipeDirection}`}>
           <strong>{heroProduct.name}</strong>
