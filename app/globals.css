@@ -6337,10 +6337,12 @@ video:-moz-full-screen {
   }
 }
 
-/* Home menu on one-column tablets (781px to 960px): pin the product card like
-   the phone layout. The heading scrolls away, the card stays under the site
-   header at a compact size, and the section title sticks just below it. */
-@media (min-width: 781px) and (max-width: 960px) {
+/* Home menu on one-column tablets (781px to 960px) and on every portrait
+   screen: pin the product card like the phone layout. The heading scrolls
+   away, the card stays under the site header at a compact size, and the
+   section title sticks just below it. */
+@media (min-width: 781px) and (max-width: 960px), (min-width: 781px) and (orientation: portrait) {
+  .order-section:not(.standalone-order) .menu-list-panel { margin-top: 0; }
   .order-section:not(.standalone-order) .menu-showcase-grid { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .order-section:not(.standalone-order) .menu-product-card-wrap { position: static; top: auto; display: contents; }
   .order-section:not(.standalone-order) .menu-sidebar-heading { margin-bottom: 10px; }
@@ -6377,7 +6379,8 @@ video:-moz-full-screen {
   .order-section:not(.standalone-order) .menu-card-pill { bottom: 8px; white-space: normal; text-wrap: balance; font-size: 14px; line-height: 1.15; }
   .order-section:not(.standalone-order) .menu-card-brand { display: none; }
   .order-section:not(.standalone-order) .menu-list-panel { position: relative; z-index: 1; }
-  .order-section:not(.standalone-order) .menu-panel-header { top: calc(114px + clamp(220px, 24svh, 290px)); }
+  .order-section:not(.standalone-order) .menu-product-pin { top: var(--portrait-header-h, 68px); }
+  .order-section:not(.standalone-order) .menu-panel-header { top: calc(var(--portrait-header-h, 68px) + 46px + clamp(220px, 24svh, 290px)); }
 }
 
 /* Brand, tabs and the Orders / Website switch share one line when there is room.
@@ -6436,7 +6439,14 @@ video:-moz-full-screen {
     justify-content: space-between;
     gap: 12px;
   }
-  .hero-product-caption strong { font-size: clamp(17px, 2.2vw, 22px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hero-product-caption strong { font-size: clamp(20px, 2.8vw, 30px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* Label, slide dots and the Add to order button scale with the larger card
+     instead of keeping their phone sizes. */
+  .hero-product-category { font-size: clamp(14px, 1.9vw, 20px); }
+  .product-dots { gap: clamp(8px, 1.1vw, 12px); }
+  .product-dots button { width: clamp(9px, 1.2vw, 13px); height: clamp(9px, 1.2vw, 13px); }
+  .product-dots button.active { width: clamp(38px, 5vw, 56px); height: clamp(9px, 1.2vw, 13px); }
+  .hero-product-caption .hero-add-btn { min-height: clamp(46px, 5.6vw, 58px); padding: 0 clamp(16px, 2.2vw, 24px); font-size: clamp(14px, 1.8vw, 17px); border-radius: 8px; }
   .hero-product-caption .hero-add-btn { flex-shrink: 0; margin-left: auto; }
   .product-dots { top: 40px; right: max(calc((100% - min(62vw, 560px)) / 2), 32px); }
   .hero-product-category { top: 40px; left: max(calc((100% - min(62vw, 560px)) / 2), 32px); }
