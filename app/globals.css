@@ -6290,7 +6290,6 @@ video:-moz-full-screen {
    left side, and size the panel's photo card from the column width so it is
    not cut off at the screen edge. */
 @media (min-width: 781px) and (max-width: 1180px) and (orientation: portrait) {
-  .scroll-hero-video { --hero-zoom: 1.35; --hero-focus-x: 1; }
   .hero-product-pinned { min-width: 0; }
   .hero-product-pinned .hero-visual-container { width: 100%; min-width: 0; }
   .hero-product-pinned .hero-featured-video-wrap { width: min(92%, 435px); height: auto; aspect-ratio: .8; }
@@ -6387,4 +6386,64 @@ video:-moz-full-screen {
   .dashboard-header { grid-template-columns: auto minmax(0, 1fr); }
   .dashboard-sections { grid-column: 2; }
   .dashboard-tabs { grid-column: 1 / -1; grid-row: 2; }
+}
+
+/* Any screen taller than it is wide (portrait tablets, rotated monitors) uses
+   the phone composition: the scroll video with the headline, then the product
+   panel underneath instead of squeezed into a side column. Sized up for the
+   larger screen. The site header is 68px tall up to 1050px, 84px above. */
+@media (min-width: 781px) and (orientation: portrait) {
+  :root { --portrait-header-h: 68px; }
+  .scroll-hero-pin {
+    top: var(--portrait-header-h) !important;
+    height: calc(100dvh - var(--portrait-header-h)) !important;
+    min-height: calc(100dvh - var(--portrait-header-h)) !important;
+    background: #1a0f0a;
+  }
+  .hero { min-height: 100%; display: flex; flex-direction: column; background: transparent; }
+  .hero-product-pinned { display: none; }
+  .hero-product-mobile {
+    display: grid;
+    position: sticky;
+    top: var(--portrait-header-h);
+    z-index: 0;
+    height: calc(100svh - var(--portrait-header-h));
+    min-height: 0;
+    margin-bottom: clamp(112px, 14svh, 200px);
+  }
+  .mobile-order-overlay-stage:not(.is-standalone) { position: relative; isolation: isolate; display: block; background: #be8e5d; }
+  .scroll-hero-video { height: calc(100lvh - var(--portrait-header-h)); --hero-zoom: 1.6; --hero-focus-x: .5; --hero-focus-y: 0; --hero-offset-y: -.03; --hero-mirror: 0; --hero-arm-cover: 0; }
+  .scroll-hero-veil { background: linear-gradient(90deg, rgba(20, 10, 6, .82) 0%, rgba(20, 10, 6, .58) 58%, rgba(20, 10, 6, .3) 100%); }
+  .hero-copy {
+    min-height: 100%;
+    box-sizing: border-box;
+    justify-content: flex-end;
+    padding: 48px clamp(28px, 5vw, 64px) clamp(44px, 6vh, 80px);
+  }
+  .hero h1 { max-width: min(82vw, 720px); font-size: clamp(56px, 8.4vw, 96px); line-height: .96; }
+  .hero-actions { flex-direction: row; flex-wrap: wrap; gap: 14px; margin-top: 24px; }
+  .hero-featured-video-wrap { width: min(62vw, 560px); height: auto; aspect-ratio: .82; max-width: 560px; margin-top: 0; }
+  .hero-product-caption {
+    width: min(62vw, 560px);
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    bottom: 14px;
+    padding: 0 4px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .hero-product-caption strong { font-size: clamp(17px, 2.2vw, 22px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hero-product-caption .hero-add-btn { flex-shrink: 0; margin-left: auto; }
+  .product-dots { top: 40px; right: max(calc((100% - min(62vw, 560px)) / 2), 32px); }
+  .hero-product-category { top: 40px; left: max(calc((100% - min(62vw, 560px)) / 2), 32px); }
+  /* The desktop pull of the menu section over the hero would cover the product
+     panel that now sits between them. */
+  .order-section:not(.standalone-order) { margin-top: -72px; padding-bottom: 0; }
+}
+@media (min-width: 1051px) and (orientation: portrait) {
+  :root { --portrait-header-h: 84px; }
 }
