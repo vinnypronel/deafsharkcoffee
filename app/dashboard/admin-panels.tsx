@@ -113,7 +113,7 @@ export function AdminPanels({ view }: { view: View }) {
   );
 
   if (view === "website") return (
-    <AdminSection eyebrow="Homepage editor" title="Featured carousel" description="Edit the video or image, category, item name, button wording, and displayed price. Saving publishes the change to the homepage.">
+    <AdminSection title="Homepage Editor" description="Edit the video or image, category, item name, button wording, and displayed price. Saving publishes the change to the homepage.">
       {message && <AdminNotice>{message}</AdminNotice>}
       <div className="admin-editor-grid">
         {featured.map((item, index) => (
@@ -134,7 +134,7 @@ export function AdminPanels({ view }: { view: View }) {
   if (view === "hours") return <HoursManager />;
 
   if (view === "events") return (
-    <AdminSection eyebrow="Events manager" title="Upcoming events" description="Add, edit, hide, or remove events. Published events appear in the same two-image format on the Events page.">
+    <AdminSection title="Event Manager" description="Add, edit, hide, or remove events. Published events appear in the same two-image format on the Events page.">
       {message && <AdminNotice>{message}</AdminNotice>}
       <EventEditor event={newEvent} title="Add a new event" setEvent={setNewEvent} upload={upload} onSave={async () => { if (await save({ kind: "event", ...newEvent }, "Event added.")) setNewEvent(emptyEvent); }} />
       <div className="admin-event-list">
@@ -250,7 +250,7 @@ function MenuContentManager({ menu, setMenu, message, save, upload }: {
   const update = (productId: string, changes: Partial<MenuDraft>) => setMenu((items) => items.map((item) => item.productId === productId ? { ...item, ...changes } : item));
 
   return (
-    <AdminSection eyebrow="Menu editor" title="Names, descriptions, prices, and photos" description="These edits publish to the customer menu and are also used for secure server-side order pricing.">
+    <AdminSection title="Menu Editor" description="These edits publish to the customer menu and are also used for secure server-side order pricing.">
       {message && <AdminNotice>{message}</AdminNotice>}
       <label className="loyalty-search">Find a menu item<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search item or category" /></label>
       <div className="admin-menu-editor-grid">

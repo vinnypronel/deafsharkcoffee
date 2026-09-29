@@ -140,10 +140,10 @@ test("prices from the server catalog and ignores client-supplied prices", () => 
   assert.ok(["COFFEE", "KITCHEN", "RETAIL"].includes(item.prepStation));
 });
 
-test("offers French fries or sweet potato fries for fries and wing orders", () => {
+test("offers regular fries or sweet potato fries for fries and wing orders", () => {
   for (const id of ["fries", "chicken-wings-fries"]) {
     const [regular] = priceCart([{ id, quantity: 1 }]);
-    assert.ok(regular.options.includes("Fries choice: French fries"));
+    assert.ok(regular.options.includes("Fries choice: Regular fries"));
 
     const [sweetPotato] = priceCart([{
       id,

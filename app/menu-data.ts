@@ -167,7 +167,7 @@ export const FRIES_CHOICE: ModifierGroup = {
   label: "Fries choice",
   type: "single",
   required: true,
-  options: ["French fries", "Sweet potato fries"].map((label) => ({ label })),
+  options: ["Regular fries", "Sweet potato fries"].map((label) => ({ label })),
 };
 
 export const DECAF_MODIFIER: ModifierGroup = {
@@ -516,7 +516,7 @@ export const menuProducts: Product[] = [
     price: 6,
     description: "Soft sponge cake soaked in three milks and finished with cream.",
     visual: "bite",
-    photo: "/menu/desserts/tres-leches-v1.png",
+    photo: "/menu/desserts/tiramisu-v1.png",
   },
   {
     id: "passion-fruit-dessert",
@@ -1019,10 +1019,10 @@ export const menuProducts: Product[] = [
   },
   {
     id: "fries",
-    name: "Fries / Sweet Potato Fries",
+    name: "Regular Fries / Sweet Potato Fries",
     category: "Bites",
     price: 5,
-    description: "Choose classic French fries or sweet potato fries.",
+    description: "Choose regular fries or sweet potato fries.",
     configurable: true,
     modifierGroups: [FRIES_CHOICE],
     visual: "bite",

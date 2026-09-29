@@ -1359,6 +1359,8 @@ h1, h2, h3, p { margin-top: 0; }
 .bites-plate span:nth-child(4) { left: 42%; top: 45%; transform: rotate(-15deg); }
 .product-photo { position: relative; z-index: 2; width: 92%; height: 92%; border-radius: 26px; object-fit: cover; object-position: center center; box-shadow: 0 32px 50px rgba(50,25,15,.28); }
 .coffee-bag-photo { position: relative; z-index: 2; width: 92%; height: 92%; border-radius: 26px; object-fit: cover; object-position: center 44%; box-shadow: 0 32px 50px rgba(50,25,15,.28); }
+.product-visual:not(.product-hot):not(.product-iced) .visual-shadow { display: none; }
+.product-food .product-photo { box-shadow: none; filter: none; }
 .product-bag .visual-glow { background: rgba(255,250,243,.4); }
 .product-bag .visual-shadow { bottom: 4%; width: 64%; }
 .product-visual-compact { width: min(100%, 300px); height: clamp(170px, 26vh, 250px); flex: none; }
@@ -3734,6 +3736,8 @@ body.modal-open { touch-action: none; }
   transform: translateY(-12px) scale(1.12);
   border-radius: 20px;
   clip-path: inset(0 round 20px);
+  box-shadow: none;
+  filter: none;
 }
 /* Portrait shots with the food at the very bottom of the frame: anchor the square
    crop to the bottom edge so none of it gets cut off. */
@@ -5343,6 +5347,22 @@ body.modal-open { touch-action: none; }
   .config-product-info { flex-direction: row; align-items: last baseline; justify-content: space-between; gap: 14px; }
   .config-product-info h2 { min-width: 0; }
   .config-product-info strong { flex: none; }
+  .configurator:not([data-layout="food"]) .config-product-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  .configurator:not([data-layout="food"]) .config-product-info h2 {
+    max-width: 100%;
+    font-size: clamp(34px, 9.6vw, 40px);
+    line-height: 1.02;
+    white-space: nowrap;
+  }
+  .configurator:not([data-layout="food"]) .config-product-info strong {
+    align-self: flex-start;
+    font-size: 34px;
+    line-height: 1;
+  }
   .config-options { padding: 34px 20px calc(32px + env(safe-area-inset-bottom)); }
   .removal-option-group:first-of-type { margin-top: 0; padding-right: 0; }
   .option-group > div { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -5992,6 +6012,19 @@ body.modal-open { touch-action: none; }
     max-width: calc(100% - 32px);
     padding-inline: 22px;
     justify-content: center;
+  }
+}
+
+@media (min-width: 700px) and (max-width: 780px) and (orientation: portrait) {
+  .config-product .product-drink {
+    transform: translateY(34px);
+  }
+  .config-product .product-hot .product-photo,
+  .config-product .product-iced .product-photo {
+    transform: translateY(4px) scale(1.28);
+  }
+  .config-product .product-drink .visual-shadow {
+    bottom: 3%;
   }
 }
 
