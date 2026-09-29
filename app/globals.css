@@ -835,9 +835,9 @@ h1, h2, h3, p { margin-top: 0; }
 .student-form input { width: 100%; min-height: 44px; box-sizing: border-box; border: 1px solid rgba(45,26,18,.16); border-radius: 12px; background: #fff; color: var(--ink); padding: 0 13px; font: inherit; }
 .student-form input:focus { outline: 2px solid rgba(156,101,51,.22); border-color: var(--gold); }
 .student-form small { color: var(--muted); font-size: 12.5px; line-height: 1.45; }
-.account-admin-card { display: grid; gap: 8px; margin: 0 0 18px; border: 1px solid var(--line); border-radius: 14px; padding: 16px; background: #fff; text-align: left; }
-.account-admin-card p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
-.account-admin-card .primary-button { justify-content: center; margin-top: 6px; text-decoration: none; }
+.account-admin-card { display: grid; justify-items: center; gap: 14px; margin: 30px 0 24px; border: 1px solid var(--line); border-radius: 14px; padding: 26px 24px; background: #fff; text-align: center; }
+.account-admin-card p { max-width: 360px; margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.account-admin-card .primary-button { width: 100%; justify-content: center; margin-top: 4px; text-decoration: none; }
 .student-status { display: grid; gap: 4px; margin: 0 0 18px; border: 1px solid rgba(22,139,135,.28); border-radius: 14px; padding: 14px 16px; background: rgba(22,139,135,.07); text-align: left; }
 .student-status strong { color: var(--teal-dark, #0d5f5c); font-size: 14.5px; }
 .student-status small { color: var(--muted); font-size: 12.5px; }
@@ -3949,6 +3949,13 @@ body.modal-open { touch-action: none; }
   .configurator[data-layout="hot-only-drink"] .config-options > :first-child {
     margin-top: auto;
   }
+  /* The scroll area starts below the close button (17px inset + 34px button +
+     11px gap), so no option can ever sit or scroll underneath it. */
+  .configurator .config-options,
+  .configurator[data-layout] .config-options {
+    margin-top: 62px;
+    padding-top: 0;
+  }
   /* Tightened so a hot drink, which carries the extra size row, fits without
      scrolling. Touch targets stay at 36px, comfortably above the 24px minimum. */
   .option-group { margin-bottom: 6px; }
@@ -6331,8 +6338,6 @@ video:-moz-full-screen {
 /* Menu page: the circular badge sits beside the title rather than floating
    at the top right of the category bar. */
 .menu-panel-heading { display: flex; align-items: center; gap: 14px; }
-.menu-heading-badge { width: 54px; height: 54px; flex: 0 0 auto; border-radius: 50%; object-fit: cover; box-shadow: 0 6px 18px rgba(20,11,8,.18); }
-@media (max-width: 720px) { .menu-panel-heading { gap: 10px; } .menu-heading-badge { width: 40px; height: 40px; } }
 .loyalty-promotions { display: grid; gap: 8px; margin: 4px 0 0; padding: 12px 0 0; border-top: 1px solid rgba(255,250,243,.14); list-style: none; }
 .loyalty-promotions li { display: grid; gap: 2px; }
 .loyalty-promotions b { color: #f0d7b4; font-size: 13.5px; }
@@ -6739,8 +6744,12 @@ video:-moz-full-screen {
   }
   .hero-slide-arrow-prev { left: 4px; }
   .hero-slide-arrow-next { right: 4px; }
-  .hero-slide-arrow svg { width: 18px; height: 18px; }
+  /* The button keeps its translateY(-50%) centering, so the hover grow and
+     the press dip are applied to the glyph instead. */
+  .hero-slide-arrow svg { width: 18px; height: 18px; transition: transform .18s cubic-bezier(.2, 0, 0, 1); }
   .hero-slide-arrow:hover { color: #000; }
+  .hero-slide-arrow:hover svg { transform: scale(1.22); }
+  .hero-slide-arrow:active svg { transform: translateY(2px) scale(.92); transition-duration: .08s; }
   .hero-slide-arrow:focus-visible { outline: 2px solid rgba(0,0,0,.55); outline-offset: 3px; }
 }
 

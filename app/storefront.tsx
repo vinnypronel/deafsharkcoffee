@@ -12,6 +12,7 @@ import {
   defaultTemperatureForProduct,
   DRINK_CATEGORIES,
   EXTRA_SHOT_PRICE,
+  MAX_EXTRA_SHOTS,
   featuredProducts,
   hasExtraShotOptionsForProduct,
   hasMilkOptionsForProduct,
@@ -182,7 +183,8 @@ type Configuration = {
 type SyrupFlavor = (typeof SYRUP_OPTIONS)[number];
 type MilkChoice = "None" | (typeof MILK_OPTIONS)[number];
 
-const MAX_SHOTS = 5;
+/* Extra espresso shots per drink, the same cap the server enforces. */
+const MAX_SHOTS = MAX_EXTRA_SHOTS;
 
 const temperaturesFor = (product: Product): ("Hot" | "Iced")[] => {
   if (product.sizing) {
@@ -273,9 +275,9 @@ function ProductVisual({ product, compact = false, menuPreview = false }: { prod
   );
 }
 
-/* Online orders allow up to 99 of any one menu item, counted across every cart
+/* Online orders allow up to 20 of any one menu item, counted across every cart
    line for it. The server enforces the same limit in lib/order-intake.ts. */
-const MAX_PER_ITEM = 99;
+const MAX_PER_ITEM = 20;
 
 function quantityInCart(cart: CartItem[], productId: string, excludeKey?: string) {
   return cart.reduce((sum, item) => (item.id === productId && item.key !== excludeKey ? sum + item.quantity : sum), 0);
@@ -368,7 +370,7 @@ function ProductConfigurator({
     const shotOpt = opts.find((o) => o.includes("extra shot") || o.includes("Extra shot"));
     if (shotOpt) {
       const match = shotOpt.match(/(\d+)/);
-      extraShot = match ? parseInt(match[1], 10) : 1;
+      extraShot = Math.min(MAX_EXTRA_SHOTS, match ? parseInt(match[1], 10) : 1);
     }
 
     const syrups: SyrupFlavor[] = [];
@@ -1609,10 +1611,10 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
       {featuredSlides.length > 1 && (
         <>
           <button type="button" className="hero-slide-arrow hero-slide-arrow-prev" aria-label="Previous featured video" onClick={goToPrevSlide}>
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m14 6-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m14 6-6 6 6 6" stroke="currentColor" strokeWidth="2.75" strokeLinecap="round" strokeLinejoin="round" /></svg>
           </button>
           <button type="button" className="hero-slide-arrow hero-slide-arrow-next" aria-label="Next featured video" onClick={goToNextSlide}>
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m10 6 6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m10 6 6 6-6 6" stroke="currentColor" strokeWidth="2.75" strokeLinecap="round" strokeLinejoin="round" /></svg>
           </button>
         </>
       )}
@@ -1708,7 +1710,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
                 It sits outside the pin so it scrolls away on mobile instead of sticking. */}
             <div className="menu-sidebar-heading">
               {isMenuPage
-                ? <h1 className="menu-panel-heading">The Full Deaf Shark Menu<img src="/deafshark-logo-640.webp" alt="" className="menu-heading-badge" decoding="async" /></h1>
+                ? <h1 className="menu-panel-heading">The Full Deaf Shark Menu</h1>
                 : <h2>Salvadoran roasts, poured fresh.</h2>}
             </div>
             <div className="menu-product-pin">

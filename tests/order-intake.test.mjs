@@ -116,16 +116,18 @@ test("shape-checks the cart before any pricing happens", async () => {
   const tooManyLines = Array.from({ length: 41 }, () => ({ id: "regular-coffee", quantity: 1 }));
   assert.equal((await statusOf(() => normalizeCartItems(tooManyLines))).code, "too_many_line_items");
 
-  const tooManyUnits = Array.from({ length: 11 }, (_, index) => ({ id: `item-${index}`, quantity: ORDER_MAX_ITEM_QUANTITY }));
-  assert.equal((await statusOf(() => normalizeCartItems(tooManyUnits))).code, "too_many_units");
+  /* A full cart at the per-item cap stays under the total sanity bound. */
+  const fullCart = Array.from({ length: 40 }, (_, index) => ({ id: `item-${index}`, quantity: ORDER_MAX_ITEM_QUANTITY }));
+  assert.equal(normalizeCartItems(fullCart).length, 40);
+  assert.equal((await statusOf(() => normalizeCartItems([{ id: "regular-coffee", quantity: 21 }]))).code, "invalid_quantity");
 
-  /* The 99 limit counts every line for the same item together. */
-  assert.equal(normalizeCartItems([{ id: "regular-coffee", quantity: 99 }]).length, 1);
+  /* The 20 limit counts every line for the same item together. */
+  assert.equal(normalizeCartItems([{ id: "regular-coffee", quantity: 20 }]).length, 1);
   assert.equal(
-    (await statusOf(() => normalizeCartItems([{ id: "regular-coffee", quantity: 50 }, { id: "regular-coffee", quantity: 50 }]))).code,
+    (await statusOf(() => normalizeCartItems([{ id: "regular-coffee", quantity: 10 }, { id: "regular-coffee", quantity: 11 }]))).code,
     "item_quantity_limit",
   );
-  assert.equal(normalizeCartItems([{ id: "regular-coffee", quantity: 99 }, { id: "latte", quantity: 99 }]).length, 2);
+  assert.equal(normalizeCartItems([{ id: "regular-coffee", quantity: 20 }, { id: "latte", quantity: 20 }]).length, 2);
 
   assert.deepEqual(normalizeCartItems([{ id: " regular-coffee ", quantity: 2 }]), [
     { id: "regular-coffee", quantity: 2, selection: undefined },
@@ -161,7 +163,6 @@ test("prices and routes the fall drinks and desserts from the posted menus", () 
     ["brown-sugar-shaken-espresso", 6.5],
     ["dirty-soda", 5.25],
     ["iced-toasted-marshmallow-latte", 7],
-    ["toasted-marshmallow-matcha-latte", 7.75],
   ]) {
     const [drink] = priceCart([{ id, quantity: 1 }]);
     assert.equal(drink.unitPrice, price);

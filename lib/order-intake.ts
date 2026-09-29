@@ -19,11 +19,11 @@ import { BodyTooLargeError, readCappedText } from "./http-body.ts";
 
 export const ORDER_MAX_BODY_BYTES = 64 * 1024;
 export const ORDER_MAX_LINE_ITEMS = 40;
-/* Up to 99 of any one menu item per online order, counted across every cart
+/* Up to 20 of any one menu item per online order, counted across every cart
    line for that item, so splitting it into differently customized lines does
    not get around the limit. The total is only a sanity bound on top of that. */
 export const ORDER_MAX_TOTAL_QUANTITY = 999;
-export const ORDER_MAX_ITEM_QUANTITY = 99;
+export const ORDER_MAX_ITEM_QUANTITY = 20;
 /** Production admission policy. These limits are intentionally server-owned;
  * launch validation requires the release environment to acknowledge the same
  * values before website ordering can be opened. */

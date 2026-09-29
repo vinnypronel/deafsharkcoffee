@@ -133,6 +133,7 @@ export const SYRUP_OPTIONS = [
 export const MILK_OPTIONS = ["Whole", "Skim", "Oat", "Almond", "Half and Half"] as const;
 
 export const EXTRA_SHOT_PRICE = 1.25;
+export const MAX_EXTRA_SHOTS = 4;
 
 export const LUNCH_SPECIAL_HOURS = "12:00 PM to 3:00 PM, Monday to Friday";
 
@@ -254,7 +255,6 @@ export const hasExtraShotOptionsForProduct = (product: Product) =>
     "pumpkin-spice-latte",
     "brown-sugar-shaken-espresso",
     "iced-toasted-marshmallow-latte",
-    "toasted-marshmallow-matcha-latte",
   ].includes(product.id)) && product.id !== "hot-tea";
 
 export const prepStationFor = (product: Pick<Product, "category" | "prepStation">): PrepStation => {
@@ -374,7 +374,7 @@ export function priceProductSelection(product: Product, input: ProductSelection 
 
   const hasShotOptions = hasExtraShotOptionsForProduct(product);
   const extraShot = input.extraShot ?? 0;
-  if (!Number.isInteger(extraShot) || extraShot < 0 || extraShot > 5 || (!hasShotOptions && extraShot > 0)) {
+  if (!Number.isInteger(extraShot) || extraShot < 0 || extraShot > MAX_EXTRA_SHOTS || (!hasShotOptions && extraShot > 0)) {
     throw new Error(`Invalid espresso-shot quantity for ${product.name}.`);
   }
 
@@ -488,17 +488,6 @@ export const menuProducts: Product[] = [
     temps: ["Iced"],
     visual: "iced",
     photo: "/menu/seasonal/iced-toasted-marshmallow-latte-v1.png",
-  },
-  {
-    id: "toasted-marshmallow-matcha-latte",
-    name: "Toasted Marshmallow Matcha Latte",
-    category: "Fall Season",
-    price: 7.75,
-    description: "Matcha and milk over ice with toasted marshmallow flavor.",
-    configurable: true,
-    temps: ["Iced"],
-    visual: "iced",
-    photo: "/menu/seasonal/toasted-marshmallow-matcha-latte-v1.png",
   },
   {
     id: "chocoflan",
