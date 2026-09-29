@@ -12,6 +12,20 @@ import TurnstileWidget from "./turnstile-widget";
 const BIRTHDAY_MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 const ORDER_STATUS_LABELS: Record<string, string> = { new: "Received", preparing: "In preparation", ready: "Ready for pickup", cancelled: "Cancelled" };
+const PASSWORD_REQUIREMENTS = [
+  { id: "length", label: "At least 8 characters", test: (value: string) => value.length >= 8 },
+  { id: "lowercase", label: "One lowercase letter", test: (value: string) => /[a-z]/.test(value) },
+  { id: "uppercase", label: "One uppercase letter", test: (value: string) => /[A-Z]/.test(value) },
+  { id: "number", label: "One number", test: (value: string) => /\d/.test(value) },
+  { id: "symbol", label: "One symbol", test: (value: string) => /[^A-Za-z0-9]/.test(value) },
+] as const;
+
+function passwordStrength(value: string) {
+  const checks = PASSWORD_REQUIREMENTS.map((requirement) => ({ ...requirement, met: requirement.test(value) }));
+  const metCount = checks.filter((requirement) => requirement.met).length;
+  const label = metCount >= PASSWORD_REQUIREMENTS.length ? "Strong" : metCount >= 3 ? "Moderate" : "Weak";
+  return { checks, metCount, label, strong: metCount === PASSWORD_REQUIREMENTS.length };
+}
 
 /* One line icon per order stage, drawn in the button text color: a steaming
    cup once the order is received, a pickup bag while it is being made, and a
@@ -177,6 +191,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
   const searchResultsRef = useRef<HTMLDivElement>(null);
   const searchResultsContentRef = useRef<HTMLDivElement>(null);
   const searchResultsLenisRef = useRef<Lenis | null>(null);
+  const signupPasswordStrength = passwordStrength(authPassword);
 
   useEffect(() => {
     if (searchOpen || profileOpen || trackingOrder) {
@@ -519,6 +534,10 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
     }
     if (!authEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(authEmail.trim())) {
       setAuthError("Enter a complete email address, like you@example.com.");
+      return;
+    }
+    if (authMode === "signup" && !signupPasswordStrength.strong) {
+      setAuthError("Make your password strong before creating your account.");
       return;
     }
     if (authPassword.length < 8) {
@@ -1159,7 +1178,25 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                       )}
                     </button>
                   </div>
-                  {authMode === "signup" && <p className="auth-password-guidance">Use at least 8 characters. A longer, unique password is safer.</p>}
+                  {authMode === "signup" && (
+                    <div className="auth-password-strength" aria-live="polite">
+                      <div className="auth-password-strength-head">
+                        <span>Password strength</span>
+                        <strong data-strength={signupPasswordStrength.label.toLowerCase()}>{signupPasswordStrength.label}</strong>
+                      </div>
+                      <div className="auth-password-meter" data-strength={signupPasswordStrength.label.toLowerCase()}>
+                        <span style={{ width: `${(signupPasswordStrength.metCount / PASSWORD_REQUIREMENTS.length) * 100}%` }} />
+                      </div>
+                      <ul>
+                        {signupPasswordStrength.checks.map((requirement) => (
+                          <li key={requirement.id} data-met={requirement.met ? "true" : "false"}>
+                            <span aria-hidden="true">{requirement.met ? "✓" : "×"}</span>
+                            {requirement.label}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                   {authMode === "signup" && <p className="auth-required-note">Fields marked <b>*</b> are required.</p>}
                   {authMode === "signup" && (
                     <div className="auth-consents">

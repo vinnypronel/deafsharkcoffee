@@ -22,6 +22,7 @@ import { ACCOUNTS_ENABLED } from "../../../accounts";
    request and verification carries nothing. */
 
 const MARKETING_CONSENT = "I agree to receive Deaf Shark Coffee news and promotions by email. I can unsubscribe at any time.";
+const STRONG_PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,128}$/;
 
 type SignupPayload = {
   firstName?: string;
@@ -90,7 +91,9 @@ export async function POST(request: Request) {
 
   if (!firstName || !lastName || displayName.length > 80) return badRequest("Enter your first and last name.");
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) return badRequest("Enter a complete email address.");
-  if (password.length < 8 || password.length > 128) return badRequest("Your password needs at least 8 characters.");
+  if (!STRONG_PASSWORD_PATTERN.test(password)) {
+    return badRequest("Use a strong password with at least 8 characters, uppercase and lowercase letters, a number, and a symbol.");
+  }
   if (phone && (phone.replace(/\D/g, "").length < 10 || phone.length > 24)) {
     return badRequest("Enter a complete phone number or leave it blank.");
   }

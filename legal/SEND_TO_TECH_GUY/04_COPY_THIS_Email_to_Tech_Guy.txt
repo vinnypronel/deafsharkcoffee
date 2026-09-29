@@ -1,0 +1,17 @@
+Subject: Deaf Shark Coffee website completion package
+
+Hi,
+
+I attached a four-file completion package for the Deaf Shark Coffee website.
+
+Please open 01_READ_FIRST_Website_Completion_Instructions first. It contains the confirmed business decisions and explains what still needs to be completed by the attorney, accountant, technical team, and store management.
+
+File 02 contains the revised website Terms and Privacy Policy for attorney review. File 03 contains the internal data-retention and breach-response procedures. The revised legal documents are drafts until New Jersey counsel approves them.
+
+Please coordinate the remaining work from the Read First document and return the final legal approvals, accounting retention instructions, implementation report, and testing results together. You may make ordinary technical decisions without asking me another general questionnaire. Contact me only if something would materially change the ordering model or create a significant recurring cost, and include your recommended solution.
+
+I will provide access through named, role-based invitations. Please do not send passwords, secret keys, recovery codes, or customer database exports by email.
+
+Thank you,
+
+Vinny
