@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { menuProducts, type PrepStation } from "../menu-data";
+import {
+  EXTRA_SHOT_PRICE,
+  modifierGroupsForProduct,
+  menuProducts,
+  SYRUP_PRICE,
+  type PrepStation,
+  type ProductSelection,
+} from "../menu-data";
 import { AdminPanels } from "./admin-panels";
 import { AvailabilityPanel } from "./availability-panel";
 import { formatCountdown } from "../pause-notice";
@@ -14,6 +21,7 @@ type OrderItem = {
   quantity: number;
   unitPrice: number;
   options?: string[];
+  selection?: ProductSelection;
   prepStation?: PrepStation;
 };
 
@@ -60,6 +68,43 @@ function formatDateTime(value: string) {
   const calendarDate = date.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
   const time = date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   return `${calendarDate} · ${time}`;
+}
+
+function formatAddOnPrice(price: number) {
+  if (!price) return "";
+  return ` +$${price.toFixed(2)}`;
+}
+
+function optionWithPrice(label: string, price = 0) {
+  return `${label}${formatAddOnPrice(price)}`;
+}
+
+function orderItemDetails(item: OrderItem) {
+  const product = menuProducts.find((candidate) => candidate.id === item.id);
+  const selection = item.selection;
+  if (!product || !selection) return item.options ?? [];
+
+  const details: string[] = [];
+  if (product.flavors?.length && selection.flavor) details.push(selection.flavor);
+  if (selection.temperature) details.push(selection.temperature);
+  if (selection.milk && selection.milk !== "None") details.push(selection.milk);
+  if (selection.milk === "None") details.push("No milk");
+  if (selection.base) details.push(`${selection.base} base`);
+  if (selection.size) details.push(selection.size);
+  for (const syrup of selection.syrups ?? []) details.push(optionWithPrice(`Syrup: ${syrup}`, SYRUP_PRICE));
+  if (selection.extraShot) {
+    const label = selection.extraShot === 1 ? "Extra shot" : `${selection.extraShot} extra shots`;
+    details.push(optionWithPrice(label, selection.extraShot * EXTRA_SHOT_PRICE));
+  }
+  const groups = modifierGroupsForProduct(product, selection.temperature);
+  for (const group of groups) {
+    for (const selected of selection.modifiers?.[group.label] ?? []) {
+      const price = group.options.find((option) => option.label === selected)?.price ?? 0;
+      details.push(optionWithPrice(`${group.label}: ${selected}`, price));
+    }
+  }
+  if (selection.notes) details.push(selection.notes);
+  return details;
 }
 
 type DashboardView = "orders" | "coffee" | "kitchen" | "menu" | "history" | "loyalty" | "promotions" | "website" | "menuItems" | "hours" | "events" | "forms";
@@ -409,7 +454,7 @@ function OrderCard({ order, onAdvance, onCancel }: { order: Order; onAdvance: ()
       <div className="order-items">
         {visibleItems.map((item, index) => {
           const detailKey = `${item.id}-${index}`;
-          const details = [item.prepStation ? `${item.prepStation.toLowerCase()} station` : "", ...(item.options ?? [])].filter(Boolean);
+          const details = orderItemDetails(item);
           const itemDetailsId = `order-${order.id}-item-${index}-details`;
           const detailsExpanded = Boolean(expandedDetails[detailKey]);
           return (

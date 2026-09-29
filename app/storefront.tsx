@@ -1220,10 +1220,19 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
       }
     }
     loadAvailability();
-    /* 30s with a 10s edge cache: the menu, hours and pause rarely change and a
-       flood of this unauthenticated endpoint is absorbed at the edge. */
-    const timer = window.setInterval(loadAvailability, 30000);
-    return () => window.clearInterval(timer);
+    /* Ordering pause/resume is an active counter control. Keep the customer UI
+       close to live so a staff resume re-enables ordering without a refresh. */
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void loadAvailability();
+    };
+    const timer = window.setInterval(loadAvailability, 5000);
+    window.addEventListener("focus", loadAvailability);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", loadAvailability);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
   }, []);
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
