@@ -4,6 +4,7 @@ import { menuAvailability, menuContent, storeSettings } from "../../../db/schema
 import { requireStaff } from "../../../lib/staff-auth";
 import { effectiveOrderingHours, validateWeeklyHours } from "../../../lib/store-hours";
 import { readStoreHours, StoreHoursMigrationError, writeStoreHours } from "../../../lib/store-hours-store";
+import { readPauseState, validPauseMinutes, writePauseUntil } from "../../../lib/pause-state";
 
 const DEFAULT_SETTINGS = {
   id: 1,
@@ -25,18 +26,20 @@ async function readSettings() {
 export async function GET() {
   try {
     await ensureSchema();
-    const [items, content, settings, storeHours] = await Promise.all([
+    const [items, content, settings, storeHours, pause] = await Promise.all([
       getDb().select().from(menuAvailability).orderBy(desc(menuAvailability.updatedAt)),
       getDb().select().from(menuContent).orderBy(desc(menuContent.updatedAt)),
       readSettings(),
       readStoreHours(),
+      readPauseState(),
     ]);
     const hours = effectiveOrderingHours({ ...settings, weeklyHours: storeHours.weeklyHours });
     return Response.json({
       availability: Object.fromEntries(items.map((item) => [item.productId, item.available])),
       menu: content,
       prepTime: settings.prepTimeMinutes,
-      paused: settings.paused,
+      paused: pause.paused,
+      pausedUntil: pause.pausedUntil,
       hours: {
         openTime: hours.openTime,
         closeTime: hours.closeTime,
@@ -67,6 +70,8 @@ export async function PATCH(request: Request) {
       available?: boolean;
       prepTime?: number;
       paused?: boolean;
+      /* Minutes a pause should last; omitted or unknown means until resumed. */
+      pauseMinutes?: unknown;
       weeklyHours?: unknown;
       hoursNote?: unknown;
     };
@@ -83,6 +88,9 @@ export async function PATCH(request: Request) {
         ...settingsUpdate,
         updatedAt: new Date(),
       }).onConflictDoUpdate({ target: storeSettings.id, set: settingsUpdate });
+    }
+    if (typeof payload.paused === "boolean") {
+      await writePauseUntil(payload.paused, validPauseMinutes(payload.pauseMinutes));
     }
 
     if (payload.weeklyHours !== undefined) {
@@ -109,11 +117,12 @@ export async function PATCH(request: Request) {
         });
     }
 
-    const [settings, storeHours] = await Promise.all([readSettings(), readStoreHours()]);
+    const [settings, storeHours, pause] = await Promise.all([readSettings(), readStoreHours(), readPauseState()]);
     return Response.json({
       success: true,
       prepTime: settings.prepTimeMinutes,
-      paused: settings.paused,
+      paused: pause.paused,
+      pausedUntil: pause.pausedUntil,
       productId: payload.productId,
       available: payload.available,
       weeklyHours: storeHours.weeklyHours,

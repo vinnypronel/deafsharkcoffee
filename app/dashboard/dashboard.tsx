@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { menuProducts, type PrepStation } from "../menu-data";
 import { AdminPanels } from "./admin-panels";
 import { AvailabilityPanel } from "./availability-panel";
+import { formatCountdown } from "../pause-notice";
 import { StationBoard } from "../kds/station-board";
 
 type OrderItem = {
@@ -87,6 +88,9 @@ export function Dashboard() {
   const [availability, setAvailability] = useState<Record<string, boolean>>({});
   const [prepTime, setPrepTime] = useState(15);
   const [paused, setPaused] = useState(false);
+  const [pausedUntil, setPausedUntil] = useState<number | null>(null);
+  const [pauseMenuOpen, setPauseMenuOpen] = useState(false);
+  const [clock, setClock] = useState(() => Date.now());
   const [activeView, setActiveView] = useState<DashboardView>("orders");
   const activeSection = DASHBOARD_SECTIONS.find((section) => section.tabs.some((tab) => tab.view === activeView))?.key ?? "orders";
   const [mobileColumn, setMobileColumn] = useState<Order["status"]>("new");
@@ -113,10 +117,23 @@ export function Dashboard() {
     { hz: 587.33, at: 1.74, len: 0.62 },
   ], []);
 
-  const playAlert = useCallback(() => {
+  /* One audio context for the page. On iPad and iPhone Safari, the "playback"
+     audio session lets the chime play even with the silent switch on, the way
+     music does. Browsers do not let a page read the device volume, so the Test
+     sound button is how staff confirm it is loud enough. */
+  const getAudioContext = useCallback(() => {
+    if (audioContext.current) return audioContext.current;
+    const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
+    if (session) {
+      try { session.type = "playback"; } catch { /* older Safari */ }
+    }
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    const context = audioContext.current ?? new AudioContextClass();
-    audioContext.current = context;
+    audioContext.current = new AudioContextClass();
+    return audioContext.current;
+  }, []);
+
+  const playAlert = useCallback(() => {
+    const context = getAudioContext();
     if (context.state === "suspended") void context.resume();
     /* Still suspended means no one has touched the page yet and the browser is
        holding audio back. Nothing to play; the banner still shows. */
@@ -140,7 +157,7 @@ export function Dashboard() {
       tone.start(at); bell.start(at);
       tone.stop(at + note.len + 0.02); bell.stop(at + note.len + 0.02);
     }
-  }, [CHIME_NOTES]);
+  }, [CHIME_NOTES, getAudioContext]);
 
   /* Browsers block sound until the page is tapped once after it loads. Every
      click, key or tap tries to unlock it, and the listeners stay until it
@@ -149,16 +166,43 @@ export function Dashboard() {
   useEffect(() => {
     if (soundArmed) return;
     const arm = () => {
-      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      const context = audioContext.current ?? new AudioContextClass();
-      audioContext.current = context;
-      void context.resume().then(() => setSoundArmed(true)).catch(() => {});
+      const context = getAudioContext();
+      void context.resume().then(() => setSoundArmed(context.state === "running")).catch(() => {});
     };
     const events = ["pointerdown", "keydown", "touchstart"];
     events.forEach((name) => window.addEventListener(name, arm));
     arm();
     return () => events.forEach((name) => window.removeEventListener(name, arm));
-  }, [soundArmed]);
+  }, [soundArmed, getAudioContext]);
+
+  /* Sound can stop after it was working: a phone call, the tablet sleeping, or
+     switching apps suspends it. Watch for that and bring the red bar back. */
+  useEffect(() => {
+    const check = () => {
+      const context = audioContext.current;
+      if (context && context.state !== "running") setSoundArmed(false);
+    };
+    const context = getAudioContext();
+    context.addEventListener("statechange", check);
+    document.addEventListener("visibilitychange", check);
+    const timer = window.setInterval(check, 4000);
+    return () => {
+      context.removeEventListener("statechange", check);
+      document.removeEventListener("visibilitychange", check);
+      window.clearInterval(timer);
+    };
+  }, [getAudioContext]);
+
+  /* Ticks the pause countdown once a second and reopens at zero. */
+  useEffect(() => {
+    if (!pausedUntil) return;
+    const timer = window.setInterval(() => {
+      const now = Date.now();
+      setClock(now);
+      if (now >= pausedUntil) { setPaused(false); setPausedUntil(null); }
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [pausedUntil]);
 
   const loadData = useCallback(async () => {
     try {
@@ -180,10 +224,12 @@ export function Dashboard() {
           availability?: Record<string, boolean>;
           prepTime?: number;
           paused?: boolean;
+          pausedUntil?: number | null;
         };
         setAvailability(data.availability ?? {});
         if (typeof data.prepTime === "number") setPrepTime(data.prepTime);
         if (typeof data.paused === "boolean") setPaused(data.paused);
+        setPausedUntil(data.paused && typeof data.pausedUntil === "number" ? data.pausedUntil : null);
       }
     } catch {
       setConnection("waiting");
@@ -245,10 +291,18 @@ export function Dashboard() {
     await fetch("/api/menu-state", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prepTime: valid }) });
   }
 
-  async function togglePaused() {
-    const next = !paused;
+  /* Pausing asks how long, so customers see a countdown; resuming is one tap. */
+  async function setPause(next: boolean, minutes: number | null = null) {
+    setPauseMenuOpen(false);
     setPaused(next);
-    await fetch("/api/menu-state", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paused: next }) });
+    setPausedUntil(next && minutes ? Date.now() + minutes * 60_000 : null);
+    setClock(Date.now());
+    const response = await fetch("/api/menu-state", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paused: next, pauseMinutes: minutes }) });
+    if (response.ok) {
+      const data = await response.json() as { paused?: boolean; pausedUntil?: number | null };
+      if (typeof data.paused === "boolean") setPaused(data.paused);
+      setPausedUntil(data.paused && typeof data.pausedUntil === "number" ? data.pausedUntil : null);
+    }
   }
 
   return (
@@ -273,7 +327,7 @@ export function Dashboard() {
       {!soundArmed && (
         <button type="button" className="sound-unlock-bar">
           <strong>Tap anywhere to turn on the new-order sound</strong>
-          <span>The browser keeps sound off until the screen is tapped once after it loads.</span>
+          <span>The new-order sound is off. Tap once, then press Test sound and check the tablet volume is up.</span>
         </button>
       )}
 
@@ -289,9 +343,27 @@ export function Dashboard() {
       )}
 
       {(activeView === "orders" || activeView === "menu") && <section className="rush-bar">
-        <div><span>Current customer wait time</span><button onClick={() => changePrepTime(prepTime - 5)}>−</button><strong>{prepTime} min</strong><button onClick={() => changePrepTime(prepTime + 5)}>+</button></div>
+        <div><button type="button" className="test-sound-button" onClick={() => { const context = getAudioContext(); void context.resume().then(() => { setSoundArmed(context.state === "running"); playAlert(); }); }}>Test sound</button><span>Current customer wait time</span><button onClick={() => changePrepTime(prepTime - 5)}>−</button><strong>{prepTime} min</strong><button onClick={() => changePrepTime(prepTime + 5)}>+</button></div>
         <div className="rush-summary"><span><strong>{newCount}</strong> new</span><span><strong>{orders.filter((order) => order.status === "preparing").length}</strong> preparing</span><span><strong>${todayTotal.toFixed(2)}</strong> order value</span></div>
-        <button className={`pause-button ${paused ? "paused" : ""}`} onClick={togglePaused}>{paused ? "Resume online orders" : "Pause online orders"}</button>
+        <div className="pause-control">
+          {paused ? (
+            <>
+              <span className="pause-status">Paused{pausedUntil ? <>, back in <b>{formatCountdown(pausedUntil - clock)}</b></> : " until you resume"}</span>
+              <button className="pause-button paused" onClick={() => void setPause(false)}>Resume online orders</button>
+            </>
+          ) : (
+            <button className="pause-button" onClick={() => setPauseMenuOpen((open) => !open)} aria-expanded={pauseMenuOpen}>Pause online orders</button>
+          )}
+          {pauseMenuOpen && !paused && (
+            <div className="pause-menu" role="menu" aria-label="Pause online orders for">
+              <span>Pause for</span>
+              {[15, 30, 45, 60, 90, 120].map((minutes) => (
+                <button key={minutes} type="button" role="menuitem" onClick={() => void setPause(true, minutes)}>{minutes < 60 ? `${minutes} min` : minutes === 60 ? "1 hour" : `${minutes / 60} hours`}</button>
+              ))}
+              <button type="button" role="menuitem" onClick={() => void setPause(true, null)}>Until I resume</button>
+            </div>
+          )}
+        </div>
       </section>}
 
       {activeView === "orders" ? (

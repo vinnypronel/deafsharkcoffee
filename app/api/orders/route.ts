@@ -30,6 +30,7 @@ import type { MenuContentOverride } from "../../menu-data";
 import { CUSTOM_CHECKOUT_ENABLED } from "../../ordering";
 import { requirePickupAccount } from "../../../lib/checkout-policy";
 import { readStoreHours } from "../../../lib/store-hours-store";
+import { readPauseState } from "../../../lib/pause-state";
 import { sendStaffNotification } from "../../../lib/transactional-email";
 import { memberOffers } from "../../../db/schema";
 import { WELCOME_OFFER_TYPE, resolveDiscount, type DiscountChoice } from "../../../lib/loyalty";
@@ -143,7 +144,7 @@ export async function POST(request: Request) {
       return orderResponse(alreadyPlaced, 200, reference);
     }
 
-    const [settingsRow, availabilityRows, menuRows, storeHours, profileRows, offerRows] = await Promise.all([
+    const [settingsRow, availabilityRows, menuRows, storeHours, profileRows, offerRows, pause] = await Promise.all([
       getDb().select().from(storeSettings).limit(1),
       getDb().select().from(menuAvailability),
       getDb().select().from(menuContent),
@@ -158,10 +159,12 @@ export async function POST(request: Request) {
             eqOp(memberOffers.status, "active"),
           )).limit(1)
         : Promise.resolve([]),
+      readPauseState(),
     ]);
     const storedSettings = settingsRow[0] as OrderSettings | undefined;
     if (!storedSettings) throw new Error("Store settings row is missing.");
-    const settings: OrderSettings = { ...storedSettings, weeklyHours: storeHours.weeklyHours };
+    /* A timed pause ends on its own, so the effective state wins over the flag. */
+    const settings: OrderSettings = { ...storedSettings, paused: pause.paused, weeklyHours: storeHours.weeklyHours };
 
     const availability = new Map(availabilityRows.map((item) => [item.productId, item.available]));
     const overrides = new Map<string, MenuContentOverride>(

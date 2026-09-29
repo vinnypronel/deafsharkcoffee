@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { StoreHours } from "./store-hours";
+import { PauseNotice } from "./pause-notice";
 import ScrollHero from "./scroll-hero";
 import {
   categories,
@@ -266,11 +267,14 @@ function ProductConfigurator({
   onClose,
   onAdd,
   outIngredients = NO_INGREDIENTS_OUT,
+  pause,
 }: {
   product: Product;
   initialItem?: CartItem;
   /** Ingredient keys the shop marked out today. */
   outIngredients?: ReadonlySet<string>;
+  /** While online ordering is paused the item can still go in the cart. */
+  pause?: { paused: boolean; until: number | null; onEnd: () => void };
   /** How many more of this item the cart can take. */
   maxQuantity?: number;
   onClose: () => void;
@@ -644,6 +648,7 @@ function ProductConfigurator({
             <textarea value={config.notes} onChange={(event) => setConfig({ ...config, notes: event.target.value })} placeholder="Allergies or preparation notes" maxLength={180} />
           </label>
           {outMessage && <p className="config-out-message" role="alert">{outMessage}</p>}
+          {pause?.paused && <PauseNotice until={pause.until} onEnd={pause.onEnd} />}
           <div className="add-row">
             <div className="quantity-control" aria-label="Quantity">
               <button onClick={() => setConfig({ ...config, quantity: Math.max(1, config.quantity - 1) })} aria-label="Decrease quantity">−</button>
@@ -882,6 +887,9 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   const [availability, setAvailability] = useState<Record<string, boolean>>({});
   const [prepTime, setPrepTime] = useState(15);
   const [ordersPaused, setOrdersPaused] = useState(false);
+  const [pausedUntil, setPausedUntil] = useState<number | null>(null);
+  /* A timed pause reaching zero reopens ordering right away; the next poll confirms. */
+  const endPause = useCallback(() => { setOrdersPaused(false); setPausedUntil(null); }, []);
   const [scheduling, setScheduling] = useState<SchedulingSettings>({ enabled: true, horizonMinutes: 240, slotMinutes: 15 });
   const [confirmation, setConfirmation] = useState<{ number: string; eta: string } | null>(null);
   const [activeVideoModal, setActiveVideoModal] = useState<Product | null>(null);
@@ -1185,6 +1193,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
             menu?: MenuContentOverride[];
             prepTime?: number;
             paused?: boolean;
+            pausedUntil?: number | null;
             scheduling?: SchedulingSettings;
           };
           setAvailability(data.availability ?? {});
@@ -1195,6 +1204,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
           }
           if (typeof data.prepTime === "number") setPrepTime(data.prepTime);
           if (typeof data.paused === "boolean") setOrdersPaused(data.paused);
+          setPausedUntil(data.paused && typeof data.pausedUntil === "number" ? data.pausedUntil : null);
           if (data.scheduling) setScheduling(data.scheduling);
         }
       } catch {
@@ -2021,6 +2031,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
           onClose={closeProduct}
           onAdd={handleSaveConfiguredItem}
           outIngredients={outIngredientsFrom(availability)}
+          pause={{ paused: ordersPaused, until: pausedUntil, onEnd: endPause }}
         />
       )}
       {CUSTOM_CHECKOUT_ENABLED && (
@@ -2037,10 +2048,12 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
             setCheckoutOpen(true);
           }}
           ordersPaused={ordersPaused}
+          pausedUntil={pausedUntil}
+          onPauseEnd={endPause}
         />
       )}
       {CUSTOM_CHECKOUT_ENABLED && checkoutOpen && (
-        <Checkout prepTime={prepTime} scheduling={scheduling} ordersPaused={ordersPaused} cart={cart} subtotal={subtotal} onClose={() => setCheckoutOpen(false)} onComplete={(number, eta) => { setCheckoutOpen(false); setCart([]); setConfirmation({ number, eta }); }} />
+        <Checkout prepTime={prepTime} scheduling={scheduling} ordersPaused={ordersPaused} pausedUntil={pausedUntil} onPauseEnd={endPause} cart={cart} subtotal={subtotal} onClose={() => setCheckoutOpen(false)} onComplete={(number, eta) => { setCheckoutOpen(false); setCart([]); setConfirmation({ number, eta }); }} />
       )}
       {CUSTOM_CHECKOUT_ENABLED && confirmation && (
         <div className="modal-backdrop">
@@ -2309,6 +2322,8 @@ function CartDrawer({
   cart,
   subtotal,
   ordersPaused,
+  pausedUntil = null,
+  onPauseEnd,
   onClose,
   onEdit,
   onRemove,
@@ -2318,6 +2333,8 @@ function CartDrawer({
   cart: CartItem[];
   subtotal: number;
   ordersPaused: boolean;
+  pausedUntil?: number | null;
+  onPauseEnd?: () => void;
   onClose: () => void;
   onEdit: (item: CartItem) => void;
   onRemove: (key: string) => void;
@@ -2377,7 +2394,7 @@ function CartDrawer({
             </article>
           ))}
         </div>
-        {cart.length > 0 && <div className="cart-summary"><div><span>Subtotal</span><strong>{money(subtotal)}</strong></div><small><em>Taxes are calculated at checkout.</em></small>{ordersPaused && <p className="form-error">Online ordering is temporarily paused. Your cart will stay here.</p>}<button className="primary-button" disabled={ordersPaused} onClick={onCheckout}>{ordersPaused ? "Online ordering paused" : "Continue to checkout"}</button></div>}
+        {cart.length > 0 && <div className="cart-summary"><div><span>Subtotal</span><strong>{money(subtotal)}</strong></div><small><em>Taxes are calculated at checkout.</em></small>{ordersPaused && <PauseNotice until={pausedUntil} onEnd={onPauseEnd} />}<button className="primary-button" disabled={ordersPaused} onClick={onCheckout}>{ordersPaused ? "Online ordering paused" : "Continue to checkout"}</button></div>}
       </aside>
     </div>
   );
@@ -2391,7 +2408,7 @@ function createIdempotencyKey() {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onClose, onComplete }: { cart: CartItem[]; subtotal: number; prepTime?: number; scheduling: SchedulingSettings; ordersPaused: boolean; onClose: () => void; onComplete: (number: string, eta: string, phone: string) => void }) {
+function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pausedUntil = null, onPauseEnd, onClose, onComplete }: { cart: CartItem[]; subtotal: number; prepTime?: number; scheduling: SchedulingSettings; ordersPaused: boolean; pausedUntil?: number | null; onPauseEnd?: () => void; onClose: () => void; onComplete: (number: string, eta: string, phone: string) => void }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [fulfillmentType, setFulfillmentType] = useState<"asap" | "scheduled">("asap");
@@ -2532,6 +2549,7 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, onC
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8" /></svg>
         </button>
         <h2>Finish your order</h2>
+        {ordersPaused && <PauseNotice until={pausedUntil} onEnd={onPauseEnd} />}
         {account === "loading" && <p className="checkout-account-note" role="status">Checking your account...</p>}
         {(account === "guest" || account === "error") && <div className="checkout-account-gate">
           <strong>{account === "error" ? "We could not check your account" : "Sign in to place your order"}</strong>
