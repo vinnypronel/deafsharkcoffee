@@ -6369,8 +6369,8 @@ video:-moz-full-screen {
   .order-section:not(.standalone-order) .menu-product-card {
     position: relative;
     top: auto;
-    width: min(100%, calc(clamp(220px, 24svh, 290px) * 1.12));
-    height: clamp(220px, 24svh, 290px);
+    width: min(100%, calc(clamp(260px, 30svh, 440px) * 1.12));
+    height: clamp(260px, 30svh, 440px);
     max-height: none;
     aspect-ratio: auto;
     margin-inline: auto;
@@ -6382,7 +6382,7 @@ video:-moz-full-screen {
   .order-section:not(.standalone-order) .menu-card-brand { display: none; }
   .order-section:not(.standalone-order) .menu-list-panel { position: relative; z-index: 1; }
   .order-section:not(.standalone-order) .menu-product-pin { top: var(--portrait-header-h, 68px); }
-  .order-section:not(.standalone-order) .menu-panel-header { top: calc(var(--portrait-header-h, 68px) + 46px + clamp(220px, 24svh, 290px)); }
+  .order-section:not(.standalone-order) .menu-panel-header { top: calc(var(--portrait-header-h, 68px) + 46px + clamp(260px, 30svh, 440px)); }
 }
 
 /* Brand, tabs and the Orders / Website switch share one line when there is room.
