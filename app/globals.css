@@ -4039,6 +4039,7 @@ body.modal-open { touch-action: none; }
 .empty-cart img { width: 96px; opacity: .18; }
 .empty-cart h3 { margin: 22px 0 8px; font-family: Georgia, serif; font-size: 26px; }
 .empty-cart p { max-width: 280px; color: var(--muted); line-height: 1.5; }
+.empty-cart-menu-button { margin-top: 22px; min-width: 156px; text-decoration: none; }
 .checkout-card, .confirmation-card { position: relative; width: min(560px, 96vw); max-height: 94vh; overflow-y: auto; border-radius: 28px; padding: 46px; background: var(--paper); box-shadow: var(--shadow); }
 .checkout-card h2, .confirmation-card h2 { font-family: Georgia, serif; font-size: 42px; }
 .checkout-card > label { display: flex; flex-direction: column; gap: 8px; margin: 18px 0; font-weight: 750; }

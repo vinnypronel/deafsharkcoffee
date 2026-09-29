@@ -2387,7 +2387,7 @@ function CartDrawer({
           </button>
         </div>
         <div className="cart-items">
-          {cart.length === 0 && <div className="empty-cart"><img src="/favicon.png" alt="" /><h3>Your cart is ready when you are.</h3><p>Choose a drink, breakfast, sandwich, or bite from the menu.</p></div>}
+          {cart.length === 0 && <div className="empty-cart"><img src="/favicon.png" alt="" /><h3>Your cart is ready when you are.</h3><p>Choose a drink, breakfast, sandwich, or bite from the menu.</p><a className="primary-button empty-cart-menu-button" href="/menu" onClick={onClose}>Go to menu</a></div>}
           {cart.map((item) => (
             <article key={item.key} className="cart-item">
               <span>{item.quantity}</span>
