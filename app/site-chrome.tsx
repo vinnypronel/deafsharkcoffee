@@ -1409,6 +1409,27 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
 }
 
 export function SiteFooter() {
+  /* The dashboard link is only for signed-in staff; customers never see it. */
+  const [isStaff, setIsStaff] = useState(false);
+  useEffect(() => {
+    let stopped = false;
+    const check = async () => {
+      try {
+        const response = await fetch("/api/staff-status", { cache: "no-store", credentials: "include" });
+        const data = response.ok ? await response.json() as { staff?: boolean } : null;
+        if (!stopped) setIsStaff(data?.staff === true);
+      } catch {
+        if (!stopped) setIsStaff(false);
+      }
+    };
+    void check();
+    window.addEventListener("deaf-shark-session-changed", check);
+    return () => {
+      stopped = true;
+      window.removeEventListener("deaf-shark-session-changed", check);
+    };
+  }, []);
+
   return (
     <footer className="site-footer">
       <div className="footer-container">
@@ -1559,7 +1580,7 @@ export function SiteFooter() {
             <a href="/contact">Contact</a>
             <a href="/privacy">Privacy</a>
             <a href="/terms">Terms</a>
-            <a href="/dashboard">Staff Dashboard</a>
+            {isStaff && <a href="/dashboard">Staff Dashboard</a>}
           </div>
         </div>
       </div>
