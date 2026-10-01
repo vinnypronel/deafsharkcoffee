@@ -18,6 +18,10 @@ const D1_DATABASE_ID = process.env.CF_D1_DATABASE_ID?.trim() || LOCAL_D1_DATABAS
 const WORKER_NAME = process.env.CF_WORKER_NAME?.trim()
   || (deploymentTarget === "staging" ? "deaf-shark-coffee-staging" : "deaf-shark-coffee");
 const R2_BUCKET_NAME = process.env.CF_R2_BUCKET_NAME?.trim() || "site-creator-r2";
+/* The shop's Cloudflare account. Pinned so a deploy run while Wrangler is
+   signed in to a different account fails instead of publishing the site there.
+   Account IDs are not secret. */
+const CF_ACCOUNT_ID = process.env.CF_ACCOUNT_ID?.trim() || "84c14a9868348f78f6aa9f9c341d60a3";
 
 if (deploymentTarget !== "local" && D1_DATABASE_ID === LOCAL_D1_DATABASE_ID) {
   throw new Error(`CF_D1_DATABASE_ID is required for a ${deploymentTarget} deployment build.`);
@@ -32,6 +36,7 @@ const r2: string | null = "UPLOADS";
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 const localBindingConfig = {
   name: WORKER_NAME,
+  ...(deploymentTarget === "production" ? { account_id: CF_ACCOUNT_ID } : {}),
   main: "./worker/index.ts",
   compatibility_date: "2026-08-20",
   compatibility_flags: ["nodejs_compat"],
