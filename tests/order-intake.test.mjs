@@ -188,7 +188,6 @@ test("prices the October owner menu update and keeps required choices on the kit
     ["pupusas", 4, "KITCHEN"],
     ["cheesecake", 7, "KITCHEN"],
     ["vita-coco", 2.95, "RETAIL"],
-    ["vita-coco-16-9", 3.95, "RETAIL"],
     ["tropicana-juice", 3.25, "RETAIL"],
     ["gatorade", 3.25, "RETAIL"],
   ]) {
@@ -207,7 +206,14 @@ test("prices the October owner menu update and keeps required choices on the kit
   const [pupusa] = priceCart([{ id: "pupusas", quantity: 1, selection: { flavor: "Revueltas (beans, cheese, and pork)" } }]);
   assert.ok(pupusa.options.includes("Revueltas (beans, cheese, and pork)"));
 
-  for (const removed of ["cachitos", "tropicana-juice-15", "arnold-palmer"]) {
+  const [smallVitaCoco] = priceCart([{ id: "vita-coco", quantity: 1 }]);
+  assert.equal(smallVitaCoco.unitPrice, 2.95);
+  assert.ok(smallVitaCoco.options.includes("Size: 11 oz"));
+  const [largeVitaCoco] = priceCart([{ id: "vita-coco", quantity: 1, selection: { modifiers: { Size: ["16.9 oz"] } } }]);
+  assert.equal(largeVitaCoco.unitPrice, 3.95);
+  assert.ok(largeVitaCoco.options.includes("Size: 16.9 oz"));
+
+  for (const removed of ["cachitos", "tropicana-juice-15", "arnold-palmer", "vita-coco-16-9"]) {
     const failure = await statusOf(() => priceCart([{ id: removed, quantity: 1 }]));
     assert.equal(failure.status, 409, removed);
     assert.equal(failure.code, "unknown_product", removed);

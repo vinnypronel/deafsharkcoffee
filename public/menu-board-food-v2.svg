@@ -51,12 +51,10 @@
   <g transform="translate(75 1367)">
     <text class="name">TROPICANA JUICE (11 OZ)</text><text class="price" x="575">$3.25</text><text class="desc" y="31">Orange juice, apple juice, or lemonade.</text>
     <line class="rule" y1="61" x2="575" y2="61"/>
-    <text class="name" y="105">VITA COCO (11 OZ)</text><text class="price" x="575" y="105">$2.95</text><text class="desc" y="136">The Original coconut water.</text>
+    <text class="name" y="105">VITA COCO</text><text class="price" x="575" y="105">11 oz $2.95 / 16.9 oz $3.95</text><text class="desc" y="136">The Original coconut water. Choose a size.</text>
   </g>
   <g transform="translate(735 1367)">
-    <text class="name">VITA COCO (16.9 OZ)</text><text class="price" x="590">$3.95</text><text class="desc" y="31">The Original coconut water.</text>
-    <line class="rule" y1="61" x2="590" y2="61"/>
-    <text class="name" y="105">GATORADE (20 OZ)</text><text class="price" x="590" y="105">$3.25</text><text class="desc" y="136">Cool Blue, Lemon-Lime, or Fruit Punch.</text>
+    <text class="name">GATORADE (20 OZ)</text><text class="price" x="590">$3.25</text><text class="desc" y="31">Cool Blue, Lemon-Lime, or Fruit Punch.</text>
   </g>
 
   <rect class="bar" x="45" y="1565" width="1310" height="78" rx="8"/><text class="section" x="700" y="1621">DESSERTS</text>
