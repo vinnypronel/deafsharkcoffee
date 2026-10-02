@@ -1972,8 +1972,8 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
             <div className="menu-board-card">
               <div className="menu-board-img-wrap">
                 <img
-                  src="/menu-board-breakfast.jpeg"
-                  alt="Deaf Shark Coffee Morning Handhelds and Breakfast Menu"
+                  src="/menu-board-breakfast-v2.svg"
+                  alt="Current Deaf Shark Coffee breakfast menu with descriptions and prices"
                   loading="lazy"
                 />
                 <a className="menu-board-view-link" href="/menu">View full menu</a>
@@ -1982,7 +1982,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
                   className="menu-board-zoom-badge"
                   aria-label="Expand breakfast menu image"
                   title="Expand menu image"
-                  onClick={() => setActiveMenuImage({ src: "/menu-board-breakfast.jpeg", title: "Morning Handhelds & Breakfast Menu" })}
+                  onClick={() => setActiveMenuImage({ src: "/menu-board-breakfast-v2.svg", title: "Breakfast Menu" })}
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5" />
@@ -1994,8 +1994,8 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
             <div className="menu-board-card">
               <div className="menu-board-img-wrap">
                 <img
-                  src="/menu-board-food.jpeg"
-                  alt="Deaf Shark Coffee Sandwiches and Bites Food Menu"
+                  src="/menu-board-food-v2.svg"
+                  alt="Current Deaf Shark Coffee sandwiches, bites, grab and go, and dessert menu with prices"
                   loading="lazy"
                 />
                 <a className="menu-board-view-link" href="/menu">View full menu</a>
@@ -2004,7 +2004,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
                   className="menu-board-zoom-badge"
                   aria-label="Expand food menu image"
                   title="Expand menu image"
-                  onClick={() => setActiveMenuImage({ src: "/menu-board-food.jpeg", title: "Sandwiches & Bites Food Menu" })}
+                  onClick={() => setActiveMenuImage({ src: "/menu-board-food-v2.svg", title: "Food Menu" })}
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5" />

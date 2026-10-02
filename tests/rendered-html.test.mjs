@@ -89,6 +89,13 @@ test("server-renders the expanded photographed menu", async () => {
   assert.match(html, /Chocoflan/i);
   assert.match(html, /Tres Leches/i);
   assert.match(html, /Tiramisu/i);
+  assert.match(html, /Cheesecake/i);
+  assert.match(html, /Tuna Sandwich/i);
+  assert.match(html, /Pupusas/i);
+  assert.match(html, /Vita Coco Coconut Water \(16\.9 oz\)/i);
+  assert.doesNotMatch(html, /Cachitos/i);
+  assert.doesNotMatch(html, /Tropicana Juice \(15 oz\)/i);
+  assert.doesNotMatch(html, /Arnold Palmer/i);
   assert.doesNotMatch(html, /Passion Fruit Dessert/i);
   assert.match(html, /role="tab"[^>]*><span class="category-nav-label">Matcha<\/span>/i);
   assert.match(html, /role="tab"[^>]*><span class="category-nav-label">Tea<\/span>/i);

@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc">
+  <title id="title">Deaf Shark Coffee breakfast menu</title>
+  <desc id="desc">Current breakfast menu with item descriptions and prices.</desc>
+  <defs>
+    <linearGradient id="paper" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fffdf8"/><stop offset="1" stop-color="#f6ead9"/></linearGradient>
+    <style>
+      .head{font:900 82px Arial,sans-serif;letter-spacing:-2px;fill:#fff}.section{font:800 31px Arial,sans-serif;letter-spacing:4px;fill:#a4471c}.name{font:800 27px Arial,sans-serif;fill:#25160f}.price{font:800 27px Arial,sans-serif;fill:#a4471c;text-anchor:end}.desc{font:400 19px Arial,sans-serif;fill:#674a3a}.rule{stroke:#d4bba4;stroke-width:2}.note{font:700 18px Arial,sans-serif;fill:#845635}
+    </style>
+  </defs>
+  <rect width="1600" height="1000" fill="url(#paper)"/>
+  <circle cx="1450" cy="120" r="220" fill="#ead8c3" opacity=".6"/><circle cx="135" cy="860" r="180" fill="#f0dfcb" opacity=".65"/>
+  <rect x="0" y="0" width="1600" height="155" fill="#a4471c"/>
+  <text class="head" x="80" y="105">BREAKFAST</text>
+  <text class="section" x="82" y="205">MORNING FAVORITES</text>
+
+  <g transform="translate(82 252)">
+    <text class="name" y="0">THE NJ CLASSIC</text><text class="price" x="690" y="0">$8.00</text>
+    <text class="desc" y="34">Egg and cheese; choose Taylor ham, ham, bacon,</text><text class="desc" y="59">turkey bacon, or sausage. Portuguese roll or white bread.</text>
+    <line class="rule" x1="0" y1="84" x2="690" y2="84"/>
+
+    <text class="name" y="132">THE JERSEY DEVIL</text><text class="price" x="690" y="132">$9.75</text>
+    <text class="desc" y="166">Egg, pepper jack, Taylor ham, bacon, jalapeno, hash browns,</text><text class="desc" y="191">and chipotle mayo on a Portuguese roll.</text>
+    <line class="rule" x1="0" y1="216" x2="690" y2="216"/>
+
+    <text class="name" y="264">HAM AND CHEESE</text><text class="price" x="690" y="264">$7.25</text>
+    <text class="desc" y="298">Ham and melted cheese; choose Portuguese roll,</text><text class="desc" y="323">croissant, or white bread.</text>
+    <line class="rule" x1="0" y1="348" x2="690" y2="348"/>
+
+    <text class="name" y="396">FRENCH TOAST PLATTER</text><text class="price" x="690" y="396">$10.00</text>
+    <text class="desc" y="430">French toast with 3 slices of bacon and 1 hash brown patty.</text><text class="desc" y="455">Turkey bacon may be substituted.</text>
+    <line class="rule" x1="0" y1="480" x2="690" y2="480"/>
+
+    <text class="name" y="528">GRILLED CHEESE</text><text class="price" x="690" y="528">$8.50</text>
+    <text class="desc" y="562">Swiss, American cheese, bacon, and tomato</text><text class="desc" y="587">on whole wheat bread.</text>
+  </g>
+
+  <g transform="translate(850 252)">
+    <text class="name" y="0">BREAKFAST WRAP</text><text class="price" x="665" y="0">$8.25</text>
+    <text class="desc" y="34">Egg and cheese; choose ham, bacon, turkey bacon,</text><text class="desc" y="59">Taylor ham, sausage, or no meat.</text>
+    <line class="rule" x1="0" y1="84" x2="665" y2="84"/>
+
+    <text class="name" y="132">TURKEY BLT</text><text class="price" x="665" y="132">$8.25</text>
+    <text class="desc" y="166">Turkey bacon, lettuce, tomato, and mayo.</text><text class="desc" y="191">Choose a roll or wrap.</text>
+    <line class="rule" x1="0" y1="216" x2="665" y2="216"/>
+
+    <text class="name" y="264">CROISSANT</text><text class="price" x="665" y="264">$3.25</text>
+    <text class="desc" y="298">Fresh, flaky butter croissant.</text><text class="note" y="326">Add butter, jelly, or cream cheese +$1.00</text>
+    <line class="rule" x1="0" y1="348" x2="665" y2="348"/>
+
+    <text class="name" y="396">TUNA SANDWICH</text><text class="price" x="665" y="396">$8.50</text>
+    <text class="desc" y="430">Tuna, provolone cheese, lettuce, and tomato</text><text class="desc" y="455">on white bread.</text>
+  </g>
+  <text class="note" x="1515" y="945" text-anchor="end">DEAF SHARK COFFEE - UNION, NJ</text>
+</svg>

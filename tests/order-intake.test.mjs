@@ -180,6 +180,40 @@ test("prices and routes the fall drinks and desserts from the posted menus", () 
   }
 });
 
+test("prices the October owner menu update and keeps required choices on the kitchen ticket", async () => {
+  for (const [id, price, station] of [
+    ["french-toast", 10, "KITCHEN"],
+    ["grilled-cheese", 8.5, "KITCHEN"],
+    ["tuna-sandwich", 8.5, "KITCHEN"],
+    ["pupusas", 4, "KITCHEN"],
+    ["cheesecake", 7, "KITCHEN"],
+    ["vita-coco", 2.95, "RETAIL"],
+    ["vita-coco-16-9", 3.95, "RETAIL"],
+    ["tropicana-juice", 3.25, "RETAIL"],
+    ["gatorade", 3.25, "RETAIL"],
+  ]) {
+    const [item] = priceCart([{ id, quantity: 1 }]);
+    assert.equal(item.unitPrice, price, id);
+    assert.equal(item.prepStation, station, id);
+  }
+
+  const [njClassic] = priceCart([{ id: "nj-classic", quantity: 1 }]);
+  assert.ok(njClassic.options.includes("Meat: Taylor ham"));
+  assert.ok(njClassic.options.includes("Bread: Portuguese roll"));
+
+  const [frenchToast] = priceCart([{ id: "french-toast", quantity: 1, selection: { modifiers: { Bacon: ["Turkey bacon"] } } }]);
+  assert.ok(frenchToast.options.includes("Bacon: Turkey bacon"));
+
+  const [pupusa] = priceCart([{ id: "pupusas", quantity: 1, selection: { flavor: "Revueltas (beans, cheese, and pork)" } }]);
+  assert.ok(pupusa.options.includes("Revueltas (beans, cheese, and pork)"));
+
+  for (const removed of ["cachitos", "tropicana-juice-15", "arnold-palmer"]) {
+    const failure = await statusOf(() => priceCart([{ id: removed, quantity: 1 }]));
+    assert.equal(failure.status, 409, removed);
+    assert.equal(failure.code, "unknown_product", removed);
+  }
+});
+
 test("opens configurable drinks at their advertised base price and charges only selected upgrades", () => {
   const [latte] = priceCart([{ id: "latte", quantity: 1 }]);
   assert.equal(latte.unitPrice, 5);
