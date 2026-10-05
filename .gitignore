@@ -9,7 +9,8 @@ node_modules/
 !.yarn/versions
 
 # AI Assistants & Agents
-.openai/
+.openai/*
+!.openai/hosting.json
 .codex/
 .claude/
 .gemini/

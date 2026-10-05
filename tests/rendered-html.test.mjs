@@ -85,6 +85,11 @@ test("server-renders the expanded photographed menu", async () => {
   assert.match(html, /Fall Season/i);
   assert.match(html, /Pumpkin Spice Latte/i);
   assert.match(html, /Iced Toasted Marshmallow Latte/i);
+  assert.match(html, /Special Drinks/i);
+  assert.match(html, /Pistachio Latte/i);
+  assert.match(html, /Peanut Horchata Latte/i);
+  assert.match(html, /Coconut Matcha Refresher/i);
+  assert.match(html, /Coconut Caramel Latte/i);
   assert.match(html, /Desserts/i);
   assert.match(html, /Chocoflan/i);
   assert.match(html, /Tres Leches/i);

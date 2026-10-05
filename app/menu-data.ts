@@ -1,4 +1,5 @@
 export type MenuCategory =
+  | "Special Drinks"
   | "Fall Season"
   | "Coffee"
   | "Matcha"
@@ -234,6 +235,7 @@ const removeIngredients = (...ingredients: string[]): ModifierGroup => ({
 });
 
 export const categories: MenuCategory[] = [
+  "Special Drinks",
   "Fall Season",
   "Coffee",
   "Matcha",
@@ -247,17 +249,17 @@ export const categories: MenuCategory[] = [
   "Coffee Beans",
 ];
 
-export const DRINK_CATEGORIES: MenuCategory[] = ["Fall Season", "Coffee", "Matcha", "Tea", "Smoothies"];
+export const DRINK_CATEGORIES: MenuCategory[] = ["Special Drinks", "Fall Season", "Coffee", "Matcha", "Tea", "Smoothies"];
 
 export const hasMilkOptionsForProduct = (product: Product) =>
   DRINK_CATEGORIES.includes(product.category) &&
   !product.bases?.length &&
-  !["chicha", "malta", "hot-tea", "dirty-soda"].includes(product.id);
+  !["chicha", "malta", "hot-tea", "dirty-soda", "coconut-matcha-refresher"].includes(product.id);
 
 export const hasSyrupOptionsForProduct = (product: Product) =>
   DRINK_CATEGORIES.includes(product.category) &&
   !product.bases?.length &&
-  !["hot-tea", "dirty-soda"].includes(product.id);
+  !["hot-tea", "dirty-soda", "coconut-matcha-refresher"].includes(product.id);
 
 export const hasExtraShotOptionsForProduct = (product: Product) =>
   (product.category === "Coffee" || [
@@ -268,6 +270,9 @@ export const hasExtraShotOptionsForProduct = (product: Product) =>
     "pumpkin-spice-latte",
     "brown-sugar-shaken-espresso",
     "iced-toasted-marshmallow-latte",
+    "pistachio-latte",
+    "peanut-horchata-latte",
+    "coconut-caramel-latte",
   ].includes(product.id)) && product.id !== "hot-tea";
 
 export const prepStationFor = (product: Pick<Product, "category" | "prepStation">): PrepStation => {
@@ -456,6 +461,54 @@ export function priceProductSelection(product: Product, input: ProductSelection 
 }
 
 export const menuProducts: Product[] = [
+  {
+    id: "pistachio-latte",
+    name: "Pistachio Latte",
+    category: "Special Drinks",
+    price: 7.5,
+    description: "Double espresso and pistachio cream topped with vanilla cold foam and crushed pistachios.",
+    configurable: true,
+    decafAvailable: true,
+    visual: "iced",
+    imageComingSoon: true,
+    drink: "latte",
+  },
+  {
+    id: "peanut-horchata-latte",
+    name: "Peanut Horchata Latte",
+    category: "Special Drinks",
+    price: 7.5,
+    description: "Double espresso with peanut-based horchata and your choice of milk.",
+    configurable: true,
+    decafAvailable: true,
+    visual: "iced",
+    imageComingSoon: true,
+    drink: "horchata-latte",
+  },
+  {
+    id: "coconut-matcha-refresher",
+    name: "Coconut Matcha Refresher",
+    category: "Special Drinks",
+    price: 7.5,
+    description: "Refreshing coconut water topped with vanilla matcha cold foam and a light dusting of matcha powder.",
+    configurable: true,
+    temps: ["Iced"],
+    visual: "iced",
+    imageComingSoon: true,
+    drink: "matcha",
+  },
+  {
+    id: "coconut-caramel-latte",
+    name: "Coconut Caramel Latte",
+    category: "Special Drinks",
+    price: 7.5,
+    description: "Double espresso with coconut and caramel syrup, coconut cold foam, and toasted coconut flakes.",
+    configurable: true,
+    decafAvailable: true,
+    visual: "iced",
+    photo: "/menu/specials/coconut-caramel-latte-v1.png",
+    drink: "latte",
+  },
   {
     id: "pumpkin-spice-latte",
     name: "Pumpkin Spice Latte",
