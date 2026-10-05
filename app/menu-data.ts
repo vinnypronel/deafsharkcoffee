@@ -569,7 +569,7 @@ export const menuProducts: Product[] = [
     price: 6,
     description: "Soft sponge cake soaked in three milks and finished with cream.",
     visual: "bite",
-    photo: "/menu/desserts/tres-leches-v1.png",
+    photo: "/menu/desserts/tres-leches-v2.webp",
   },
   {
     id: "tiramisu",
@@ -892,12 +892,12 @@ export const menuProducts: Product[] = [
     name: "The NJ Classic",
     category: "Breakfast",
     price: 8,
-    description: "Egg and cheese with your choice of meat on a Portuguese roll or white bread.",
+    description: "Egg and cheese with your choice of meat on a Kaiser roll, white bread, or a croissant upgrade.",
     popular: true,
     configurable: true,
     modifierGroups: [
       { label: "Meat", type: "single", required: true, options: ["Taylor ham", "Ham", "Bacon", "Turkey bacon", "Sausage"].map((label) => ({ label })) },
-      { label: "Bread", type: "single", required: true, options: ["Portuguese roll", "White bread"].map((label) => ({ label })) },
+      { label: "Bread", type: "single", required: true, options: [{ label: "Kaiser roll" }, { label: "White bread" }, { label: "Croissant", price: 0.5 }] },
       CHEESE_CHOICE,
       removeIngredients("egg", "cheese"),
       FOOD_ADD_ONS,
@@ -921,10 +921,10 @@ export const menuProducts: Product[] = [
     name: "Ham and Cheese",
     category: "Breakfast",
     price: 7.25,
-    description: "Ham and melted cheese on your choice of Portuguese roll, croissant, or white bread.",
+    description: "Ham and melted cheese on a Kaiser roll, white bread, or a croissant upgrade.",
     configurable: true,
     modifierGroups: [
-      { label: "Bread", type: "single", required: true, options: ["Portuguese roll", "Croissant", "White bread"].map((label) => ({ label })) },
+      { label: "Bread", type: "single", required: true, options: [{ label: "Kaiser roll" }, { label: "White bread" }, { label: "Croissant", price: 0.5 }] },
       CHEESE_CHOICE,
       removeIngredients("cheese"),
       FOOD_ADD_ONS,
@@ -1007,7 +1007,7 @@ export const menuProducts: Product[] = [
     configurable: true,
     modifierGroups: [CHEESE_CHOICE, removeIngredients("provolone cheese", "lettuce", "tomato"), FOOD_ADD_ONS],
     visual: "sandwich",
-    photo: "/menu/owner/tuna-sandwich-v5.png",
+    photo: "/menu/owner/tuna-sandwich-v6.webp",
   },
   /* Sandwiches follow the shop's printed menu board, in its order. Every
      sandwich except the Italian Sub comes with French fries. */
@@ -1067,7 +1067,7 @@ export const menuProducts: Product[] = [
     configurable: true,
     modifierGroups: [CHEESE_CHOICE, removeIngredients("lettuce", "tomato", "pepper jack cheese", "chipotle mayo"), NO_FRENCH_FRIES, FOOD_ADD_ONS],
     visual: "sandwich",
-    imageComingSoon: true,
+    photo: "/menu/owner/chicken-cutlet-fuego-v1.webp",
   },
   {
     id: "tuna-wrap",

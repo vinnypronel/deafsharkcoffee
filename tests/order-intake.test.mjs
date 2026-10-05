@@ -272,7 +272,16 @@ test("prices the October owner menu update and keeps required choices on the kit
 
   const [njClassic] = priceCart([{ id: "nj-classic", quantity: 1 }]);
   assert.ok(njClassic.options.includes("Meat: Taylor ham"));
-  assert.ok(njClassic.options.includes("Bread: Portuguese roll"));
+  assert.ok(njClassic.options.includes("Bread: Kaiser roll"));
+
+  for (const id of ["nj-classic", "ham-cheese-croissant"]) {
+    const product = menuProducts.find((candidate) => candidate.id === id);
+    const [defaultBread] = priceCart([{ id, quantity: 1 }]);
+    const [croissant] = priceCart([{ id, quantity: 1, selection: { modifiers: { Bread: ["Croissant"] } } }]);
+    assert.ok(defaultBread.options.includes("Bread: Kaiser roll"), `${id} should default to a Kaiser roll`);
+    assert.equal(croissant.unitPrice, product.price + 0.5, `${id} croissant should cost 50 cents extra`);
+    assert.ok(croissant.options.includes("Bread: Croissant"));
+  }
 
   const [frenchToast] = priceCart([{ id: "french-toast", quantity: 1, selection: { modifiers: { Bacon: ["Turkey bacon"] } } }]);
   assert.ok(frenchToast.options.includes("Bacon: Turkey bacon"));
