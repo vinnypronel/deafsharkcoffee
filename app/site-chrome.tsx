@@ -124,7 +124,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
      right instead of disappearing. */
   const [profileClosing, setProfileClosing] = useState(false);
   const [trackingOrder, setTrackingOrder] = useState<string | null>(null);
-  const [recentOrders, setRecentOrders] = useState<Array<{ orderNumber: string; status: string; totalCents: number }>>([]);
+  const [recentOrders, setRecentOrders] = useState<Array<{ orderNumber: string; status: string; totalCents: number; createdAt?: string | number; discountCents?: number; rewardPointsSpent?: number; pointsEarned?: number; items?: Array<{ name: string; quantity: number; options: string[] }> }>>([]);
   const [query, setQuery] = useState("");
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [authConfig, setAuthConfig] = useState<AuthConfig>({
@@ -1369,15 +1369,39 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                   </form>
                 )}
 
-                {profile.profile.activity && profile.profile.activity.length > 0 && (
-                  <div className="account-points-activity">
-                    <strong>Recent points</strong>
-                    {profile.profile.activity.slice(0, 3).map((entry) => <div key={entry.id}><span>{entry.reason === "completed_order" ? "Completed order" : entry.reason === "reward_redeemed" ? "Reward redeemed" : entry.reason === "referral_first_order" ? "Friend referral" : entry.reason.replace(/^staff_adjustment:/, "Staff adjustment: ").replace(/^promotion:/, "Bonus: ")}</span><b className={entry.pointsChange >= 0 ? "points-positive" : "points-negative"}>{entry.pointsChange >= 0 ? "+" : ""}{entry.pointsChange}</b></div>)}
-                  </div>
-                )}
-                <div className="account-points-activity"><strong>Your recent orders</strong>
+                {/* Each order opens in place: items, order number and the points it
+                    earned, so nothing sends the customer away from their account. */}
+                <div className="account-points-activity account-orders"><strong>Your recent orders</strong>
                   {recentOrders.length === 0 && <p>No orders yet.</p>}
-                  {recentOrders.map((order) => <button key={order.orderNumber} type="button" className="account-mode-toggle" onClick={() => { setProfileOpen(false); setProfileClosing(false); setTrackingOrder(order.orderNumber); }}>{order.orderNumber} · {order.status} · ${(order.totalCents / 100).toFixed(2)}</button>)}
+                  {recentOrders.map((order) => {
+                    const placed = order.createdAt ? new Date(order.createdAt) : null;
+                    const date = placed && !Number.isNaN(placed.getTime()) ? placed.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" }) : "Order";
+                    const statusLabel = ({ new: "Received", preparing: "Preparing", ready: "Ready for pickup", complete: "Complete", cancelled: "Cancelled" } as Record<string, string>)[order.status] ?? order.status;
+                    const open = ["new", "preparing", "ready"].includes(order.status);
+                    return (
+                      <details className="account-order" key={order.orderNumber}>
+                        <summary>
+                          <span className="account-order-date">{date}</span>
+                          <span className="account-order-meta">{statusLabel} · ${(order.totalCents / 100).toFixed(2)}</span>
+                        </summary>
+                        <div className="account-order-body">
+                          <ul>
+                            {(order.items ?? []).map((item, index) => (
+                              <li key={index}><b>{item.quantity} x {item.name}</b>{item.options.length > 0 && <small>{item.options.join(" · ")}</small>}</li>
+                            ))}
+                          </ul>
+                          <dl>
+                            <div><dt>Order number</dt><dd>{order.orderNumber}</dd></div>
+                            {(order.discountCents ?? 0) > 0 && <div><dt>Discount</dt><dd>-${((order.discountCents ?? 0) / 100).toFixed(2)}</dd></div>}
+                            <div><dt>Total</dt><dd>${(order.totalCents / 100).toFixed(2)}</dd></div>
+                            {(order.rewardPointsSpent ?? 0) > 0 && <div><dt>Points used</dt><dd>-{order.rewardPointsSpent}</dd></div>}
+                            <div><dt>Points earned</dt><dd>{(order.pointsEarned ?? 0) > 0 ? `+${order.pointsEarned}` : order.status === "cancelled" ? "None" : order.status === "complete" ? "0" : "Added at pickup"}</dd></div>
+                          </dl>
+                          {open && <button type="button" className="account-order-track" onClick={() => { setProfileOpen(false); setProfileClosing(false); setTrackingOrder(order.orderNumber); }}>Track this order</button>}
+                        </div>
+                      </details>
+                    );
+                  })}
                 </div>
                 {/* Name and number are captured at signup and shown read only: an
                     order in the kitchen is matched to them, so they should not

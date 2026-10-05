@@ -361,9 +361,9 @@ h1, h2, h3, p { margin-top: 0; }
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: var(--teal);
-  color: white;
-  box-shadow: 0 12px 32px rgba(13, 95, 92, .34);
+  background: #be8e5d;
+  color: #1a0f0a;
+  box-shadow: 0 12px 32px rgba(120, 82, 44, .34);
   pointer-events: none;
   transform: translate(calc(var(--from-x) - 17px), calc(var(--from-y) - 17px)) scale(.86);
   animation: cartFlight .64s cubic-bezier(.17, .84, .32, 1) forwards;
@@ -4258,7 +4258,7 @@ body.modal-open { touch-action: none; }
 .confirmation-card { text-align: center; }
 .confirmation-card > img { display: block; width: 170px; height: 134px; object-fit: cover; object-position: right; border-radius: 28px; margin: 0 auto 28px; mix-blend-mode: multiply; }
 .confirmation-card p { color: var(--muted); line-height: 1.6; }
-.mobile-cart { position: fixed; z-index: 60; right: 14px; bottom: 14px; left: 14px; min-height: 58px; display: none; align-items: center; justify-content: space-between; border: 0; border-radius: 18px; padding: 0 18px; background: var(--teal); color: white; box-shadow: 0 15px 40px rgba(13,95,92,.35); cursor: pointer; transform: translateY(120%); transition: transform .25s ease; }
+.mobile-cart { position: fixed; z-index: 60; right: 14px; bottom: 14px; left: 14px; min-height: 58px; display: none; align-items: center; justify-content: space-between; border: 0; border-radius: 18px; padding: 0 18px; background: #be8e5d; color: #1a0f0a; box-shadow: 0 15px 40px rgba(120,82,44,.35); cursor: pointer; transform: translateY(120%); transition: transform .25s ease; }
 .mobile-cart.visible { transform: translateY(0); }
 
 /* Video Pop-up Modal */
@@ -5772,8 +5772,8 @@ body.modal-open { touch-action: none; }
 .item-quick-add.added,
 .menu-item-row:hover + .item-quick-add.added,
 .menu-item-row.selected + .item-quick-add.added {
-  color: var(--teal);
-  box-shadow: 0 0 0 2px rgba(22,139,135,.22);
+  color: #be8e5d;
+  box-shadow: 0 0 0 2px rgba(190,142,93,.3);
 }
 @media (hover: none) {
   .item-quick-add {
@@ -6084,7 +6084,7 @@ body.modal-open { touch-action: none; }
     height: 10px;
   }
   .item-selected-cart.added {
-    color: var(--teal);
+    color: #be8e5d;
   }
   .item-selected-actions button:focus-visible {
     outline: 2px solid var(--teal);
@@ -6852,3 +6852,24 @@ video:-moz-full-screen {
 .checkout-points-preview { display: grid; gap: 2px; margin: 10px 0 0; padding: 10px 12px; border-left: 4px solid var(--gold); border-radius: 8px; background: rgba(190, 142, 93, .14); color: var(--deep); font-size: 13px; line-height: 1.45; }
 .checkout-points-preview strong { font-size: 14px; }
 .checkout-points-preview span { color: var(--muted); }
+
+/* Account: each recent order expands in place. */
+.account-orders { gap: 6px; }
+.account-order { border-top: 1px solid rgba(34,18,12,.1); }
+.account-order:first-of-type { border-top: 0; }
+.account-order summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 46px; padding: 6px 26px 6px 0; position: relative; cursor: pointer; list-style: none; }
+.account-order summary::-webkit-details-marker { display: none; }
+.account-order summary::after { content: ""; position: absolute; right: 4px; top: 50%; width: 8px; height: 8px; border-right: 2px solid var(--deep); border-bottom: 2px solid var(--deep); transform: translateY(-70%) rotate(45deg); transition: transform .2s ease; }
+.account-order[open] summary::after { transform: translateY(-30%) rotate(-135deg); }
+.account-order-date { color: var(--deep); font-size: 15px; font-weight: 750; }
+.account-order-meta { color: var(--muted); font-size: 13px; }
+.account-order-body { display: grid; gap: 10px; padding: 4px 0 14px; }
+.account-order-body ul { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.account-order-body li { display: grid; gap: 2px; font-size: 14px; color: var(--deep); }
+.account-order-body li small { color: var(--muted); font-size: 12px; line-height: 1.4; }
+.account-order-body dl { display: grid; gap: 4px; margin: 0; padding-top: 10px; border-top: 1px dashed rgba(34,18,12,.14); }
+.account-order-body dl > div { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+.account-order-body dt { color: var(--muted); }
+.account-order-body dd { margin: 0; color: var(--deep); font-weight: 700; overflow-wrap: anywhere; text-align: right; }
+.account-order-track { justify-self: start; min-height: 40px; border: 0; border-radius: 6px; padding: 0 16px; background: var(--espresso); color: #fffaf3; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { .account-order summary::after { transition: none; } }
