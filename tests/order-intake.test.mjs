@@ -180,6 +180,46 @@ test("every sandwich served with fries can be ordered without French fries", () 
   }
 });
 
+test("made-to-order cheese items offer the shop's cheese swaps", () => {
+  const cheeseItemIds = [
+    "nj-classic",
+    "jersey-devil",
+    "ham-cheese-croissant",
+    "grilled-cheese",
+    "breakfast-wrap",
+    "tuna-sandwich",
+    "shark-cubano",
+    "chicken-deluxe",
+    "chicken-pesto",
+    "chicken-cutlet-fuego",
+    "tuna-wrap",
+    "italian",
+    "garden-salad",
+    "emilia",
+    "cachapa",
+    "pupusas",
+  ];
+
+  for (const id of cheeseItemIds) {
+    const product = menuProducts.find((item) => item.id === id);
+    const cheeseChoice = product?.modifierGroups?.find((group) => group.label === "Cheese choice");
+    assert.deepEqual(cheeseChoice?.options.map((option) => option.label), [
+      "Default cheese",
+      "Swiss",
+      "Provolone",
+      "Pepper Jack",
+    ], id);
+
+    const [swapped] = priceCart([{
+      id,
+      quantity: 1,
+      selection: { modifiers: { "Cheese choice": ["Pepper Jack"] } },
+    }]);
+    assert.equal(swapped.unitPrice, product.price, id);
+    assert.ok(swapped.options.includes("Cheese choice: Pepper Jack"), id);
+  }
+});
+
 test("places Garden Salad in Bites and withholds unfinished menu photos", () => {
   const gardenSalad = menuProducts.find((product) => product.id === "garden-salad");
   assert.equal(gardenSalad?.category, "Bites");

@@ -195,13 +195,11 @@ export const DECAF_MODIFIER: ModifierGroup = {
   ],
 };
 
-export const CHEESE_UPGRADES: ModifierGroup = {
-  label: "Cheese",
-  type: "multiple",
-  options: [
-    { label: "Swap to Swiss", price: 1 },
-    { label: "Extra cheese", price: 1 },
-  ],
+export const CHEESE_CHOICE: ModifierGroup = {
+  label: "Cheese choice",
+  type: "single",
+  required: true,
+  options: ["Default cheese", "Swiss", "Provolone", "Pepper Jack"].map((label) => ({ label })),
 };
 
 export const ADD_BACON: ModifierGroup = {
@@ -900,6 +898,7 @@ export const menuProducts: Product[] = [
     modifierGroups: [
       { label: "Meat", type: "single", required: true, options: ["Taylor ham", "Ham", "Bacon", "Turkey bacon", "Sausage"].map((label) => ({ label })) },
       { label: "Bread", type: "single", required: true, options: ["Portuguese roll", "White bread"].map((label) => ({ label })) },
+      CHEESE_CHOICE,
       removeIngredients("egg", "cheese"),
       FOOD_ADD_ONS,
     ],
@@ -913,7 +912,7 @@ export const menuProducts: Product[] = [
     price: 9.75,
     description: "Egg, pepper jack, Taylor ham, bacon, jalapeño, hash browns, and chipotle mayo on a Portuguese roll.",
     configurable: true,
-    modifierGroups: [removeIngredients("egg", "pepper jack", "bacon", "jalapeño", "hash browns", "chipotle mayo"), FOOD_ADD_ONS],
+    modifierGroups: [CHEESE_CHOICE, removeIngredients("egg", "pepper jack", "bacon", "jalapeño", "hash browns", "chipotle mayo"), FOOD_ADD_ONS],
     visual: "sandwich",
     photo: "/menu/owner/jersey-devil.webp",
   },
@@ -926,6 +925,7 @@ export const menuProducts: Product[] = [
     configurable: true,
     modifierGroups: [
       { label: "Bread", type: "single", required: true, options: ["Portuguese roll", "Croissant", "White bread"].map((label) => ({ label })) },
+      CHEESE_CHOICE,
       removeIngredients("cheese"),
       FOOD_ADD_ONS,
     ],
@@ -952,7 +952,7 @@ export const menuProducts: Product[] = [
     price: 8.5,
     description: "Swiss cheese, American cheese, bacon, and tomato on whole wheat bread.",
     configurable: true,
-    modifierGroups: [removeIngredients("Swiss cheese", "American cheese", "bacon", "tomato"), FOOD_ADD_ONS],
+    modifierGroups: [CHEESE_CHOICE, removeIngredients("Swiss cheese", "American cheese", "bacon", "tomato"), FOOD_ADD_ONS],
     visual: "sandwich",
     photo: "/menu/owner/grilled-cheese.webp",
   },
@@ -965,6 +965,7 @@ export const menuProducts: Product[] = [
     configurable: true,
     modifierGroups: [
       { label: "Meat", type: "single", required: true, options: ["Ham", "Bacon", "Turkey bacon", "Taylor ham", "Sausage", "No meat"].map((label) => ({ label })) },
+      CHEESE_CHOICE,
       removeIngredients("egg", "cheese"),
       FOOD_ADD_ONS,
     ],
@@ -1004,7 +1005,7 @@ export const menuProducts: Product[] = [
     price: 8.5,
     description: "Tuna, provolone cheese, lettuce, and tomato on white bread.",
     configurable: true,
-    modifierGroups: [removeIngredients("provolone cheese", "lettuce", "tomato"), FOOD_ADD_ONS],
+    modifierGroups: [CHEESE_CHOICE, removeIngredients("provolone cheese", "lettuce", "tomato"), FOOD_ADD_ONS],
     visual: "sandwich",
     photo: "/menu/owner/tuna-sandwich-v5.png",
   },
@@ -1018,7 +1019,7 @@ export const menuProducts: Product[] = [
     description: "Pressed panini with pork, Swiss cheese, ham, pickles, and mustard. With French fries.",
     popular: true,
     configurable: true,
-    modifierGroups: [removeIngredients("Swiss cheese", "pickles", "mustard"), NO_FRENCH_FRIES, FOOD_ADD_ONS],
+    modifierGroups: [CHEESE_CHOICE, removeIngredients("Swiss cheese", "pickles", "mustard"), NO_FRENCH_FRIES, FOOD_ADD_ONS],
     visual: "sandwich",
     imageComingSoon: true,
   },
@@ -1029,7 +1030,7 @@ export const menuProducts: Product[] = [
     price: 13,
     description: "Crispy breaded chicken, fresh spinach, roasted peppers, fresh mozzarella, and mayonnaise. With French fries.",
     configurable: true,
-    modifierGroups: [removeIngredients("spinach", "roasted peppers", "mozzarella", "mayonnaise"), NO_FRENCH_FRIES, FOOD_ADD_ONS],
+    modifierGroups: [CHEESE_CHOICE, removeIngredients("spinach", "roasted peppers", "mozzarella", "mayonnaise"), NO_FRENCH_FRIES, FOOD_ADD_ONS],
     visual: "sandwich",
     photo: "/menu/owner/chicken-deluxe.webp",
   },
@@ -1041,7 +1042,7 @@ export const menuProducts: Product[] = [
     description: "Grilled chicken breast, fresh spinach, tomato, pesto sauce, and provolone cheese. With French fries.",
     popular: true,
     configurable: true,
-    modifierGroups: [removeIngredients("spinach", "tomato", "pesto", "provolone cheese"), NO_FRENCH_FRIES, FOOD_ADD_ONS],
+    modifierGroups: [CHEESE_CHOICE, removeIngredients("spinach", "tomato", "pesto", "provolone cheese"), NO_FRENCH_FRIES, FOOD_ADD_ONS],
     visual: "sandwich",
     photo: "/chicken-pesto-centered.jpg",
     video: "/featured-chicken-pesto.mp4",
@@ -1064,7 +1065,7 @@ export const menuProducts: Product[] = [
     price: 13,
     description: "Crispy breaded chicken, lettuce, tomato, pepper jack cheese, and chipotle mayo. With French fries.",
     configurable: true,
-    modifierGroups: [removeIngredients("lettuce", "tomato", "pepper jack cheese", "chipotle mayo"), NO_FRENCH_FRIES, FOOD_ADD_ONS],
+    modifierGroups: [CHEESE_CHOICE, removeIngredients("lettuce", "tomato", "pepper jack cheese", "chipotle mayo"), NO_FRENCH_FRIES, FOOD_ADD_ONS],
     visual: "sandwich",
     imageComingSoon: true,
   },
@@ -1075,7 +1076,7 @@ export const menuProducts: Product[] = [
     price: 13,
     description: "Tuna, lettuce, tomato, onion, bacon, and Asiago cheese. With French fries.",
     configurable: true,
-    modifierGroups: [removeIngredients("lettuce", "tomato", "onion", "bacon", "Asiago cheese"), NO_FRENCH_FRIES, FOOD_ADD_ONS],
+    modifierGroups: [CHEESE_CHOICE, removeIngredients("lettuce", "tomato", "onion", "bacon", "Asiago cheese"), NO_FRENCH_FRIES, FOOD_ADD_ONS],
     visual: "sandwich",
     imageComingSoon: true,
   },
@@ -1086,7 +1087,7 @@ export const menuProducts: Product[] = [
     price: 12.5,
     description: "Provolone cheese, ham, salami, onion, lettuce, oregano, vinegar, and olive oil.",
     configurable: true,
-    modifierGroups: [removeIngredients("provolone", "onion", "lettuce", "oregano", "vinegar", "oil"), FOOD_ADD_ONS],
+    modifierGroups: [CHEESE_CHOICE, removeIngredients("provolone", "onion", "lettuce", "oregano", "vinegar", "oil"), FOOD_ADD_ONS],
     visual: "sandwich",
     photo: "/menu/owner/italian.webp",
   },
@@ -1099,7 +1100,7 @@ export const menuProducts: Product[] = [
     configurable: true,
     flavors: ["Chicken", "Tuna"],
     flavorLabel: "Choose one",
-    modifierGroups: [removeIngredients("cherry tomatoes", "onion", "Asiago cheese", "cucumber", "green olives")],
+    modifierGroups: [CHEESE_CHOICE, removeIngredients("cherry tomatoes", "onion", "Asiago cheese", "cucumber", "green olives")],
     visual: "sandwich",
     imageComingSoon: true,
   },
@@ -1110,7 +1111,7 @@ export const menuProducts: Product[] = [
     price: 12.5,
     description: "Mortadella, provolone cheese, and honey. With French fries.",
     configurable: true,
-    modifierGroups: [removeIngredients("provolone cheese", "honey"), NO_FRENCH_FRIES, FOOD_ADD_ONS],
+    modifierGroups: [CHEESE_CHOICE, removeIngredients("provolone cheese", "honey"), NO_FRENCH_FRIES, FOOD_ADD_ONS],
     visual: "sandwich",
     photo: "/menu/owner/emilia-grill-cheese-v3.png",
   },
@@ -1122,6 +1123,7 @@ export const menuProducts: Product[] = [
     description: "Sweet corn pancake filled with cheese.",
     popular: true,
     configurable: true,
+    modifierGroups: [CHEESE_CHOICE],
     visual: "bite",
     imageComingSoon: true,
   },
@@ -1144,6 +1146,7 @@ export const menuProducts: Product[] = [
     configurable: true,
     flavors: ["Chicken and cheese", "Cheese", "Revueltas (beans, cheese, and pork)"],
     flavorLabel: "Choose a filling",
+    modifierGroups: [CHEESE_CHOICE],
     visual: "bite",
     imageComingSoon: true,
   },
@@ -1380,8 +1383,8 @@ export const featuredProducts = [
    "No lettuce" and "Add bacon" point at Lettuce and Bacon, milks, syrups and
    tea flavors are their own ingredient. Choices that are not ingredients
    (ice level, "No sweetener", a regular coffee) have none. */
-const NOT_INGREDIENTS = new Set(["Regular ice", "Light ice", "No ice", "No sweetener", "Regular", "Extra meat", "Extra cheese", "Water"]);
-const INGREDIENT_ALIASES: Record<string, string> = { swiss: "Swiss cheese", provolone: "Provolone cheese" };
+const NOT_INGREDIENTS = new Set(["Regular ice", "Light ice", "No ice", "No sweetener", "Regular", "Extra meat", "Extra cheese", "Default cheese", "Water"]);
+const INGREDIENT_ALIASES: Record<string, string> = { swiss: "Swiss cheese", provolone: "Provolone cheese", "pepper jack": "Pepper jack cheese" };
 
 export const NO_INGREDIENTS_OUT: ReadonlySet<string> = new Set();
 
