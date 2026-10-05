@@ -81,6 +81,8 @@ export type Product = {
   /* Optional photos for choices stored in modifier groups rather than the
      product's top-level flavor selector (for example the fries choice). */
   modifierPhotos?: Record<string, string>;
+  /* Optional configurator photos keyed by the selected serving temperature. */
+  temperaturePhotos?: Partial<Record<"Hot" | "Iced", string>>;
   video?: string;
   drink?: DrinkKey;
   sizing?: DrinkSizing;
@@ -167,6 +169,12 @@ export const FOOD_ADD_ONS: ModifierGroup = {
   label: "Meat upgrade",
   type: "multiple",
   options: [{ label: "Extra meat", price: 2.5 }],
+};
+
+export const NO_FRENCH_FRIES: ModifierGroup = {
+  label: "Side",
+  type: "single",
+  options: [{ label: "No French fries" }],
 };
 
 export const FRIES_CHOICE: ModifierGroup = {
@@ -641,10 +649,16 @@ export const menuProducts: Product[] = [
     price: 4,
     description: "Freshly prepared decaf coffee. Please allow about twice the usual preparation time.",
     configurable: true,
-    temps: ["Hot"],
-    sizing: { hot: [{ label: "12 oz", price: 4 }] },
+    sizing: {
+      hot: [{ label: "12 oz", price: 4 }],
+      iced: [{ label: "16 oz", price: 4 }],
+    },
     visual: "hot",
     photo: "/cup-hot.png",
+    temperaturePhotos: {
+      Hot: "/cup-hot.png",
+      Iced: "/drink-iced-coffee.webp",
+    },
     drink: "drip-coffee",
   },
   {
@@ -942,7 +956,7 @@ export const menuProducts: Product[] = [
     photo: "/menu/owner/tuna-sandwich-v5.png",
   },
   /* Sandwiches follow the shop's printed menu board, in its order. Every
-     sandwich except the Italian Sub and Garden Salad comes with French fries. */
+     sandwich except the Italian Sub comes with French fries. */
   {
     id: "shark-cubano",
     name: "The Deaf Shark Cuban",
@@ -951,9 +965,9 @@ export const menuProducts: Product[] = [
     description: "Pressed panini with pork, Swiss cheese, ham, pickles, and mustard. With French fries.",
     popular: true,
     configurable: true,
-    modifierGroups: [removeIngredients("Swiss cheese", "pickles", "mustard"), FOOD_ADD_ONS],
+    modifierGroups: [removeIngredients("Swiss cheese", "pickles", "mustard"), NO_FRENCH_FRIES, FOOD_ADD_ONS],
     visual: "sandwich",
-    photo: "/menu/owner/shark-cubano-v3.png",
+    imageComingSoon: true,
   },
   {
     id: "chicken-deluxe",
@@ -962,7 +976,7 @@ export const menuProducts: Product[] = [
     price: 13,
     description: "Crispy breaded chicken, fresh spinach, roasted peppers, fresh mozzarella, and mayonnaise. With French fries.",
     configurable: true,
-    modifierGroups: [removeIngredients("spinach", "roasted peppers", "mozzarella", "mayonnaise"), FOOD_ADD_ONS],
+    modifierGroups: [removeIngredients("spinach", "roasted peppers", "mozzarella", "mayonnaise"), NO_FRENCH_FRIES, FOOD_ADD_ONS],
     visual: "sandwich",
     photo: "/menu/owner/chicken-deluxe.webp",
   },
@@ -974,7 +988,7 @@ export const menuProducts: Product[] = [
     description: "Grilled chicken breast, fresh spinach, tomato, pesto sauce, and provolone cheese. With French fries.",
     popular: true,
     configurable: true,
-    modifierGroups: [removeIngredients("spinach", "tomato", "pesto", "provolone cheese"), FOOD_ADD_ONS],
+    modifierGroups: [removeIngredients("spinach", "tomato", "pesto", "provolone cheese"), NO_FRENCH_FRIES, FOOD_ADD_ONS],
     visual: "sandwich",
     photo: "/chicken-pesto-centered.jpg",
     video: "/featured-chicken-pesto.mp4",
@@ -986,18 +1000,18 @@ export const menuProducts: Product[] = [
     price: 13,
     description: "Grilled chicken breast, lettuce, tomato, onion, and mayonnaise. With French fries.",
     configurable: true,
-    modifierGroups: [removeIngredients("lettuce", "tomato", "onion", "mayonnaise"), FOOD_ADD_ONS],
+    modifierGroups: [removeIngredients("lettuce", "tomato", "onion", "mayonnaise"), NO_FRENCH_FRIES, FOOD_ADD_ONS],
     visual: "sandwich",
-    photo: "/menu/owner/chicken-sandwich-v3.png",
+    photo: "/menu/owner/chicken-sandwich-v4.png",
   },
   {
     id: "chicken-cutlet-fuego",
     name: "Chicken Cutlet Fuego",
     category: "Sandwiches",
     price: 13,
-    description: "Crispy breaded chicken, lettuce, tomato, pepper jack cheese, and chipotle mayo.",
+    description: "Crispy breaded chicken, lettuce, tomato, pepper jack cheese, and chipotle mayo. With French fries.",
     configurable: true,
-    modifierGroups: [removeIngredients("lettuce", "tomato", "pepper jack cheese", "chipotle mayo"), FOOD_ADD_ONS],
+    modifierGroups: [removeIngredients("lettuce", "tomato", "pepper jack cheese", "chipotle mayo"), NO_FRENCH_FRIES, FOOD_ADD_ONS],
     visual: "sandwich",
     imageComingSoon: true,
   },
@@ -1008,7 +1022,7 @@ export const menuProducts: Product[] = [
     price: 13,
     description: "Tuna, lettuce, tomato, onion, bacon, and Asiago cheese. With French fries.",
     configurable: true,
-    modifierGroups: [removeIngredients("lettuce", "tomato", "onion", "bacon", "Asiago cheese"), FOOD_ADD_ONS],
+    modifierGroups: [removeIngredients("lettuce", "tomato", "onion", "bacon", "Asiago cheese"), NO_FRENCH_FRIES, FOOD_ADD_ONS],
     visual: "sandwich",
     imageComingSoon: true,
   },
@@ -1026,7 +1040,7 @@ export const menuProducts: Product[] = [
   {
     id: "garden-salad",
     name: "Garden Salad",
-    category: "Sandwiches",
+    category: "Bites",
     price: 13,
     description: "Lettuce, cherry tomatoes, onion, Asiago cheese, cucumber, and green olives, with chicken or tuna.",
     configurable: true,
@@ -1043,7 +1057,7 @@ export const menuProducts: Product[] = [
     price: 12.5,
     description: "Mortadella, provolone cheese, and honey. With French fries.",
     configurable: true,
-    modifierGroups: [removeIngredients("provolone cheese", "honey"), FOOD_ADD_ONS],
+    modifierGroups: [removeIngredients("provolone cheese", "honey"), NO_FRENCH_FRIES, FOOD_ADD_ONS],
     visual: "sandwich",
     photo: "/menu/owner/emilia-grill-cheese-v3.png",
   },
@@ -1056,7 +1070,7 @@ export const menuProducts: Product[] = [
     popular: true,
     configurable: true,
     visual: "bite",
-    photo: "/menu/owner/cachapa-v5.png",
+    imageComingSoon: true,
   },
   {
     id: "tequenos",
@@ -1078,7 +1092,7 @@ export const menuProducts: Product[] = [
     flavors: ["Chicken and cheese", "Cheese", "Revueltas (beans, cheese, and pork)"],
     flavorLabel: "Choose a filling",
     visual: "bite",
-    photo: "/menu/owner/pupusas-v1.png",
+    imageComingSoon: true,
   },
   {
     id: "fries",

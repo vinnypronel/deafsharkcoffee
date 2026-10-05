@@ -14,6 +14,7 @@ const photos = [...new Set(menuProducts.flatMap(product => [
   product.photo,
   ...Object.values(product.flavorPhotos ?? {}),
   ...Object.values(product.modifierPhotos ?? {}),
+  ...Object.values(product.temperaturePhotos ?? {}),
 ]).filter(Boolean))];
 const manifest = {};
 let before = 0;

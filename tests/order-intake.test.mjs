@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { menuProducts } from "../app/menu-data.ts";
 import {
   ORDER_MAX_ITEM_QUANTITY,
   OrderRequestError,
@@ -157,6 +158,39 @@ test("offers regular fries or sweet potato fries for fries and wing orders", () 
   }
 });
 
+test("every sandwich served with fries can be ordered without French fries", () => {
+  const excluded = new Set(["italian"]);
+  const sandwiches = menuProducts.filter((product) => product.category === "Sandwiches");
+
+  for (const product of sandwiches) {
+    const sideGroup = product.modifierGroups?.find((group) => group.label === "Side");
+    if (excluded.has(product.id)) {
+      assert.equal(sideGroup, undefined, `${product.name} does not include fries`);
+      continue;
+    }
+
+    assert.ok(sideGroup?.options.some((option) => option.label === "No French fries"), product.name);
+    const [withoutFries] = priceCart([{
+      id: product.id,
+      quantity: 1,
+      selection: { modifiers: { Side: ["No French fries"] } },
+    }]);
+    assert.equal(withoutFries.unitPrice, product.price, product.name);
+    assert.ok(withoutFries.options.includes("Side: No French fries"), product.name);
+  }
+});
+
+test("places Garden Salad in Bites and withholds unfinished menu photos", () => {
+  const gardenSalad = menuProducts.find((product) => product.id === "garden-salad");
+  assert.equal(gardenSalad?.category, "Bites");
+
+  for (const id of ["shark-cubano", "cachapa", "pupusas"]) {
+    const product = menuProducts.find((item) => item.id === id);
+    assert.equal(product?.photo, undefined, id);
+    assert.equal(product?.imageComingSoon, true, id);
+  }
+});
+
 test("prices and routes the fall drinks and desserts from the posted menus", () => {
   for (const [id, price] of [
     ["pumpkin-spice-latte", 6.5],
@@ -238,6 +272,16 @@ test("opens configurable drinks at their advertised base price and charges only 
 
   const [americano] = priceCart([{ id: "americano", quantity: 1 }]);
   assert.equal(americano.unitPrice, 3.95);
+
+  const [hotDecaf] = priceCart([{ id: "decaf-coffee", quantity: 1, selection: { temperature: "Hot" } }]);
+  assert.equal(hotDecaf.unitPrice, 4);
+  assert.ok(hotDecaf.options.includes("Hot"));
+  assert.ok(hotDecaf.options.includes("12 oz"));
+
+  const [icedDecaf] = priceCart([{ id: "decaf-coffee", quantity: 1, selection: { temperature: "Iced" } }]);
+  assert.equal(icedDecaf.unitPrice, 4);
+  assert.ok(icedDecaf.options.includes("Iced"));
+  assert.ok(icedDecaf.options.includes("16 oz"));
 });
 
 test("returns 409 for an unknown product and for a sold-out product", async () => {

@@ -451,6 +451,7 @@ function ProductConfigurator({
     .map((value) => product.modifierPhotos?.[value])
     .find((photo): photo is string => Boolean(photo));
   const selectedProductPhoto = selectedModifierPhoto ?? product.flavorPhotos?.[config.flavor] ?? product.photo;
+  const selectedTemperaturePhoto = product.temperaturePhotos?.[config.temperature];
 
   useEffect(() => {
     closeButtonRef.current?.focus();
@@ -506,7 +507,7 @@ function ProductConfigurator({
               ...product,
               visual: isDrink ? (config.temperature === "Hot" ? "hot" : "iced") : product.visual,
               photo: isDrink
-                ? (config.temperature === "Hot" ? "/cup-hot.png" : (selectedProductPhoto || "/drink-iced-latte.webp"))
+                ? (selectedTemperaturePhoto ?? (config.temperature === "Hot" ? "/cup-hot.png" : (selectedProductPhoto || "/drink-iced-latte.webp")))
                 : (selectedProductPhoto || (!product.imageComingSoon && (product.visual === "sandwich" || product.category === "Breakfast" || product.category === "Sandwiches") ? "/chicken-pesto-centered.jpg" : undefined)),
             }}
           />

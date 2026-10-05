@@ -1778,7 +1778,8 @@ h1, h2, h3, p { margin-top: 0; }
   top: 84px;
   z-index: 10;
   background: #faf2e4;
-  padding: 10px 0;
+  /* Lift the selector divider without shifting the section content below it. */
+  padding: 10px 0 4px;
   margin-bottom: 0;
   border-bottom: 1px solid rgba(45, 26, 18, 0.12);
   display: flex;
@@ -1898,6 +1899,7 @@ h1, h2, h3, p { margin-top: 0; }
 .standalone-order .menu-panel-header {
   position: sticky;
   top: 129px;
+  padding-top: 14px;
   padding-right: 0;
   z-index: 9;
   background: #faf2e4;
