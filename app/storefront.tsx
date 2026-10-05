@@ -237,6 +237,13 @@ function ProductVisual({ product, compact = false, menuPreview = false }: { prod
   const isDrinkProduct = DRINK_CATEGORIES.includes(product.category);
   const isPackagedProduct = product.category === "From the Fridge" || product.category === "Coffee Beans";
   const isFoodProduct = product.category === "Breakfast" || product.category === "Sandwiches" || product.category === "Bites" || product.category === "Desserts";
+  if (product.imageComingSoon) {
+    return (
+      <div className={`product-visual product-${product.visual} product-image-coming-soon ${isFoodProduct ? "product-food" : ""} ${compact ? "product-visual-compact" : ""}`}>
+        <strong>Image coming soon!</strong>
+      </div>
+    );
+  }
   const photo = productPhoto(product);
   if (photo) {
     return (
@@ -439,7 +446,11 @@ function ProductConfigurator({
     pricedSelection = priceProductSelection(product, config);
   }
   const unitPrice = pricedSelection.unitPrice;
-  const selectedProductPhoto = product.flavorPhotos?.[config.flavor] ?? product.photo;
+  const selectedModifierPhoto = visibleModifierGroups
+    .flatMap((group) => config.modifiers?.[group.label] ?? [])
+    .map((value) => product.modifierPhotos?.[value])
+    .find((photo): photo is string => Boolean(photo));
+  const selectedProductPhoto = selectedModifierPhoto ?? product.flavorPhotos?.[config.flavor] ?? product.photo;
 
   useEffect(() => {
     closeButtonRef.current?.focus();
@@ -496,7 +507,7 @@ function ProductConfigurator({
               visual: isDrink ? (config.temperature === "Hot" ? "hot" : "iced") : product.visual,
               photo: isDrink
                 ? (config.temperature === "Hot" ? "/cup-hot.png" : (selectedProductPhoto || "/drink-iced-latte.webp"))
-                : (selectedProductPhoto || (product.visual === "sandwich" || product.category === "Breakfast" || product.category === "Sandwiches" ? "/chicken-pesto-centered.jpg" : undefined)),
+                : (selectedProductPhoto || (!product.imageComingSoon && (product.visual === "sandwich" || product.category === "Breakfast" || product.category === "Sandwiches") ? "/chicken-pesto-centered.jpg" : undefined)),
             }}
           />
           <div className="config-product-info">

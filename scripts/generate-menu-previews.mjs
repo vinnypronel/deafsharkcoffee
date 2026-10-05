@@ -10,7 +10,11 @@ const { default: sharp } = await import(process.argv[2] ? pathToFileURL(resolve(
 const source = await readFile("app/menu-data.ts", "utf8");
 const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
 const { menuProducts } = await import(`data:text/javascript;base64,${Buffer.from(js).toString("base64")}`);
-const photos = [...new Set(menuProducts.map(product => product.photo).filter(Boolean))];
+const photos = [...new Set(menuProducts.flatMap(product => [
+  product.photo,
+  ...Object.values(product.flavorPhotos ?? {}),
+  ...Object.values(product.modifierPhotos ?? {}),
+]).filter(Boolean))];
 const manifest = {};
 let before = 0;
 let after = 0;

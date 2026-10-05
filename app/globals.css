@@ -1626,6 +1626,18 @@ h1, h2, h3, p { margin-top: 0; }
   box-shadow: none;
   background: transparent;
 }
+.product-image-coming-soon {
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  text-align: center;
+}
+.product-image-coming-soon strong {
+  color: var(--espresso);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(20px, 2.1vw, 30px);
+  line-height: 1.15;
+}
 .menu-photo-status {
   position: absolute;
   top: 50%;

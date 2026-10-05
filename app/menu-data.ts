@@ -73,9 +73,14 @@ export type Product = {
   configurable?: boolean;
   visual: "hot" | "iced" | "sandwich" | "bite" | "bag";
   photo?: string;
+  /* Use a text placeholder instead of borrowing another product's photo. */
+  imageComingSoon?: boolean;
   /* Optional package photo for each retail flavor. The storefront swaps these
      in the configurator while preserving `photo` as the menu-card default. */
   flavorPhotos?: Record<string, string>;
+  /* Optional photos for choices stored in modifier groups rather than the
+     product's top-level flavor selector (for example the fries choice). */
+  modifierPhotos?: Record<string, string>;
   video?: string;
   drink?: DrinkKey;
   sizing?: DrinkSizing;
@@ -934,7 +939,7 @@ export const menuProducts: Product[] = [
     configurable: true,
     modifierGroups: [removeIngredients("provolone cheese", "lettuce", "tomato"), FOOD_ADD_ONS],
     visual: "sandwich",
-    photo: "/menu/owner/tuna-sandwich-v1.png",
+    photo: "/menu/owner/tuna-sandwich-v5.png",
   },
   /* Sandwiches follow the shop's printed menu board, in its order. Every
      sandwich except the Italian Sub and Garden Salad comes with French fries. */
@@ -994,6 +999,7 @@ export const menuProducts: Product[] = [
     configurable: true,
     modifierGroups: [removeIngredients("lettuce", "tomato", "pepper jack cheese", "chipotle mayo"), FOOD_ADD_ONS],
     visual: "sandwich",
+    imageComingSoon: true,
   },
   {
     id: "tuna-wrap",
@@ -1004,6 +1010,7 @@ export const menuProducts: Product[] = [
     configurable: true,
     modifierGroups: [removeIngredients("lettuce", "tomato", "onion", "bacon", "Asiago cheese"), FOOD_ADD_ONS],
     visual: "sandwich",
+    imageComingSoon: true,
   },
   {
     id: "italian",
@@ -1027,6 +1034,7 @@ export const menuProducts: Product[] = [
     flavorLabel: "Choose one",
     modifierGroups: [removeIngredients("cherry tomatoes", "onion", "Asiago cheese", "cucumber", "green olives")],
     visual: "sandwich",
+    imageComingSoon: true,
   },
   {
     id: "emilia",
@@ -1081,7 +1089,11 @@ export const menuProducts: Product[] = [
     configurable: true,
     modifierGroups: [FRIES_CHOICE],
     visual: "bite",
-    photo: "/menu/owner/french-fries-v5.png",
+    photo: "/menu/owner/french-fries-v8.png",
+    modifierPhotos: {
+      "Regular fries": "/menu/owner/french-fries-v8.png",
+      "Sweet potato fries": "/menu/owner/sweet-potato-fries-v3.png",
+    },
   },
   {
     id: "mozzarella-sticks",
@@ -1090,7 +1102,7 @@ export const menuProducts: Product[] = [
     price: 5.99,
     description: "Six golden mozzarella sticks.",
     visual: "bite",
-    photo: "/menu/owner/mozzarella-sticks-v7.png",
+    photo: "/menu/owner/mozzarella-sticks-v9.png",
   },
   {
     id: "chicken-wings-fries",
@@ -1101,7 +1113,7 @@ export const menuProducts: Product[] = [
     configurable: true,
     modifierGroups: [FRIES_CHOICE],
     visual: "bite",
-    photo: "/menu/owner/chicken-wings-fries-v6.png",
+    photo: "/menu/owner/chicken-wings-fries-v8.png",
   },
   {
     id: "poland-spring",
