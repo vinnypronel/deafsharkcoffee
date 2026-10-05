@@ -4,6 +4,7 @@ import { type CSSProperties, type MouseEvent, useCallback, useEffect, useLayoutE
 import { flushSync } from "react-dom";
 import { StoreHours } from "./store-hours";
 import { PauseNotice } from "./pause-notice";
+import { pointsForSubtotal } from "../lib/loyalty";
 import ScrollHero from "./scroll-hero";
 import {
   categories,
@@ -2526,6 +2527,9 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
   const [rewardOffer, setRewardOffer] = useState<RewardTierInfo | null>(null);
   const [studentVerified, setStudentVerified] = useState(false);
   const [welcomeOfferReady, setWelcomeOfferReady] = useState(false);
+  /* Rewards on for this account, and its balance, for the points preview. */
+  const [loyaltyOn, setLoyaltyOn] = useState(false);
+  const [pointsBalance, setPointsBalance] = useState(0);
   const [discountChoice, setDiscountChoice] = useState<"none" | "reward" | "student" | "welcome">("none");
 
   /* Shown so the customer can see what they will pay. The server recalculates
@@ -2544,6 +2548,7 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
         ? Math.min(Math.floor((dearestDrinkCents * 50) / 100), subtotalCents)
         : 0;
   const discount = discountCents / 100;
+  const earnedPoints = pointsForSubtotal(subtotalCents - discountCents);
   const tax = (subtotal - discount) * 0.06625;
 
   useEffect(() => {
@@ -2552,10 +2557,12 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
       try {
         const response = await fetch("/api/profile", { credentials: "include", cache: "no-store" });
         if (!response.ok) throw new Error("profile");
-        const data = await response.json() as { authenticated: boolean; profile?: { displayName: string; phone?: string | null; studentVerified?: boolean; welcomeOffer?: { status: string } | null; rewards?: { available: RewardTierInfo | null }; legal?: { acceptedCurrent: boolean } } };
+        const data = await response.json() as { authenticated: boolean; loyaltyEnabled?: boolean; profile?: { points?: number; displayName: string; phone?: string | null; studentVerified?: boolean; welcomeOffer?: { status: string } | null; rewards?: { available: RewardTierInfo | null }; legal?: { acceptedCurrent: boolean } } };
         if (cancelled) return;
         if (!data.authenticated) { setAccount("guest"); return; }
         setAccount("member");
+        setLoyaltyOn(data.loyaltyEnabled === true);
+        setPointsBalance(Number(data.profile?.points ?? 0));
         if (data.profile) {
           setName((current) => current || data.profile!.displayName);
           if (data.profile.phone) setPhone((current) => current || formatPhoneInput(data.profile!.phone!));
@@ -2691,6 +2698,14 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
           <div><span>Estimated tax</span><strong>{money(tax)}</strong></div>
           <div><span>Total</span><strong>{money(subtotal - discount + tax)}</strong></div>
         </div>
+        {/* Same rule the server uses when the order is completed: one point per
+            dollar paid after any discount, before tax. */}
+        {loyaltyOn && earnedPoints > 0 && (
+          <p className="checkout-points-preview">
+            <strong>You will earn {earnedPoints} {earnedPoints === 1 ? "point" : "points"} with this order.</strong>
+            <span>Points are added when you pick it up. You have {pointsBalance} now{discountChoice === "reward" && rewardOffer ? `, and this order uses ${rewardOffer.points}` : ""}.</span>
+          </p>
+        )}
         <div className="checkout-pickup-info">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="10" />

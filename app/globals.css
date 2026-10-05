@@ -6847,3 +6847,8 @@ video:-moz-full-screen {
   }
   .take-home-btn { position: static; grid-column: 1 / -1; justify-self: center; margin-top: 0; }
 }
+
+/* Points the order will earn, under the checkout total. */
+.checkout-points-preview { display: grid; gap: 2px; margin: 10px 0 0; padding: 10px 12px; border-left: 4px solid var(--gold); border-radius: 8px; background: rgba(190, 142, 93, .14); color: var(--deep); font-size: 13px; line-height: 1.45; }
+.checkout-points-preview strong { font-size: 14px; }
+.checkout-points-preview span { color: var(--muted); }
