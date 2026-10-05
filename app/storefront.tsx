@@ -43,6 +43,7 @@ import TurnstileWidget from "./turnstile-widget";
 import { formatPhoneInput } from "../lib/phone-format";
 import "./drink-visuals.css";
 import { MenuPreviewPhoto, menuPreviewSrc, warmMenuPhoto } from "./menu-preview-photo";
+import { recommendCartAddOns } from "./cart-recommendations";
 
 type CartItem = {
   key: string;
@@ -2116,8 +2117,10 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
       {CUSTOM_CHECKOUT_ENABLED && (
         <CartDrawer
           isOpen={cartOpen}
+          isCovered={checkoutOpen}
           cart={cart}
           subtotal={subtotal}
+          recommendations={recommendCartAddOns(cart.map((item) => item.id), products, availability)}
           onClose={() => setCartOpen(false)}
           onEdit={handleEditCartItem}
           onRemove={(key) => setCart((current) => current.filter((item) => item.key !== key))}
@@ -2130,8 +2133,15 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
           })}
           onCheckout={() => {
             if (ordersPaused) return;
-            setCartOpen(false);
             setCheckoutOpen(true);
+          }}
+          onRecommendation={(product, source) => {
+            if (product.configurable) {
+              setCartOpen(false);
+              openProduct(product);
+            } else {
+              quickAdd(product, source);
+            }
           }}
           ordersPaused={ordersPaused}
           pausedUntil={pausedUntil}
@@ -2155,7 +2165,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
         </span>
       )}
       {CUSTOM_CHECKOUT_ENABLED && checkoutOpen && (
-        <Checkout prepTime={prepTime} scheduling={scheduling} ordersPaused={ordersPaused} pausedUntil={pausedUntil} onPauseEnd={endPause} cart={cart} subtotal={subtotal} onClose={() => setCheckoutOpen(false)} onComplete={(number, eta) => { setCheckoutOpen(false); setCart([]); setConfirmation({ number, eta }); }} />
+        <Checkout prepTime={prepTime} scheduling={scheduling} ordersPaused={ordersPaused} pausedUntil={pausedUntil} onPauseEnd={endPause} cart={cart} subtotal={subtotal} onClose={() => setCheckoutOpen(false)} onComplete={(number, eta) => { setCheckoutOpen(false); setCartOpen(false); setCart([]); setConfirmation({ number, eta }); }} />
       )}
       {CUSTOM_CHECKOUT_ENABLED && confirmation && (
         <div className="modal-backdrop">
@@ -2421,8 +2431,10 @@ function CustomVideoModal({
 
 function CartDrawer({
   isOpen,
+  isCovered,
   cart,
   subtotal,
+  recommendations,
   ordersPaused,
   pausedUntil = null,
   onPauseEnd,
@@ -2431,10 +2443,13 @@ function CartDrawer({
   onRemove,
   onQuantity,
   onCheckout,
+  onRecommendation,
 }: {
   isOpen: boolean;
+  isCovered: boolean;
   cart: CartItem[];
   subtotal: number;
+  recommendations: Product[];
   ordersPaused: boolean;
   pausedUntil?: number | null;
   onPauseEnd?: () => void;
@@ -2443,11 +2458,12 @@ function CartDrawer({
   onRemove: (key: string) => void;
   onQuantity: (key: string, delta: number) => void;
   onCheckout: () => void;
+  onRecommendation: (product: Product, source: HTMLButtonElement) => void;
 }) {
   return (
     <div
-      className={`cart-backdrop ${isOpen ? "is-open" : ""}`}
-      aria-hidden={!isOpen}
+      className={`cart-backdrop ${isOpen ? "is-open" : ""} ${isCovered ? "is-covered" : ""}`}
+      aria-hidden={!isOpen || isCovered}
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
@@ -2502,7 +2518,34 @@ function CartDrawer({
             </article>
           ))}
         </div>
-        {cart.length > 0 && <div className="cart-summary"><div><span>Subtotal</span><strong>{money(subtotal)}</strong></div><small><em>Taxes are calculated at checkout.</em></small>{ordersPaused && <PauseNotice until={pausedUntil} onEnd={onPauseEnd} />}<button className="primary-button" disabled={ordersPaused} onClick={onCheckout}>{ordersPaused ? "Online ordering paused" : "Continue to checkout"}</button></div>}
+        {cart.length > 0 && <div className="cart-summary">
+          <div><span>Subtotal</span><strong>{money(subtotal)}</strong></div>
+          <small><em>Taxes are calculated at checkout.</em></small>
+          {recommendations.length > 0 && (
+            <section className="cart-recommendations" aria-labelledby="cart-recommendations-title">
+              <h3 id="cart-recommendations-title">You may also want to add</h3>
+              <div className="cart-recommendation-grid">
+                {recommendations.map((product) => {
+                  const photo = !product.imageComingSoon && productPhoto(product);
+                  return (
+                    <article className="cart-recommendation" key={product.id}>
+                      <div className="cart-recommendation-photo">
+                        {photo ? <img src={menuPreviewSrc(photo)} alt="" /> : <span aria-hidden="true">DS</span>}
+                      </div>
+                      <strong>{product.name}</strong>
+                      <span>{priceLabel(product)}</span>
+                      <button type="button" onClick={(event) => onRecommendation(product, event.currentTarget)}>
+                        {product.configurable ? "Choose" : "Add"}
+                      </button>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+          {ordersPaused && <PauseNotice until={pausedUntil} onEnd={onPauseEnd} />}
+          <button className="primary-button" disabled={ordersPaused} onClick={onCheckout}>{ordersPaused ? "Online ordering paused" : "Continue to checkout"}</button>
+        </div>}
       </aside>
     </div>
   );
@@ -2517,6 +2560,10 @@ function createIdempotencyKey() {
 }
 
 function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pausedUntil = null, onPauseEnd, onClose, onComplete }: { cart: CartItem[]; subtotal: number; prepTime?: number; scheduling: SchedulingSettings; ordersPaused: boolean; pausedUntil?: number | null; onPauseEnd?: () => void; onClose: () => void; onComplete: (number: string, eta: string, phone: string) => void }) {
+  const dragRef = useRef<{ pointerId: number; startY: number; startedAt: number } | null>(null);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const [closing, setClosing] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [fulfillmentType, setFulfillmentType] = useState<"asap" | "scheduled">("asap");
@@ -2543,6 +2590,44 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
   const [loyaltyOn, setLoyaltyOn] = useState(false);
   const [pointsBalance, setPointsBalance] = useState(0);
   const [discountChoice, setDiscountChoice] = useState<"none" | "reward" | "student" | "welcome">("none");
+
+  const closeSheet = useCallback(() => {
+    if (closing) return;
+    setClosing(true);
+    window.setTimeout(onClose, 280);
+  }, [closing, onClose]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeSheet();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [closeSheet]);
+
+  function startSheetDrag(event: React.PointerEvent<HTMLButtonElement>) {
+    if (event.button !== 0) return;
+    dragRef.current = { pointerId: event.pointerId, startY: event.clientY, startedAt: performance.now() };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDragging(true);
+  }
+
+  function moveSheetDrag(event: React.PointerEvent<HTMLButtonElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    setDragOffset(Math.max(0, Math.min(window.innerHeight, event.clientY - drag.startY)));
+  }
+
+  function endSheetDrag(event: React.PointerEvent<HTMLButtonElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const distance = Math.max(0, event.clientY - drag.startY);
+    const velocity = distance / Math.max(1, performance.now() - drag.startedAt);
+    dragRef.current = null;
+    setDragging(false);
+    if (distance > 110 || (distance > 42 && velocity > 0.55)) closeSheet();
+    else setDragOffset(0);
+  }
 
   /* Shown so the customer can see what they will pay. The server recalculates
      all of this from their own record before the order is stored. */
@@ -2659,12 +2744,31 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
   }
 
   return (
-    <div className="modal-backdrop">
-      <form className="checkout-card" data-lenis-prevent onSubmit={submit} noValidate>
-        <button type="button" className="modal-close" onClick={onClose} aria-label="Close checkout">
+    <div className={`checkout-sheet-backdrop ${closing ? "is-closing" : ""}`} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeSheet(); }}>
+      <form
+        className={`checkout-card checkout-sheet ${dragging ? "is-dragging" : ""}`}
+        style={{ "--checkout-drag": `${dragOffset}px` } as CSSProperties}
+        data-lenis-prevent
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="checkout-title"
+        onSubmit={submit}
+        noValidate
+      >
+        <button
+          type="button"
+          className="checkout-sheet-handle"
+          aria-label="Swipe down or press to return to your cart"
+          onClick={() => { if (dragOffset === 0) closeSheet(); }}
+          onPointerDown={startSheetDrag}
+          onPointerMove={moveSheetDrag}
+          onPointerUp={endSheetDrag}
+          onPointerCancel={endSheetDrag}
+        ><span /></button>
+        <button type="button" className="modal-close" onClick={closeSheet} aria-label="Back to cart">
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8" /></svg>
         </button>
-        <h2>Finish your order</h2>
+        <h2 id="checkout-title">Finish your order</h2>
         {ordersPaused && <PauseNotice until={pausedUntil} onEnd={onPauseEnd} />}
         {account === "loading" && <p className="checkout-account-note" role="status">Checking your account...</p>}
         {(account === "guest" || account === "error") && <div className="checkout-account-gate">
