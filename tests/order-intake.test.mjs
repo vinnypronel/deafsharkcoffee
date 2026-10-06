@@ -203,19 +203,21 @@ test("made-to-order cheese items offer the shop's cheese swaps", () => {
   for (const id of cheeseItemIds) {
     const product = menuProducts.find((item) => item.id === id);
     const cheeseChoice = product?.modifierGroups?.find((group) => group.label === "Cheese choice");
+    const expectedDefault = id === "ham-cheese-croissant" ? "Yellow American" : "Default cheese";
     assert.deepEqual(cheeseChoice?.options.map((option) => option.label), [
-      "Default cheese",
+      expectedDefault,
       "Swiss",
       "Provolone",
       "Pepper Jack",
     ], id);
+    assert.deepEqual(cheeseChoice?.options.map((option) => option.price ?? 0), [0, 1, 1, 1], id);
 
     const [swapped] = priceCart([{
       id,
       quantity: 1,
       selection: { modifiers: { "Cheese choice": ["Pepper Jack"] } },
     }]);
-    assert.equal(swapped.unitPrice, product.price, id);
+    assert.equal(swapped.unitPrice, product.price + 1, id);
     assert.ok(swapped.options.includes("Cheese choice: Pepper Jack"), id);
   }
 });
@@ -278,17 +280,24 @@ test("prices the October owner menu update and keeps required choices on the kit
   assert.ok(njClassic.options.includes("Meat: Taylor ham"));
   assert.ok(njClassic.options.includes("Bread: Kaiser roll"));
 
-  for (const id of ["nj-classic", "ham-cheese-croissant"]) {
+  for (const id of ["nj-classic"]) {
     const product = menuProducts.find((candidate) => candidate.id === id);
     const [defaultBread] = priceCart([{ id, quantity: 1 }]);
     const [croissant] = priceCart([{ id, quantity: 1, selection: { modifiers: { Bread: ["Croissant"] } } }]);
     assert.ok(defaultBread.options.includes("Bread: Kaiser roll"), `${id} should default to a Kaiser roll`);
-    assert.equal(croissant.unitPrice, product.price + 0.5, `${id} croissant should cost 50 cents extra`);
+    assert.equal(croissant.unitPrice, product.price + 0.75, `${id} croissant should cost 75 cents extra`);
     assert.ok(croissant.options.includes("Bread: Croissant"));
   }
 
-  const [frenchToast] = priceCart([{ id: "french-toast", quantity: 1, selection: { modifiers: { Bacon: ["Turkey bacon"] } } }]);
+  const [hamAndCheese] = priceCart([{ id: "ham-cheese-croissant", quantity: 1 }]);
+  assert.equal(hamAndCheese.options.some((option) => option.startsWith("Bread:")), false);
+
+  const [frenchToast] = priceCart([{ id: "french-toast", quantity: 1, selection: { modifiers: { Bacon: ["Turkey bacon"], "Remove ingredients": ["No hash brown"] } } }]);
   assert.ok(frenchToast.options.includes("Bacon: Turkey bacon"));
+  assert.ok(frenchToast.options.includes("Remove ingredients: No hash brown"));
+  assert.equal(frenchToast.selection.temperature, undefined);
+  assert.equal(frenchToast.selection.milk, undefined);
+  assert.equal(frenchToast.selection.size, undefined);
 
   const [pupusa] = priceCart([{ id: "pupusas", quantity: 1, selection: { flavor: "Revueltas (beans, cheese, and pork)" } }]);
   assert.ok(pupusa.options.includes("Revueltas (beans, cheese, and pork)"));
@@ -305,6 +314,37 @@ test("prices the October owner menu update and keeps required choices on the kit
     assert.equal(failure.status, 409, removed);
     assert.equal(failure.code, "unknown_product", removed);
   }
+});
+
+test("matches the printed Morning Handhelds menu and accommodations", () => {
+  const expectedPrices = new Map([
+    ["nj-classic", 8],
+    ["jersey-devil", 9.75],
+    ["tuna-sandwich", 8.5],
+    ["french-toast", 10],
+    ["grilled-cheese", 8.5],
+    ["breakfast-wrap", 8.25],
+    ["turkey-blt", 8.25],
+    ["plain-croissant", 3.25],
+    ["ham-cheese-croissant", 7.25],
+  ]);
+
+  for (const [id, price] of expectedPrices) {
+    const product = menuProducts.find((candidate) => candidate.id === id);
+    assert.ok(product, `${id} should be on the breakfast menu`);
+    assert.equal(product.category, "Breakfast", id);
+    assert.equal(product.price, price, id);
+  }
+
+  const group = (id, label) => menuProducts.find((product) => product.id === id)?.modifierGroups?.find((candidate) => candidate.label === label);
+  assert.deepEqual(group("nj-classic", "Meat")?.options.map((option) => option.label), ["Taylor ham", "Ham", "Bacon", "Turkey bacon", "Sausage"]);
+  assert.deepEqual(group("nj-classic", "Bread")?.options, [{ label: "Kaiser roll" }, { label: "Croissant", price: 0.75 }]);
+  assert.match(menuProducts.find((product) => product.id === "jersey-devil").description, /Kaiser roll/);
+  assert.match(menuProducts.find((product) => product.id === "tuna-sandwich").description, /white bread/);
+  assert.match(menuProducts.find((product) => product.id === "grilled-cheese").description, /white bread/);
+  assert.deepEqual(group("breakfast-wrap", "Meat")?.options.map((option) => option.label).slice(0, 5), ["Ham", "Bacon", "Turkey bacon", "Taylor ham", "Sausage"]);
+  assert.deepEqual(group("turkey-blt", "Bread")?.options.map((option) => option.label), ["Roll", "Wrap"]);
+  assert.deepEqual(group("plain-croissant", "Spread")?.options, [{ label: "Butter", price: 1 }, { label: "Jelly", price: 1 }]);
 });
 
 test("opens configurable drinks at their advertised base price and charges only selected upgrades", () => {

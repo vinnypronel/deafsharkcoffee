@@ -16,7 +16,6 @@ test("special drinks are orderable at the advertised price", () => {
     "peanut-horchata-latte",
     "coconut-matcha-refresher",
     "coconut-caramel-latte",
-    "oreo-frappe",
   ]) {
     const product = byId(id);
     assert.ok(product, `${id} should be on the menu`);
@@ -24,6 +23,12 @@ test("special drinks are orderable at the advertised price", () => {
     assert.equal(product.price, 7.5);
     assert.equal(priceProductSelection(product).unitPrice, 7.5);
   }
+
+  const frappe = byId("oreo-frappe");
+  assert.ok(frappe, "oreo-frappe should be on the menu");
+  assert.equal(frappe.category, "Special Drinks");
+  assert.equal(frappe.price, 6.75);
+  assert.equal(priceProductSelection(frappe).unitPrice, 6.75);
 });
 
 test("special drink serving options match the shop sign", () => {

@@ -1329,7 +1329,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
             )}
             {profile?.authenticated && !profile.staff && profile.profile && (
               <>
-                <h2>Welcome Back, {profile.profile.displayName}</h2>
+                <h2>Welcome Back, {profile.profile.displayName.trim().split(/\s+/)[0]}</h2>
                 <p>{profile.profile.email}</p>
                 {accountView !== "home" && <div className="account-view-header">
                   <button type="button" onClick={() => { setAccountView("home"); setAccountActionMessage(""); }} aria-label="Back to account menu">←</button>

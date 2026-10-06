@@ -195,12 +195,19 @@ export const DECAF_MODIFIER: ModifierGroup = {
   ],
 };
 
-export const CHEESE_CHOICE: ModifierGroup = {
+const cheeseChoice = (defaultLabel = "Default cheese"): ModifierGroup => ({
   label: "Cheese choice",
   type: "single",
   required: true,
-  options: ["Default cheese", "Swiss", "Provolone", "Pepper Jack"].map((label) => ({ label })),
-};
+  options: [
+    { label: defaultLabel },
+    { label: "Swiss", price: 1 },
+    { label: "Provolone", price: 1 },
+    { label: "Pepper Jack", price: 1 },
+  ],
+});
+
+export const CHEESE_CHOICE = cheeseChoice();
 
 export const ADD_BACON: ModifierGroup = {
   label: "Bacon",
@@ -455,7 +462,17 @@ export function priceProductSelection(product: Product, input: ProductSelection 
   return {
     unitPrice,
     options,
-    selection: { temperature, size, milk: isSmoothie ? (smoothieMilk || undefined) : milk, flavor, base, extraShot, syrups, modifiers, notes },
+    selection: {
+      temperature: isDrink ? temperature : undefined,
+      size: isDrink || hasTwoSizes ? size : undefined,
+      milk: isDrink ? (isSmoothie ? (smoothieMilk || undefined) : milk) : undefined,
+      flavor,
+      base: isDrink ? base : undefined,
+      extraShot: isDrink ? extraShot : undefined,
+      syrups: isDrink ? syrups : undefined,
+      modifiers,
+      notes,
+    },
   };
 }
 
@@ -512,7 +529,7 @@ export const menuProducts: Product[] = [
     id: "oreo-frappe",
     name: "Oreo Frappe",
     category: "Special Drinks",
-    price: 7.5,
+    price: 6.75,
     description: "A creamy cookies-and-cream frappe with chocolate drizzle, whipped cream, and Oreo crumbles.",
     configurable: true,
     temps: ["Iced"],
@@ -573,7 +590,7 @@ export const menuProducts: Product[] = [
     price: 7,
     description: "Chocolate cake layered with creamy caramel flan.",
     visual: "bite",
-    photo: "/menu/desserts/chocoflan-v1.png",
+    photo: "/menu/desserts/chocoflan-v2.webp",
   },
   {
     id: "tres-leches",
@@ -591,7 +608,7 @@ export const menuProducts: Product[] = [
     price: 7,
     description: "Espresso-soaked layered dessert finished with cocoa.",
     visual: "bite",
-    photo: "/menu/desserts/tiramisu-v1.jpg",
+    photo: "/menu/desserts/tiramisu-v2.webp",
   },
   {
     id: "cheesecake",
@@ -600,7 +617,7 @@ export const menuProducts: Product[] = [
     price: 7,
     description: "Classic New York-style cheesecake with a graham cracker crust.",
     visual: "bite",
-    photo: "/menu/desserts/cheesecake-v1.png",
+    photo: "/menu/desserts/cheesecake-v2.webp",
   },
   {
     id: "ocean-blend-bag",
@@ -905,12 +922,12 @@ export const menuProducts: Product[] = [
     name: "The NJ Classic",
     category: "Breakfast",
     price: 8,
-    description: "Egg and cheese with your choice of meat on a Kaiser roll, white bread, or a croissant upgrade.",
+    description: "Egg and cheese with your choice of meat on a Kaiser roll, with an optional croissant upgrade.",
     popular: true,
     configurable: true,
     modifierGroups: [
       { label: "Meat", type: "single", required: true, options: ["Taylor ham", "Ham", "Bacon", "Turkey bacon", "Sausage"].map((label) => ({ label })) },
-      { label: "Bread", type: "single", required: true, options: [{ label: "Kaiser roll" }, { label: "White bread" }, { label: "Croissant", price: 0.5 }] },
+      { label: "Bread", type: "single", required: true, options: [{ label: "Kaiser roll" }, { label: "Croissant", price: 0.75 }] },
       CHEESE_CHOICE,
       removeIngredients("egg", "cheese"),
       FOOD_ADD_ONS,
@@ -923,7 +940,7 @@ export const menuProducts: Product[] = [
     name: "The Jersey Devil",
     category: "Breakfast",
     price: 9.75,
-    description: "Egg, pepper jack, Taylor ham, bacon, jalapeño, hash browns, and chipotle mayo on a Portuguese roll.",
+    description: "Egg, pepper jack, Taylor ham, bacon, jalapeño, hash browns, and chipotle mayo on a Kaiser roll.",
     configurable: true,
     modifierGroups: [CHEESE_CHOICE, removeIngredients("egg", "pepper jack", "bacon", "jalapeño", "hash browns", "chipotle mayo"), FOOD_ADD_ONS],
     visual: "sandwich",
@@ -934,11 +951,10 @@ export const menuProducts: Product[] = [
     name: "Ham and Cheese",
     category: "Breakfast",
     price: 7.25,
-    description: "Ham and melted cheese on a Kaiser roll, white bread, or a croissant upgrade.",
+    description: "Ham and melted yellow American cheese on a Kaiser roll.",
     configurable: true,
     modifierGroups: [
-      { label: "Bread", type: "single", required: true, options: [{ label: "Kaiser roll" }, { label: "White bread" }, { label: "Croissant", price: 0.5 }] },
-      CHEESE_CHOICE,
+      cheeseChoice("Yellow American"),
       removeIngredients("cheese"),
       FOOD_ADD_ONS,
     ],
@@ -954,6 +970,7 @@ export const menuProducts: Product[] = [
     configurable: true,
     modifierGroups: [
       { label: "Bacon", type: "single", required: true, options: ["Bacon", "Turkey bacon"].map((label) => ({ label })) },
+      removeIngredients("hash brown"),
     ],
     visual: "bite",
     photo: "/menu/owner/french-toast.webp",
@@ -963,7 +980,7 @@ export const menuProducts: Product[] = [
     name: "Grilled Cheese",
     category: "Breakfast",
     price: 8.5,
-    description: "Swiss cheese, American cheese, bacon, and tomato on whole wheat bread.",
+    description: "Swiss cheese, American cheese, bacon, and tomato on white bread.",
     configurable: true,
     modifierGroups: [CHEESE_CHOICE, removeIngredients("Swiss cheese", "American cheese", "bacon", "tomato"), FOOD_ADD_ONS],
     visual: "sandwich",
@@ -1007,7 +1024,7 @@ export const menuProducts: Product[] = [
     price: 3.25,
     description: "Fresh, flaky butter croissant.",
     configurable: true,
-    modifierGroups: [{ label: "Spread", type: "single", options: [{ label: "Butter", price: 1 }, { label: "Jelly", price: 1 }, { label: "Cream cheese", price: 1 }] }],
+    modifierGroups: [{ label: "Spread", type: "single", options: [{ label: "Butter", price: 1 }, { label: "Jelly", price: 1 }] }],
     visual: "sandwich",
     photo: "/food-croissant-bagel-real.png",
   },

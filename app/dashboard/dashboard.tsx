@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  DRINK_CATEGORIES,
   EXTRA_SHOT_PRICE,
   modifierGroupsForProduct,
   menuProducts,
@@ -85,14 +86,15 @@ function orderItemDetails(item: OrderItem) {
   if (!product || !selection) return item.options ?? [];
 
   const details: string[] = [];
+  const isDrink = DRINK_CATEGORIES.includes(product.category);
   if (product.flavors?.length && selection.flavor) details.push(selection.flavor);
-  if (selection.temperature) details.push(selection.temperature);
-  if (selection.milk && selection.milk !== "None") details.push(selection.milk);
-  if (selection.milk === "None") details.push("No milk");
-  if (selection.base) details.push(`${selection.base} base`);
-  if (selection.size) details.push(selection.size);
-  for (const syrup of selection.syrups ?? []) details.push(optionWithPrice(`Syrup: ${syrup}`, SYRUP_PRICE));
-  if (selection.extraShot) {
+  if (isDrink && selection.temperature) details.push(selection.temperature);
+  if (isDrink && selection.milk && selection.milk !== "None") details.push(selection.milk);
+  if (isDrink && selection.milk === "None") details.push("No milk");
+  if (isDrink && selection.base) details.push(`${selection.base} base`);
+  if (isDrink && selection.size) details.push(selection.size);
+  if (isDrink) for (const syrup of selection.syrups ?? []) details.push(optionWithPrice(`Syrup: ${syrup}`, SYRUP_PRICE));
+  if (isDrink && selection.extraShot) {
     const label = selection.extraShot === 1 ? "Extra shot" : `${selection.extraShot} extra shots`;
     details.push(optionWithPrice(label, selection.extraShot * EXTRA_SHOT_PRICE));
   }
