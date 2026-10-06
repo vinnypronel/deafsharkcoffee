@@ -140,7 +140,10 @@ export async function GET(request: Request) {
       points: profile.points,
       lifetimePoints: profile.lifetimePoints,
       activity,
-      welcomeOffer,
+      /* Redeemed coupons remain in the database for staff auditing and the
+         one-use constraint, but disappear completely from the customer's
+         profile response as soon as they have been used. */
+      welcomeOffer: welcomeOffer?.status === "active" ? welcomeOffer : null,
       studentVerified: Boolean(profile.studentVerifiedAt),
       studentEmail: profile.studentEmail,
       rewards: {

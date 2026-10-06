@@ -72,21 +72,19 @@ export type DiscountChoice =
   | { kind: "none" }
   | { kind: "reward"; points: number }
   | { kind: "student" }
-  | { kind: "welcome" };
+  | { kind: "welcome"; itemIndex: number };
 
 /** A cart line, reduced to what the discount rules need. */
 export type DiscountableItem = { unitPriceCents: number; quantity: number; isDrink: boolean };
 
-/* The coupon covers one drink, so it is worth half of the dearest drink in the
-   basket, counted one unit at a time. Applying it to the cheapest would be a
-   worse deal than the customer expects from "any drink". */
-export function welcomeOfferValue(items: DiscountableItem[]) {
-  let dearestDrink = 0;
-  for (const item of items) {
-    if (!item.isDrink || item.quantity < 1) continue;
-    if (item.unitPriceCents > dearestDrink) dearestDrink = item.unitPriceCents;
-  }
-  return Math.floor((dearestDrink * WELCOME_OFFER_PERCENT) / 100);
+/* The coupon covers exactly one unit of the drink line the customer selects.
+   The server checks the index against its own repriced cart, so a client cannot
+   point the discount at food or supply a fake price. */
+export function welcomeOfferValue(items: DiscountableItem[], itemIndex: number) {
+  if (!Number.isInteger(itemIndex) || itemIndex < 0 || itemIndex >= items.length) return 0;
+  const item = items[itemIndex];
+  if (!item?.isDrink || item.quantity < 1) return 0;
+  return Math.floor((item.unitPriceCents * WELCOME_OFFER_PERCENT) / 100);
 }
 
 export type AppliedDiscount = {
@@ -124,8 +122,8 @@ export function resolveDiscount(input: {
 
   if (input.choice.kind === "welcome") {
     if (!input.welcomeOfferAvailable) throw new Error("That welcome offer is not available on this account.");
-    const value = welcomeOfferValue(input.items ?? []);
-    if (value <= 0) throw new Error("Add a drink to use your welcome offer.");
+    const value = welcomeOfferValue(input.items ?? [], input.choice.itemIndex);
+    if (value <= 0) throw new Error("Choose a drink to use your welcome offer.");
     return {
       kind: "welcome",
       amountCents: Math.min(value, input.subtotalCents),

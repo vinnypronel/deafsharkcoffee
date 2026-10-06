@@ -2591,6 +2591,7 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
   const [loyaltyOn, setLoyaltyOn] = useState(false);
   const [pointsBalance, setPointsBalance] = useState(0);
   const [discountChoice, setDiscountChoice] = useState<"none" | "reward" | "student" | "welcome">("none");
+  const [welcomeItemIndex, setWelcomeItemIndex] = useState<number | null>(null);
 
   const closeSheet = useCallback(() => {
     if (closing) return;
@@ -2633,18 +2634,19 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
   /* Shown so the customer can see what they will pay. The server recalculates
      all of this from their own record before the order is stored. */
   const subtotalCents = Math.round(subtotal * 100);
-  const dearestDrinkCents = cart.reduce((most, item) => {
+  const welcomeDrinkChoices = cart.flatMap((item, itemIndex) => {
     const product = menuProducts.find((candidate) => candidate.id === item.id);
-    if (!product || !DRINK_CATEGORIES.includes(product.category)) return most;
-    return Math.max(most, Math.round(item.unitPrice * 100));
-  }, 0);
+    if (!product || !DRINK_CATEGORIES.includes(product.category)) return [];
+    return [{ itemIndex, name: item.name, unitPriceCents: Math.round(item.unitPrice * 100) }];
+  });
+  const selectedWelcomeDrink = welcomeDrinkChoices.find((item) => item.itemIndex === welcomeItemIndex) ?? null;
   const selectedReward = rewardOffers.find((reward) => reward.points === rewardPoints) ?? null;
   const discountCents = discountChoice === "reward" && selectedReward
     ? Math.min(selectedReward.valueCents, subtotalCents)
     : discountChoice === "student" && studentVerified
       ? Math.floor((subtotalCents * 10) / 100)
       : discountChoice === "welcome" && welcomeOfferReady
-        ? Math.min(Math.floor((dearestDrinkCents * 50) / 100), subtotalCents)
+        ? Math.min(Math.floor(((selectedWelcomeDrink?.unitPriceCents ?? 0) * 50) / 100), subtotalCents)
         : 0;
   const discount = discountCents / 100;
   const earnedPoints = pointsForSubtotal(subtotalCents - discountCents);
@@ -2725,6 +2727,8 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
           idempotencyKey,
           discount: discountChoice === "reward" && selectedReward
             ? { kind: "reward", points: selectedReward.points }
+            : discountChoice === "welcome"
+              ? { kind: "welcome", itemIndex: welcomeItemIndex }
             : { kind: discountChoice },
           items: cart.map((item) => ({ id: item.id, quantity: item.quantity, selection: item.selection })),
         }),
@@ -2808,7 +2812,13 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
             <p className="checkout-rewards-note">One per order.</p>
             <label htmlFor="discount-none"><input id="discount-none" type="radio" name="discount" checked={discountChoice === "none"} onChange={() => setDiscountChoice("none")} /><span>No discount</span></label>
             {rewardOffers.map((reward) => <label key={reward.points} htmlFor={`discount-reward-${reward.points}`}><input id={`discount-reward-${reward.points}`} type="radio" name="discount" checked={discountChoice === "reward" && rewardPoints === reward.points} onChange={() => { setRewardPoints(reward.points); setDiscountChoice("reward"); }} /><span>Redeem {reward.label}<small>Uses {reward.points} points</small></span></label>)}
-            {welcomeOfferReady && <label htmlFor="discount-welcome"><input id="discount-welcome" type="radio" name="discount" checked={discountChoice === "welcome"} onChange={() => setDiscountChoice("welcome")} disabled={dearestDrinkCents === 0} /><span>50% off one drink<small>{dearestDrinkCents === 0 ? "Add a drink to use this" : "New member offer, one time"}</small></span></label>}
+            {welcomeOfferReady && <>
+              <label htmlFor="discount-welcome"><input id="discount-welcome" type="radio" name="discount" checked={discountChoice === "welcome"} onChange={() => { setWelcomeItemIndex((current) => current ?? welcomeDrinkChoices[0]?.itemIndex ?? null); setDiscountChoice("welcome"); }} disabled={welcomeDrinkChoices.length === 0} /><span>50% off one drink<small>{welcomeDrinkChoices.length === 0 ? "Add a drink to use this" : "New member offer · one use only"}</small></span></label>
+              {discountChoice === "welcome" && welcomeDrinkChoices.length > 0 && <div className="welcome-drink-picker" role="group" aria-label="Choose the drink for your signup coupon">
+                <strong>Choose your 50% off drink</strong>
+                {welcomeDrinkChoices.map((drink) => <label key={drink.itemIndex} htmlFor={`welcome-drink-${drink.itemIndex}`}><input id={`welcome-drink-${drink.itemIndex}`} type="radio" name="welcome-drink" checked={welcomeItemIndex === drink.itemIndex} onChange={() => setWelcomeItemIndex(drink.itemIndex)} /><span>{drink.name}<small>Save {money(Math.floor(drink.unitPriceCents * .5) / 100)}</small></span></label>)}
+              </div>}
+            </>}
             {studentVerified && <label htmlFor="discount-student"><input id="discount-student" type="radio" name="discount" checked={discountChoice === "student"} onChange={() => setDiscountChoice("student")} /><span>10% Kean student discount</span></label>}
           </fieldset>
         )}

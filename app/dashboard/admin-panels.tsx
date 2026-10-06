@@ -17,7 +17,7 @@ type ContactRecord = { id: number; name: string; email: string; phone?: string |
 type ApplicationRecord = { id: number; fullName: string; email: string; phone: string; position: string; employmentType: string; experience?: string | null; why?: string | null; createdAt: string | Date };
 type SubscriberRecord = { id: number; email: string; status: string; consentText: string; consentedAt: string | Date };
 type Records = { orders: OrderRecord[]; contacts: ContactRecord[]; applications: ApplicationRecord[]; subscribers: SubscriberRecord[] };
-type LoyaltyMember = { userId: string; email: string; displayName: string; phone?: string | null; points: number; lifetimePoints: number; updatedAt: string; birthday?: { onFile: boolean; month: number | null; day: number | null; isToday: boolean; eligibleToday: boolean; redeemedThisYear: boolean; maxCents: number }; referredByName?: string | null };
+type LoyaltyMember = { userId: string; email: string; displayName: string; phone?: string | null; points: number; lifetimePoints: number; updatedAt: string; birthday?: { onFile: boolean; month: number | null; day: number | null; isToday: boolean; eligibleToday: boolean; redeemedThisYear: boolean; maxCents: number }; referredByName?: string | null; welcomeOffer?: MemberOffer | null };
 const BIRTHDAY_MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 type LoyaltyTransaction = { id: number; userId: string; orderId?: number | null; pointsChange: number; balanceAfter: number; reason: string; createdAt: string };
 type MemberOffer = { id: number; userId: string; offerType: string; code: string; status: string; issuedAt: string; redeemedAt?: string | null; redeemedBy?: string | null };
@@ -365,6 +365,10 @@ function LoyaltyManager({ data, message, setMessage, reload }: { data: LoyaltyDa
             <header><div><strong>{member.displayName}</strong><small>{member.email}{member.phone ? ` · ${member.phone}` : ""}</small></div><span>{member.points} pts</span></header>
             <div className="loyalty-progress"><i style={{ width: `${nextTierProgress(member.points).percent}%` }} /></div>
             <p>{bestAvailableTier(member.points) ? `${bestAvailableTier(member.points)?.label} available` : `${nextTierProgress(member.points).pointsAway} points to a ${nextTierProgress(member.points).tier.label}`} · {member.lifetimePoints} lifetime points{member.birthday?.onFile && member.birthday.month && member.birthday.day ? ` · Birthday ${BIRTHDAY_MONTHS[member.birthday.month - 1]} ${member.birthday.day}` : ""}{member.referredByName ? ` · Referred by ${member.referredByName}` : ""}</p>
+            {member.welcomeOffer && <div className={`welcome-offer-status ${member.welcomeOffer.status === "redeemed" ? "is-used" : "is-active"}`}>
+              <strong>{member.welcomeOffer.status === "redeemed" ? "✓ Signup coupon used" : "Signup coupon available"}</strong>
+              <small>{member.welcomeOffer.status === "redeemed" ? `Used ${when(member.welcomeOffer.redeemedAt)}` : "50% off one drink · one use"}</small>
+            </div>}
             {member.birthday?.isToday && <div className={`member-offer member-birthday${member.birthday.redeemedThisYear ? " member-offer-redeemed" : ""}`}>
               <div><strong>Birthday today: free drink up to ${(member.birthday.maxCents / 100).toFixed(0)}</strong><small>{member.birthday.redeemedThisYear ? "Already redeemed this year" : member.birthday.eligibleToday ? "In store only. Any drink, up to $8." : "Not eligible: birthday was added today"}</small></div>
               {member.birthday.eligibleToday && !member.birthday.redeemedThisYear && <button className="admin-save" disabled={saving === `birthday:${member.userId}`} onClick={() => redeemBirthday(member)}>{saving === `birthday:${member.userId}` ? "Saving…" : "Redeem birthday drink"}</button>}

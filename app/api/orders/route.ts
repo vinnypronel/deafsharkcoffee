@@ -193,11 +193,11 @@ export async function POST(request: Request) {
     phone = normalizePhone(loyaltyProfile.phone);
     const welcomeOffer = offerRows[0];
     const choice: DiscountChoice = (() => {
-      const raw = payload.discount as { kind?: unknown; points?: unknown } | undefined;
+      const raw = payload.discount as { kind?: unknown; points?: unknown; itemIndex?: unknown } | undefined;
       const kind = typeof raw?.kind === "string" ? raw.kind : "none";
       if (kind === "reward") return { kind: "reward", points: Number(raw?.points) };
       if (kind === "student") return { kind: "student" };
-      if (kind === "welcome") return { kind: "welcome" };
+      if (kind === "welcome") return { kind: "welcome", itemIndex: Number(raw?.itemIndex) };
       return { kind: "none" };
     })();
     if (choice.kind !== "none" && env.LOYALTY_ENABLED !== "true") {

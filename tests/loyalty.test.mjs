@@ -79,25 +79,28 @@ test("only one discount applies to an order", () => {
   assert.equal(REWARD_TIERS.length, 2);
 });
 
-test("welcome coupon takes half off the dearest drink only", () => {
+test("welcome coupon takes half off the single drink the customer chooses", () => {
   const cart = [
     { unitPriceCents: 500, quantity: 2, isDrink: true },
     { unitPriceCents: 775, quantity: 1, isDrink: true },
     { unitPriceCents: 1200, quantity: 1, isDrink: false },
   ];
-  assert.equal(welcomeOfferValue(cart), 387, "half of the $7.75 drink, not the $12 food");
+  assert.equal(welcomeOfferValue(cart, 0), 250, "the customer can choose the $5 drink");
+  assert.equal(welcomeOfferValue(cart, 1), 387, "or choose the $7.75 drink");
+  assert.equal(welcomeOfferValue(cart, 2), 0, "food is never eligible");
+  assert.equal(welcomeOfferValue(cart, -1), 0, "an invalid line cannot receive the coupon");
 
   const applied = resolveDiscount({
-    subtotalCents: 2975, choice: { kind: "welcome" }, pointsBalance: 0,
+    subtotalCents: 2975, choice: { kind: "welcome", itemIndex: 0 }, pointsBalance: 0,
     studentVerified: false, welcomeOfferAvailable: true, items: cart,
   });
   assert.equal(applied.kind, "welcome");
-  assert.equal(applied.amountCents, 387);
+  assert.equal(applied.amountCents, 250);
   assert.equal(applied.pointsSpent, 0);
 });
 
 test("welcome coupon needs a drink and an unused offer", () => {
   const foodOnly = [{ unitPriceCents: 900, quantity: 1, isDrink: false }];
-  assert.throws(() => resolveDiscount({ subtotalCents: 900, choice: { kind: "welcome" }, pointsBalance: 0, studentVerified: false, welcomeOfferAvailable: true, items: foodOnly }), /Add a drink/);
-  assert.throws(() => resolveDiscount({ subtotalCents: 900, choice: { kind: "welcome" }, pointsBalance: 0, studentVerified: false, welcomeOfferAvailable: false, items: [{ unitPriceCents: 500, quantity: 1, isDrink: true }] }), /not available/);
+  assert.throws(() => resolveDiscount({ subtotalCents: 900, choice: { kind: "welcome", itemIndex: 0 }, pointsBalance: 0, studentVerified: false, welcomeOfferAvailable: true, items: foodOnly }), /Choose a drink/);
+  assert.throws(() => resolveDiscount({ subtotalCents: 900, choice: { kind: "welcome", itemIndex: 0 }, pointsBalance: 0, studentVerified: false, welcomeOfferAvailable: false, items: [{ unitPriceCents: 500, quantity: 1, isDrink: true }] }), /not available/);
 });

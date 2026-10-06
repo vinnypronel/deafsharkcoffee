@@ -4237,6 +4237,8 @@ body.modal-open { touch-action: none; }
 .checkout-rewards input:disabled { opacity: .45; cursor: not-allowed; }
 .checkout-rewards label span { display: flex; flex-direction: column; gap: 2px; font-weight: 700; font-size: 14px; }
 .checkout-rewards label small { color: var(--muted); font-weight: 400; font-size: 12.5px; }
+.welcome-drink-picker { display: grid; gap: 8px; margin: 2px 0 4px 31px; border-left: 2px solid rgba(22,139,135,.2); padding: 8px 0 4px 13px; }
+.welcome-drink-picker > strong { font-size: 12.5px; }
 .checkout-account-contact { display: grid; gap: 8px; margin: 12px 0 22px; border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; background: #fff; }
 .checkout-account-contact > span { color: var(--muted); font-size: 12px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
 .checkout-account-contact div { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; color: var(--ink); }
@@ -4706,6 +4708,10 @@ body.modal-open { touch-action: none; }
 .loyalty-member-card > header small { display: block; overflow-wrap: anywhere; margin-top: 4px; color: var(--muted); }
 .loyalty-member-card > header > span { flex: 0 0 auto; border-radius: 999px; padding: 8px 11px; background: var(--deep); color: white; font-weight: 800; }
 .loyalty-member-card > p { margin: 8px 0 17px; color: var(--muted); font-size: 13px; }
+.welcome-offer-status { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -4px 0 16px; border-radius: 10px; padding: 9px 11px; font-size: 12px; }
+.welcome-offer-status small { color: inherit; opacity: .78; }
+.welcome-offer-status.is-active { background: #edf8f4; color: #176b57; }
+.welcome-offer-status.is-used { background: #f1ece7; color: #685b53; }
 .member-offer { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 0 0 17px; border: 1px solid #e6c88f; border-radius: 13px; padding: 12px; background: #fff8e9; }
 .member-offer > div { min-width: 0; display: grid; gap: 3px; }
 .member-offer strong { font-size: 13px; }

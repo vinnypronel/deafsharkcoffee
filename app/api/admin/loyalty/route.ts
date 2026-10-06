@@ -35,6 +35,9 @@ export async function GET(request: Request) {
      never has to trust the tablet's clock. */
   const now = new Date();
   const offerKeys = new Set(offers.map((offer) => `${offer.userId}:${offer.offerType}`));
+  const welcomeOffers = new Map(offers
+    .filter((offer) => offer.offerType === "signup_half_off_drink")
+    .map((offer) => [offer.userId, offer]));
   const names = new Map(members.map((member) => [member.userId, member.displayName]));
   return Response.json({
     members: members.map((member) => {
@@ -47,6 +50,7 @@ export async function GET(request: Request) {
           maxCents: BIRTHDAY_DRINK_MAX_CENTS,
         },
         referredByName: member.referredByUserId ? names.get(member.referredByUserId) ?? "Another member" : null,
+        welcomeOffer: welcomeOffers.get(member.userId) ?? null,
       };
     }),
     transactions,
