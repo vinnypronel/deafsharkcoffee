@@ -252,12 +252,12 @@ export const DRINK_CATEGORIES: MenuCategory[] = ["Special Drinks", "Fall Season"
 export const hasMilkOptionsForProduct = (product: Product) =>
   DRINK_CATEGORIES.includes(product.category) &&
   !product.bases?.length &&
-  !["chicha", "malta", "hot-tea", "dirty-soda", "coconut-matcha-refresher"].includes(product.id);
+  !["chicha", "malta", "hot-tea", "dirty-soda", "coconut-matcha-refresher", "oreo-frappe"].includes(product.id);
 
 export const hasSyrupOptionsForProduct = (product: Product) =>
   DRINK_CATEGORIES.includes(product.category) &&
   !product.bases?.length &&
-  !["hot-tea", "dirty-soda", "coconut-matcha-refresher"].includes(product.id);
+  !["hot-tea", "dirty-soda", "coconut-matcha-refresher", "oreo-frappe"].includes(product.id);
 
 export const hasExtraShotOptionsForProduct = (product: Product) =>
   (product.category === "Coffee" || [
@@ -315,12 +315,13 @@ export const defaultSizeForProduct = (product: Product, temperature: "Hot" | "Ic
 export const modifierGroupsForProduct = (product: Product, temperature?: "Hot" | "Iced"): ModifierGroup[] => {
   const isDrink = DRINK_CATEGORIES.includes(product.category);
   const isSmoothie = Boolean(product.bases?.length);
+  const isBlendedFrappe = product.id === "oreo-frappe";
   const servedIced = temperaturesForProduct(product).includes("Iced") && temperature !== "Hot";
   return [
     ...(product.modifierGroups ?? []),
     ...(product.decafAvailable ? [DECAF_MODIFIER] : []),
-    ...(isDrink && !isSmoothie && servedIced ? [ICE_MODIFIER] : []),
-    ...(isDrink && !isSmoothie && !["hot-tea", "dirty-soda"].includes(product.id) ? [SWEETENER_MODIFIER] : []),
+    ...(isDrink && !isSmoothie && !isBlendedFrappe && servedIced ? [ICE_MODIFIER] : []),
+    ...(isDrink && !isSmoothie && !isBlendedFrappe && !["hot-tea", "dirty-soda"].includes(product.id) ? [SWEETENER_MODIFIER] : []),
   ];
 };
 
@@ -506,6 +507,18 @@ export const menuProducts: Product[] = [
     visual: "iced",
     photo: "/menu/specials/coconut-caramel-latte-v1.png",
     drink: "latte",
+  },
+  {
+    id: "oreo-frappe",
+    name: "Oreo Frappe",
+    category: "Special Drinks",
+    price: 7.5,
+    description: "A creamy cookies-and-cream frappe with chocolate drizzle, whipped cream, and Oreo crumbles.",
+    configurable: true,
+    temps: ["Iced"],
+    visual: "iced",
+    photo: "/menu/specials/oreo-frappe-v1.png",
+    modifierGroups: [removeIngredients("whipped cream", "Oreo crumbles")],
   },
   {
     id: "pumpkin-spice-latte",
@@ -1125,7 +1138,7 @@ export const menuProducts: Product[] = [
     configurable: true,
     modifierGroups: [CHEESE_CHOICE],
     visual: "bite",
-    imageComingSoon: true,
+    photo: "/menu/owner/cachapa-v5.png",
   },
   {
     id: "tequenos",
@@ -1135,7 +1148,7 @@ export const menuProducts: Product[] = [
     description: "Four golden pastry sticks filled with cheese.",
     popular: true,
     visual: "bite",
-    photo: "/menu/owner/tequenos-v5.png",
+    imageComingSoon: true,
   },
   {
     id: "pupusas",

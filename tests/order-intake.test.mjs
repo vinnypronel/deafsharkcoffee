@@ -220,11 +220,15 @@ test("made-to-order cheese items offer the shop's cheese swaps", () => {
   }
 });
 
-test("places Garden Salad in Bites and withholds unfinished menu photos", () => {
+test("places Garden Salad in Bites and marks only unfinished menu photos as coming soon", () => {
   const gardenSalad = menuProducts.find((product) => product.id === "garden-salad");
   assert.equal(gardenSalad?.category, "Bites");
 
-  for (const id of ["shark-cubano", "cachapa", "pupusas"]) {
+  const cachapa = menuProducts.find((product) => product.id === "cachapa");
+  assert.equal(cachapa?.photo, "/menu/owner/cachapa-v5.png");
+  assert.equal(cachapa?.imageComingSoon, undefined);
+
+  for (const id of ["shark-cubano", "tequenos", "pupusas"]) {
     const product = menuProducts.find((item) => item.id === id);
     assert.equal(product?.photo, undefined, id);
     assert.equal(product?.imageComingSoon, true, id);

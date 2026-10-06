@@ -16,6 +16,7 @@ test("special drinks are orderable at the advertised price", () => {
     "peanut-horchata-latte",
     "coconut-matcha-refresher",
     "coconut-caramel-latte",
+    "oreo-frappe",
   ]) {
     const product = byId(id);
     assert.ok(product, `${id} should be on the menu`);
@@ -39,4 +40,17 @@ test("the coconut matcha refresher does not offer unrelated milk or syrup custom
 
 test("the coconut caramel latte uses its dedicated generated menu image", () => {
   assert.equal(byId("coconut-caramel-latte").photo, "/menu/specials/coconut-caramel-latte-v1.png");
+});
+
+test("the Oreo frappe uses its generated image and offers only its removal options", () => {
+  const frappe = byId("oreo-frappe");
+  assert.equal(frappe.photo, "/menu/specials/oreo-frappe-v1.png");
+  assert.deepEqual(temperaturesForProduct(frappe), ["Iced"]);
+  assert.deepEqual(frappe.modifierGroups, [{
+    label: "Remove ingredients",
+    type: "multiple",
+    options: [{ label: "No whipped cream" }, { label: "No Oreo crumbles" }],
+  }]);
+  assert.equal(hasMilkOptionsForProduct(frappe), false);
+  assert.equal(hasSyrupOptionsForProduct(frappe), false);
 });
