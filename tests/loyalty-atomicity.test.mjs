@@ -16,8 +16,10 @@ function db(points) {
   d.exec(`
     CREATE TABLE customer_profiles (user_id TEXT PRIMARY KEY, email TEXT, display_name TEXT, points INTEGER NOT NULL DEFAULT 0, lifetime_points INTEGER NOT NULL DEFAULT 0, updated_at INTEGER);
     CREATE TABLE loyalty_transactions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT, order_id INTEGER UNIQUE, reference TEXT UNIQUE, points_change INTEGER, balance_after INTEGER, reason TEXT, created_at INTEGER);
+    CREATE TABLE loyalty_point_lots (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT, source_reference TEXT UNIQUE, points_earned INTEGER, points_remaining INTEGER, earned_at INTEGER, expires_at INTEGER);
     CREATE TABLE orders (id INTEGER PRIMARY KEY AUTOINCREMENT, order_number TEXT, reward_points_spent INTEGER DEFAULT 0, idempotency_key TEXT UNIQUE);
     INSERT INTO customer_profiles (user_id, email, display_name, points) VALUES ('u1','a@b.c','A', ${points});
+    INSERT INTO loyalty_point_lots (user_id, source_reference, points_earned, points_remaining, earned_at, expires_at) VALUES ('u1','opening',${points},${points},0,9999999999);
   `);
   return d;
 }

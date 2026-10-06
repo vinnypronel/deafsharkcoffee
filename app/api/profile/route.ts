@@ -5,7 +5,7 @@ import { customerProfiles, loyaltyTransactions, memberOffers } from "../../../db
 import { getCustomerSession } from "../../../lib/auth";
 import { isStaffEmail } from "../../../lib/staff-auth";
 import { env } from "cloudflare:workers";
-import { WELCOME_OFFER_TYPE, bestAvailableTier, nextTierProgress } from "../../../lib/loyalty";
+import { WELCOME_OFFER_TYPE, availableTiers, bestAvailableTier, nextTierProgress } from "../../../lib/loyalty";
 import { BIRTHDAY_DRINK_MAX_CENTS, birthdayOfferType, birthdayStatus } from "../../../lib/birthday";
 import { REFERRAL_POINTS } from "../../../lib/referral";
 import { ensureReferralCode } from "../../../lib/referral-store";
@@ -13,6 +13,7 @@ import { loadPromotions } from "../../../lib/promotion-store";
 import { describePromotion, promotionIsCurrent } from "../../../lib/promotions";
 import { menuProducts } from "../../menu-data";
 import { PRIVACY_VERSION, TERMS_VERSION, hasCurrentLegalAcceptance } from "../../../lib/legal-policy";
+import { refreshLoyaltyBalance } from "../../../lib/loyalty-ledger";
 
 /* No signup points: the shop's programme gives new members a half-off drink
    coupon instead, and points are earned by spending. */
@@ -58,6 +59,7 @@ export async function GET(request: Request) {
     });
   }
   await ensureWelcomeBenefits(user);
+  if (env.LOYALTY_ENABLED === "true") await refreshLoyaltyBalance(env.DB, user.id);
   const [profile] = await getDb().select().from(customerProfiles).where(eq(customerProfiles.userId, user.id)).limit(1);
   const birthday = birthdayStatus({ month: profile.birthdayMonth, day: profile.birthdayDay, setAt: profile.birthdaySetAt });
 
@@ -139,6 +141,7 @@ export async function GET(request: Request) {
       studentEmail: profile.studentEmail,
       rewards: {
         available: bestAvailableTier(profile.points),
+        options: availableTiers(profile.points),
         progress: nextTierProgress(profile.points),
       },
       birthday: {

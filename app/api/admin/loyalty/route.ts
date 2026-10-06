@@ -2,7 +2,7 @@ import { and, desc, eq, inArray, like, sql } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../../db";
 import { customerProfiles, loyaltyTransactions, memberOffers, users } from "../../../../db/schema";
 import { requireStaff, staffEmailList } from "../../../../lib/staff-auth";
-import { loyaltyChangeStatements } from "../../../../lib/loyalty-ledger";
+import { loyaltyChangeStatements, refreshAllLoyaltyBalances, refreshLoyaltyBalance } from "../../../../lib/loyalty-ledger";
 import { env } from "cloudflare:workers";
 import { BIRTHDAY_DRINK_MAX_CENTS, birthdayOfferType, birthdayStatus } from "../../../../lib/birthday";
 
@@ -12,6 +12,7 @@ export async function GET(request: Request) {
   await ensureSchema();
 
   const staffEmails = staffEmailList();
+  await refreshAllLoyaltyBalances(env.DB);
   const [allMembers, transactions, offers, staffUsers] = await Promise.all([
     getDb().select().from(customerProfiles).orderBy(desc(customerProfiles.updatedAt)).limit(500),
     getDb().select().from(loyaltyTransactions).orderBy(desc(loyaltyTransactions.createdAt)).limit(250),
@@ -151,10 +152,12 @@ export async function PATCH(request: Request) {
 
   const [profile] = await getDb().select().from(customerProfiles).where(eq(customerProfiles.userId, userId)).limit(1);
   if (!profile) return Response.json({ error: "Customer account not found." }, { status: 404 });
+  await refreshLoyaltyBalance(env.DB, userId);
+  const [currentProfile] = await getDb().select().from(customerProfiles).where(eq(customerProfiles.userId, userId)).limit(1);
 
-  const balanceAfter = profile.points + pointsChange;
+  const balanceAfter = currentProfile.points + pointsChange;
   if (balanceAfter < 0) {
-    return Response.json({ error: `This customer only has ${profile.points} points available.` }, { status: 400 });
+    return Response.json({ error: `This customer only has ${currentProfile.points} points available.` }, { status: 400 });
   }
 
   /* A guarded, relative change through the shared ledger helper, not an absolute

@@ -169,6 +169,13 @@
       "when": 1790800000000,
       "tag": "0023_menu_item_removed",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1791306339207,
+      "tag": "0024_curious_cardiac",
+      "breakpoints": true
     }
   ]
 }

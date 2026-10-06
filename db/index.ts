@@ -10,6 +10,7 @@ const REQUIRED_TABLES = [
   "events",
   "featured_content",
   "loyalty_transactions",
+  "loyalty_point_lots",
   "member_offers",
   "menu_availability",
   "menu_content",

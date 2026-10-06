@@ -5,6 +5,7 @@ import {
   customerProfiles,
   employmentApplications,
   loyaltyTransactions,
+  loyaltyPointLots,
   memberOffers,
   newsletterSubscriptions,
   orders,
@@ -20,10 +21,11 @@ export async function GET(request: Request) {
 
   const db = getDb();
   const email = session.user.email.toLowerCase();
-  const [profileRows, orderRows, loyaltyRows, offerRows, subscriptionRows, inquiryRows, applicationRows] = await Promise.all([
+  const [profileRows, orderRows, loyaltyRows, pointLotRows, offerRows, subscriptionRows, inquiryRows, applicationRows] = await Promise.all([
     db.select().from(customerProfiles).where(eq(customerProfiles.userId, session.user.id)).limit(1),
     db.select().from(orders).where(eq(orders.customerUserId, session.user.id)).orderBy(asc(orders.createdAt)),
     db.select().from(loyaltyTransactions).where(eq(loyaltyTransactions.userId, session.user.id)).orderBy(asc(loyaltyTransactions.createdAt)),
+    db.select().from(loyaltyPointLots).where(eq(loyaltyPointLots.userId, session.user.id)).orderBy(asc(loyaltyPointLots.earnedAt)),
     db.select().from(memberOffers).where(eq(memberOffers.userId, session.user.id)).orderBy(asc(memberOffers.issuedAt)),
     db.select().from(newsletterSubscriptions).where(eq(newsletterSubscriptions.email, email)),
     db.select().from(contactInquiries).where(eq(contactInquiries.email, email)).orderBy(asc(contactInquiries.createdAt)),
@@ -62,6 +64,7 @@ export async function GET(request: Request) {
     profile: profileRows[0] ?? null,
     orders: orderRows.map((order) => ({ ...order, items: JSON.parse(order.itemsJson), itemsJson: undefined })),
     loyaltyTransactions: loyaltyRows,
+    loyaltyPointLots: pointLotRows,
     offers: offerRows,
     marketingSubscriptions: subscriptionRows,
     contactInquiries: inquiryRows,

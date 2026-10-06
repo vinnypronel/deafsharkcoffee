@@ -35,7 +35,7 @@ import { readRemovedMenuIds } from "../../../lib/menu-removed";
 import { sendStaffNotification } from "../../../lib/transactional-email";
 import { memberOffers } from "../../../db/schema";
 import { WELCOME_OFFER_TYPE, resolveDiscount, type DiscountChoice } from "../../../lib/loyalty";
-import { loyaltyChangeStatements } from "../../../lib/loyalty-ledger";
+import { loyaltyChangeStatements, refreshLoyaltyBalance } from "../../../lib/loyalty-ledger";
 import { DRINK_CATEGORIES, menuProducts } from "../../menu-data";
 import { and, eq as eqOp } from "drizzle-orm";
 import { ORDER_READY_SMS_CONSENT, hasCurrentLegalAcceptance } from "../../../lib/legal-policy";
@@ -143,6 +143,10 @@ export async function POST(request: Request) {
       if (alreadyPlaced.customerUserId !== customerUserId) throw new OrderRequestError("Please start a new checkout.", 409, "checkout_conflict");
       logOrderEvent("replayed", { reference, orderId: alreadyPlaced.id, status: 200 });
       return orderResponse(alreadyPlaced, 200, reference);
+    }
+
+    if (customerUserId && env.LOYALTY_ENABLED === "true") {
+      await refreshLoyaltyBalance(env.DB, customerUserId);
     }
 
     const [settingsRow, availabilityRows, menuRows, storeHours, profileRows, offerRows, pause, removedIds] = await Promise.all([

@@ -188,6 +188,23 @@ export const loyaltyTransactions = sqliteTable(
   ],
 );
 
+export const loyaltyPointLots = sqliteTable(
+  "loyalty_point_lots",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    userId: text("user_id").notNull(),
+    sourceReference: text("source_reference").notNull(),
+    pointsEarned: integer("points_earned").notNull(),
+    pointsRemaining: integer("points_remaining").notNull(),
+    earnedAt: integer("earned_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+    expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_loyalty_point_lot_reference_unique").on(table.sourceReference),
+    index("idx_loyalty_point_lot_user_expiry").on(table.userId, table.expiresAt),
+  ],
+);
+
 export const memberOffers = sqliteTable(
   "member_offers",
   {

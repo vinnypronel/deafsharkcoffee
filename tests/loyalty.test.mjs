@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   REWARD_TIERS,
+  availableTiers,
   bestAvailableTier,
   isKeanEmail,
   nextTierProgress,
@@ -38,6 +39,7 @@ test("offers the best reward a balance can afford", () => {
   assert.equal(bestAvailableTier(50)?.valueCents, 300);
   assert.equal(bestAvailableTier(99)?.valueCents, 300);
   assert.equal(bestAvailableTier(100)?.valueCents, 700);
+  assert.deepEqual(availableTiers(100).map((tier) => tier.points), [50, 100]);
 });
 
 test("accepts Kean addresses only", () => {

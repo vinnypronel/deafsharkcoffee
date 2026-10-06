@@ -113,6 +113,7 @@ test("order-complete guard only writes bonus points for a completed order, once"
   const db = new DatabaseSync(":memory:");
   db.exec(`CREATE TABLE customer_profiles (user_id TEXT PRIMARY KEY, points INTEGER NOT NULL DEFAULT 0, lifetime_points INTEGER NOT NULL DEFAULT 0, updated_at INTEGER);
     CREATE TABLE loyalty_transactions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, order_id INTEGER UNIQUE, reference TEXT UNIQUE, points_change INTEGER NOT NULL, balance_after INTEGER NOT NULL, reason TEXT NOT NULL, created_at INTEGER);
+    CREATE TABLE loyalty_point_lots (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT, source_reference TEXT UNIQUE, points_earned INTEGER, points_remaining INTEGER, earned_at INTEGER, expires_at INTEGER);
     CREATE TABLE orders (id INTEGER PRIMARY KEY, status TEXT NOT NULL);
     INSERT INTO customer_profiles (user_id) VALUES ('referrer');
     INSERT INTO orders (id, status) VALUES (1, 'ready');`);

@@ -18,6 +18,13 @@ export const REWARD_TIERS: RewardTier[] = [
   { points: 100, valueCents: 700, label: "$7 reward" },
 ];
 
+export const POINT_EXPIRATION_SECONDS = 365 * 24 * 60 * 60;
+
+/** Every discount tier the current unexpired balance can afford. */
+export function availableTiers(points: number) {
+  return REWARD_TIERS.filter((tier) => points >= tier.points);
+}
+
 export const STUDENT_DISCOUNT_PERCENT = 10;
 
 /** Signup coupon: half off a single drink, one use, online only. */

@@ -37,6 +37,7 @@ export async function DELETE(request: Request) {
       idempotency_key = NULL, sms_opt_in = false, sms_consented_at = NULL, sms_consent_text = NULL
       WHERE customer_user_id = ?`).bind(deletedName, userId),
     env.DB.prepare("DELETE FROM loyalty_transactions WHERE user_id = ?").bind(userId),
+    env.DB.prepare("DELETE FROM loyalty_point_lots WHERE user_id = ?").bind(userId),
     env.DB.prepare("DELETE FROM member_offers WHERE user_id = ?").bind(userId),
     env.DB.prepare("DELETE FROM customer_profiles WHERE user_id = ?").bind(userId),
     env.DB.prepare(`UPDATE newsletter_subscriptions SET status = 'unsubscribed',

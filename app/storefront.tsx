@@ -2583,7 +2583,8 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
   const [account, setAccount] = useState<"loading" | "guest" | "member" | "error">("loading");
   const [legalAccepted, setLegalAccepted] = useState(false);
   type RewardTierInfo = { points: number; valueCents: number; label: string };
-  const [rewardOffer, setRewardOffer] = useState<RewardTierInfo | null>(null);
+  const [rewardOffers, setRewardOffers] = useState<RewardTierInfo[]>([]);
+  const [rewardPoints, setRewardPoints] = useState(0);
   const [studentVerified, setStudentVerified] = useState(false);
   const [welcomeOfferReady, setWelcomeOfferReady] = useState(false);
   /* Rewards on for this account, and its balance, for the points preview. */
@@ -2637,8 +2638,9 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
     if (!product || !DRINK_CATEGORIES.includes(product.category)) return most;
     return Math.max(most, Math.round(item.unitPrice * 100));
   }, 0);
-  const discountCents = discountChoice === "reward" && rewardOffer
-    ? Math.min(rewardOffer.valueCents, subtotalCents)
+  const selectedReward = rewardOffers.find((reward) => reward.points === rewardPoints) ?? null;
+  const discountCents = discountChoice === "reward" && selectedReward
+    ? Math.min(selectedReward.valueCents, subtotalCents)
     : discountChoice === "student" && studentVerified
       ? Math.floor((subtotalCents * 10) / 100)
       : discountChoice === "welcome" && welcomeOfferReady
@@ -2654,7 +2656,7 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
       try {
         const response = await fetch("/api/profile", { credentials: "include", cache: "no-store" });
         if (!response.ok) throw new Error("profile");
-        const data = await response.json() as { authenticated: boolean; loyaltyEnabled?: boolean; profile?: { points?: number; displayName: string; phone?: string | null; studentVerified?: boolean; welcomeOffer?: { status: string } | null; rewards?: { available: RewardTierInfo | null }; legal?: { acceptedCurrent: boolean } } };
+        const data = await response.json() as { authenticated: boolean; loyaltyEnabled?: boolean; profile?: { points?: number; displayName: string; phone?: string | null; studentVerified?: boolean; welcomeOffer?: { status: string } | null; rewards?: { available: RewardTierInfo | null; options?: RewardTierInfo[] }; legal?: { acceptedCurrent: boolean } } };
         if (cancelled) return;
         if (!data.authenticated) { setAccount("guest"); return; }
         setAccount("member");
@@ -2663,7 +2665,9 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
         if (data.profile) {
           setName((current) => current || data.profile!.displayName);
           if (data.profile.phone) setPhone((current) => current || formatPhoneInput(data.profile!.phone!));
-          setRewardOffer(data.profile.rewards?.available ?? null);
+          const options = data.profile.rewards?.options ?? (data.profile.rewards?.available ? [data.profile.rewards.available] : []);
+          setRewardOffers(options);
+          setRewardPoints(options.at(-1)?.points ?? 0);
           setStudentVerified(Boolean(data.profile.studentVerified));
           setWelcomeOfferReady(data.profile.welcomeOffer?.status === "active");
           setLegalAccepted(Boolean(data.profile.legal?.acceptedCurrent));
@@ -2719,8 +2723,8 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
           scheduledFor: fulfillmentType === "scheduled" ? new Date(scheduledFor).toISOString() : undefined,
           turnstileToken,
           idempotencyKey,
-          discount: discountChoice === "reward" && rewardOffer
-            ? { kind: "reward", points: rewardOffer.points }
+          discount: discountChoice === "reward" && selectedReward
+            ? { kind: "reward", points: selectedReward.points }
             : { kind: discountChoice },
           items: cart.map((item) => ({ id: item.id, quantity: item.quantity, selection: item.selection })),
         }),
@@ -2798,12 +2802,12 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
           <input id="order-ready-text-consent" type="checkbox" checked={smsOptIn} onChange={(event) => setSmsOptIn(event.target.checked)} />
           <span><strong>Text me once when this order is ready.</strong><small>Optional. Message and data rates may apply. Reply STOP to opt out.</small></span>
         </label>}
-        {(rewardOffer || studentVerified || welcomeOfferReady) && (
+        {(rewardOffers.length > 0 || studentVerified || welcomeOfferReady) && (
           <fieldset className="checkout-rewards">
             <legend>Rewards and discounts</legend>
             <p className="checkout-rewards-note">One per order.</p>
             <label htmlFor="discount-none"><input id="discount-none" type="radio" name="discount" checked={discountChoice === "none"} onChange={() => setDiscountChoice("none")} /><span>No discount</span></label>
-            {rewardOffer && <label htmlFor="discount-reward"><input id="discount-reward" type="radio" name="discount" checked={discountChoice === "reward"} onChange={() => setDiscountChoice("reward")} /><span>Redeem {rewardOffer.label}<small>Uses {rewardOffer.points} points</small></span></label>}
+            {rewardOffers.map((reward) => <label key={reward.points} htmlFor={`discount-reward-${reward.points}`}><input id={`discount-reward-${reward.points}`} type="radio" name="discount" checked={discountChoice === "reward" && rewardPoints === reward.points} onChange={() => { setRewardPoints(reward.points); setDiscountChoice("reward"); }} /><span>Redeem {reward.label}<small>Uses {reward.points} points</small></span></label>)}
             {welcomeOfferReady && <label htmlFor="discount-welcome"><input id="discount-welcome" type="radio" name="discount" checked={discountChoice === "welcome"} onChange={() => setDiscountChoice("welcome")} disabled={dearestDrinkCents === 0} /><span>50% off one drink<small>{dearestDrinkCents === 0 ? "Add a drink to use this" : "New member offer, one time"}</small></span></label>}
             {studentVerified && <label htmlFor="discount-student"><input id="discount-student" type="radio" name="discount" checked={discountChoice === "student"} onChange={() => setDiscountChoice("student")} /><span>10% Kean student discount</span></label>}
           </fieldset>
@@ -2819,7 +2823,7 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
         {loyaltyOn && earnedPoints > 0 && (
           <p className="checkout-points-preview">
             <strong>You will earn {earnedPoints} {earnedPoints === 1 ? "point" : "points"} with this order.</strong>
-            <span>Points are added when you pick it up. You have {pointsBalance} now{discountChoice === "reward" && rewardOffer ? `, and this order uses ${rewardOffer.points}` : ""}.</span>
+            <span>Points are added when you pick it up and each award expires after 12 months. You have {pointsBalance} now{discountChoice === "reward" && selectedReward ? `, and this order uses ${selectedReward.points}` : ""}.</span>
           </p>
         )}
         <div className="checkout-pickup-info">
