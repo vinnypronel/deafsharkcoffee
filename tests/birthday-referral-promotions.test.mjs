@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { DatabaseSync } from "node:sqlite";
 import { birthdayStatus, validBirthday } from "../lib/birthday.ts";
-import { createReferralCode, normalizeReferralCode } from "../lib/referral.ts";
+import { createReferralCode, normalizeReferralCode, normalizeReferralEmail, referralPartiesAreDistinct } from "../lib/referral.ts";
 import { describePromotion, promotionApplies, promotionAwards, validatePromotion } from "../lib/promotions.ts";
 import { loyaltyChangeStatements } from "../lib/loyalty-ledger.ts";
 
@@ -52,6 +52,22 @@ test("referral codes are readable and normalized", () => {
   assert.equal(createReferralCode("  ", () => new Uint8Array([0, 0, 0, 0])), "SHARKAAAA");
   assert.equal(normalizeReferralCode(" vinnyabcd "), "VINNYABCD");
   assert.equal(normalizeReferralCode("bad code!"), "");
+});
+
+test("referral identity checks reject self-referrals and common email aliases", () => {
+  assert.equal(normalizeReferralEmail("Vinny.Pro+new@gmail.com"), "vinnypro@gmail.com");
+  const base = {
+    referrerUserId: "member-1",
+    referredUserId: "member-2",
+    referrerEmail: "vinny.pro@gmail.com",
+    referredEmail: "friend@example.com",
+    referrerPhone: "(908) 555-0101",
+    referredPhone: "908-555-0102",
+  };
+  assert.equal(referralPartiesAreDistinct(base), true);
+  assert.equal(referralPartiesAreDistinct({ ...base, referredUserId: "member-1" }), false);
+  assert.equal(referralPartiesAreDistinct({ ...base, referredEmail: "vinnypro+second@gmail.com" }), false);
+  assert.equal(referralPartiesAreDistinct({ ...base, referredPhone: "+1 908 555 0101" }), false);
 });
 
 const base = { id: 1, name: "Promo", active: true, startDate: null, endDate: null, days: [], startTime: null, endTime: null, multiplier: null, bonusPoints: null, productId: null, visitsRequired: null };

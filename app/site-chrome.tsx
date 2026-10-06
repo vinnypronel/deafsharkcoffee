@@ -37,7 +37,8 @@ function OrderStatusIcon({ status }: { status: string }) {
   return <svg {...common}><path d="M5 10h11v3.5a5.5 5.5 0 0 1-5.5 5.5v0A5.5 5.5 0 0 1 5 13.5z" /><path d="M16 11h1.5a2.5 2.5 0 0 1 0 5H16" /><path d="M8.5 3.5c0 1.3 1 1.6 1 3M12.5 3.5c0 1.3 1 1.6 1 3" /></svg>;
 }
 
-type ProfileResponse = { authenticated: boolean; staff?: boolean; profile?: { displayName: string; email: string; phone?: string | null; points: number; lifetimePoints: number; activity?: Array<{ id: number; pointsChange: number; balanceAfter: number; reason: string; createdAt: string }>; welcomeOffer?: { id: number; code: string; status: string; issuedAt: string; redeemedAt?: string | null } | null; studentVerified?: boolean; studentEmail?: string | null; birthday?: { onFile: boolean; month: number | null; day: number | null; isToday: boolean; eligibleToday: boolean; redeemedThisYear: boolean; maxCents: number }; referral?: { code: string | null; points: number; joined: number; rewarded: number }; promotions?: Array<{ id: number; name: string; summary: string }>; rewards?: { available: { points: number; valueCents: number; label: string } | null; options?: Array<{ points: number; valueCents: number; label: string }>; progress: { tier: { points: number; valueCents: number; label: string }; pointsAway: number; percent: number; atTop: boolean } }; legal?: { acceptedCurrent: boolean; termsVersion: string; privacyVersion: string } } };
+type ProfileResponse = { authenticated: boolean; staff?: boolean; profile?: { displayName: string; email: string; phone?: string | null; points: number; lifetimePoints: number; activity?: Array<{ id: number; pointsChange: number; balanceAfter: number; reason: string; createdAt: string }>; welcomeOffer?: { id: number; code: string; status: string; issuedAt: string; redeemedAt?: string | null } | null; studentVerified?: boolean; studentEmail?: string | null; birthday?: { onFile: boolean; month: number | null; day: number | null; isToday: boolean; eligibleToday: boolean; redeemedThisYear: boolean; maxCents: number }; referral?: { code: string | null; points: number; joined: number; rewarded: number }; promotions?: Array<{ id: number; name: string; summary: string }>; rewards?: { available: { points: number; valueCents: number; label: string } | null; options?: Array<{ points: number; valueCents: number; label: string }>; progress: { tier: { points: number; valueCents: number; label: string }; pointsAway: number; percent: number; atTop: boolean } }; legal?: { acceptedCurrent: boolean; termsVersion: string; privacyVersion: string }; preferences?: { marketingEmail: boolean } } };
+type AccountView = "home" | "profile" | "rewards" | "orders" | "communications" | "security" | "privacy" | "help";
 type AuthConfig = { googleEnabled: boolean; emailEnabled: boolean; emailVerificationEnabled: boolean; passwordRecoveryEnabled: boolean; loyaltyEnabled?: boolean; signupEnabled?: boolean };
 type LenisController = { start: () => void; stop: () => void; scrollTo: (target: number, options?: Record<string, unknown>) => void };
 type WindowWithLenis = Window & { __lenis?: LenisController };
@@ -172,6 +173,10 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
   const [signOutError, setSignOutError] = useState("");
   const [accountActionMessage, setAccountActionMessage] = useState("");
   const [accountActionBusy, setAccountActionBusy] = useState(false);
+  const [accountView, setAccountView] = useState<AccountView>("home");
+  const [profileName, setProfileName] = useState("");
+  const [profilePhone, setProfilePhone] = useState("");
+  const [marketingEmail, setMarketingEmail] = useState(false);
   const [legalPoliciesAccepted, setLegalPoliciesAccepted] = useState(false);
   const [legalAgeGuardianConfirmed, setLegalAgeGuardianConfirmed] = useState(false);
   /* Live status of the customer's current order, shown in the header so they do
@@ -274,6 +279,48 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
     }, reducedMotion ? 0 : ACCOUNT_DRAWER_EXIT_MS);
   }
 
+  async function saveAccountProfile(event: React.FormEvent) {
+    event.preventDefault();
+    setAccountActionBusy(true);
+    setAccountActionMessage("");
+    try {
+      const response = await fetch("/api/profile", { method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ displayName: profileName, phone: profilePhone }) });
+      const data = await response.json() as { error?: string; profile?: { displayName: string; phone: string | null } };
+      if (!response.ok || !data.profile) throw new Error(data.error || "We could not update your profile.");
+      setProfile((current) => current?.authenticated && current.profile ? { ...current, profile: { ...current.profile, ...data.profile } } : current);
+      setProfilePhone(data.profile.phone ?? "");
+      setAccountActionMessage("Your profile was updated.");
+    } catch (error) { setAccountActionMessage(error instanceof Error ? error.message : "We could not update your profile."); }
+    finally { setAccountActionBusy(false); }
+  }
+
+  async function updateMarketingPreference(next: boolean) {
+    if (!profile?.profile) return;
+    setAccountActionBusy(true);
+    setAccountActionMessage("");
+    try {
+      const response = await fetch("/api/profile", { method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ displayName: profile.profile.displayName, phone: profile.profile.phone ?? "", marketingEmail: next }) });
+      const data = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(data.error || "We could not update that preference.");
+      setMarketingEmail(next);
+      setProfile((current) => current?.authenticated && current.profile ? { ...current, profile: { ...current.profile, preferences: { marketingEmail: next } } } : current);
+      setAccountActionMessage(next ? "Promotional email is on." : "Promotional email is off.");
+    } catch (error) { setAccountActionMessage(error instanceof Error ? error.message : "We could not update that preference."); }
+    finally { setAccountActionBusy(false); }
+  }
+
+  async function sendAccountPasswordReset() {
+    if (!profile?.profile?.email) return;
+    setAccountActionBusy(true);
+    setAccountActionMessage("");
+    try {
+      const response = await fetch("/api/auth/request-password-reset", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: profile.profile.email, redirectTo: `${window.location.origin}/?account=reset` }) });
+      if (!response.ok) throw new Error("We could not send the password-reset email.");
+      setAccountActionMessage("Password-reset instructions are on the way.");
+    } catch (error) { setAccountActionMessage(error instanceof Error ? error.message : "We could not send the password-reset email."); }
+    finally { setAccountActionBusy(false); }
+  }
+
   async function saveBirthday(e: React.FormEvent) {
     e.preventDefault();
     setBirthdayMessage("");
@@ -363,6 +410,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
     setSearchOpen(false);
     setProfileClosing(false);
     setProfileOpen(true);
+    setAccountView("home");
     setAuthError("");
     setAuthNotice("");
     // Show a usable sign-in form immediately. If a session exists, replace it
@@ -407,6 +455,9 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
       }
       setProfile(nextProfile);
       if (nextProfile.profile) {
+        setProfileName(nextProfile.profile.displayName);
+        setProfilePhone(nextProfile.profile.phone ?? "");
+        setMarketingEmail(nextProfile.profile.preferences?.marketingEmail === true);
         try {
           const response = await fetchWithTimeout("/api/customer-orders", { cache: "no-store" });
           if (response.ok) setRecentOrders(((await response.json()) as { orders?: typeof recentOrders }).orders ?? []);
@@ -1278,11 +1329,14 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
             )}
             {profile?.authenticated && !profile.staff && profile.profile && (
               <>
-                <span className="account-welcome">Welcome back</span>
-                <h2>{profile.profile.displayName}</h2>
+                <h2>Welcome Back, {profile.profile.displayName}</h2>
                 <p>{profile.profile.email}</p>
+                {accountView !== "home" && <div className="account-view-header">
+                  <button type="button" onClick={() => { setAccountView("home"); setAccountActionMessage(""); }} aria-label="Back to account menu">←</button>
+                  <h3>{({ profile: "Profile", rewards: "Rewards & offers", orders: "Orders & receipts", communications: "Communication preferences", security: "Security", privacy: "Privacy & data", help: "Help & policies" } as Record<string, string>)[accountView]}</h3>
+                </div>}
                 {profile.profile.legal && !profile.profile.legal.acceptedCurrent && (
-                  <form className="account-legal-update" onSubmit={acceptCurrentPolicies}>
+                  <form className="account-legal-update" onSubmit={acceptCurrentPolicies} hidden={accountView !== "home"}>
                     <strong>Review the current account terms</strong>
                     <p>Accept version {profile.profile.legal.termsVersion} before placing another order.</p>
                     <label><input type="checkbox" checked={legalPoliciesAccepted} onChange={(event) => setLegalPoliciesAccepted(event.target.checked)} /><span>I agree to the <Link href="/terms" target="_blank">Terms</Link> and acknowledge the <Link href="/privacy" target="_blank">Privacy Policy</Link>.</span></label>
@@ -1290,7 +1344,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                     <button type="submit" className="primary-button" disabled={accountActionBusy}>{accountActionBusy ? "Saving..." : "Accept and continue"}</button>
                   </form>
                 )}
-                {profile.profile.rewards && <div className="loyalty-card">
+                {profile.profile.rewards && <div className="loyalty-card" hidden={accountView !== "home" && accountView !== "rewards"}>
                   <span>Deaf Shark Rewards</span>
                   <strong>{profile.profile.points} points</strong>
                   <div><i style={{ width: `${profile.profile.rewards.progress.percent}%` }} /></div>
@@ -1304,14 +1358,20 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                   </ul>}
                 </div>}
 
-                {profile.profile.welcomeOffer?.status === "active" && <div className="welcome-offer welcome-offer-active">
-                  <span>New member offer</span>
-                  <strong>50% off one drink</strong>
-                  <p>Use it at checkout on any drink. One drink, one time.</p>
-                </div>}
+                {accountView === "home" && <nav className="account-hub-menu" aria-label="Account sections">
+                  {([
+                    ["profile", "Profile", "Personal information, birthday, student status and referrals"],
+                    ["rewards", "Rewards & offers", "Points, reward choices, expiration and activity"],
+                    ["orders", "Orders & receipts", "Track orders and review complete receipts"],
+                    ["communications", "Communication preferences", "Order texts and promotional email"],
+                    ["security", "Security", "Password and sign-out controls"],
+                    ["privacy", "Privacy & data", "Download or delete your account data"],
+                    ["help", "Help & policies", "Contact, terms, privacy and cancellations"],
+                  ] as Array<[AccountView, string, string]>).map(([view, label, detail]) => <button type="button" key={view} onClick={() => { setAccountView(view); setAccountActionMessage(""); }}><span><strong>{label}</strong><small>{detail}</small></span><b aria-hidden="true">›</b></button>)}
+                </nav>}
 
                 {profile.profile.birthday?.isToday && (
-                  <div className={`welcome-offer birthday-offer${profile.profile.birthday.redeemedThisYear ? " welcome-offer-redeemed" : ""}`}>
+                  <div className={`welcome-offer birthday-offer${profile.profile.birthday.redeemedThisYear ? " welcome-offer-redeemed" : ""}`} hidden={accountView !== "rewards"}>
                     <span>Happy birthday</span>
                     {profile.profile.birthday.redeemedThisYear ? (
                       <><strong>Birthday drink redeemed</strong><p>Enjoy it, and happy birthday from Deaf Shark.</p></>
@@ -1324,7 +1384,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                 )}
 
                 {profile.profile.birthday && !profile.profile.birthday.onFile && (
-                  <form className="student-form birthday-form" onSubmit={saveBirthday} noValidate>
+                  <form className="student-form birthday-form" onSubmit={saveBirthday} noValidate hidden={accountView !== "profile"}>
                     <strong className="birthday-form-title">Add your birthday for a free drink every year</strong>
                     <div className="birthday-form-row">
                       <select value={birthdayMonth} onChange={(e) => { setBirthdayMonth(e.target.value); setBirthdayDay(""); setBirthdayMessage(""); }} aria-label="Birthday month">
@@ -1341,38 +1401,9 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                   </form>
                 )}
 
-                {profile.profile.referral?.code && (() => {
-                  const referral = profile.profile!.referral!;
-                  const link = `${window.location.origin}/?account=signup&ref=${referral.code}`;
-                  return (
-                    <div className="student-form referral-card">
-                      <label>Invite a friend, earn {referral.points} points
-                        <input type="text" readOnly value={link} onFocus={(e) => e.currentTarget.select()} aria-label="Your referral link" />
-                      </label>
-                      <button type="button" className="primary-button" onClick={() => void copyReferralLink(link)}>{referralCopied ? "Link copied" : "Copy my invite link"}</button>
-                      <small>You get {referral.points} points when a friend who signs up with your link completes their first order.{referral.joined > 0 ? ` ${referral.joined} joined, ${referral.rewarded} rewarded so far.` : ""}</small>
-                    </div>
-                  );
-                })()}
-
-                {profile.profile.studentVerified ? (
-                  <div className="student-status">
-                    <strong>Kean student discount active</strong>
-                    <small>10% off every order{profile.profile.studentEmail ? `, verified with ${profile.profile.studentEmail}` : ""}</small>
-                  </div>
-                ) : (
-                  <form className="student-form" onSubmit={requestStudentDiscount} noValidate>
-                    <label>Kean student? Get 10% off for good
-                      <input type="email" value={studentEmail} onChange={(e) => { setStudentEmail(e.target.value); setStudentMessage(""); }} placeholder="you@kean.edu" autoComplete="email" inputMode="email" />
-                    </label>
-                    <button type="submit" className="primary-button" disabled={studentBusy}>{studentBusy ? "Sending..." : "Verify my Kean email"}</button>
-                    {studentMessage && <small role="status">{studentMessage}</small>}
-                  </form>
-                )}
-
                 {/* Each order opens in place: items, order number and the points it
                     earned, so nothing sends the customer away from their account. */}
-                <div className="account-points-activity account-orders"><strong>Your recent orders</strong>
+                <div className="account-points-activity account-orders" hidden={accountView !== "orders"}><strong>Your recent orders</strong>
                   {recentOrders.length === 0 && <p>No orders yet.</p>}
                   {recentOrders.map((order) => {
                     const placed = order.createdAt ? new Date(order.createdAt) : null;
@@ -1404,24 +1435,85 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                     );
                   })}
                 </div>
-                {/* Name and number are captured at signup and shown read only: an
-                    order in the kitchen is matched to them, so they should not
-                    change underneath a ticket that is already being made. */}
-                <div className="account-details">
-                  <div><span>Name</span><strong>{profile.profile.displayName}</strong></div>
-                  <div><span>Mobile number</span><strong>{profile.profile.phone || "Not on file"}</strong></div>
-                  {profile.profile.birthday?.onFile && profile.profile.birthday.month && profile.profile.birthday.day && <div><span>Birthday</span><strong>{BIRTHDAY_MONTH_NAMES[profile.profile.birthday.month - 1]} {profile.profile.birthday.day}</strong></div>}
-                  <small>To change your name, number or birthday, call the shop at <a href="tel:+19084818884">(908) 481-8884</a>.</small>
+                <div className="account-member-benefits" hidden={accountView !== "orders"}>
+                  {profile.profile.welcomeOffer?.status === "active" && <div className="welcome-offer welcome-offer-active">
+                    <span>New member offer</span>
+                    <strong>50% off one drink</strong>
+                    <p>Use it at checkout on any drink. One drink, one time.</p>
+                  </div>}
+
+                  {profile.profile.referral?.code && (() => {
+                    const referral = profile.profile!.referral!;
+                    const link = `${window.location.origin}/?account=signup&ref=${referral.code}`;
+                    return (
+                      <div className="student-form referral-card">
+                        <label>Invite a friend, earn {referral.points} points!
+                          <input type="text" readOnly value={link} onFocus={(e) => e.currentTarget.select()} aria-label="Your referral link" />
+                        </label>
+                        <button type="button" className="primary-button" onClick={() => void copyReferralLink(link)}>{referralCopied ? "Link copied" : "Copy my invite link"}</button>
+                        <small>You get {referral.points} points when a friend who signs up with your link completes their first order.{referral.joined > 0 ? ` ${referral.joined} joined, ${referral.rewarded} rewarded so far.` : ""}</small>
+                      </div>
+                    );
+                  })()}
+
+                  {profile.profile.studentVerified ? (
+                    <div className="student-status">
+                      <strong>Kean student discount active</strong>
+                      <small>10% off every order{profile.profile.studentEmail ? `, verified with ${profile.profile.studentEmail}` : ""}</small>
+                    </div>
+                  ) : (
+                    <form className="student-form" onSubmit={requestStudentDiscount} noValidate>
+                      <label><span>Are you a Kean student?</span><strong>Get 10% off for good!</strong>
+                        <input type="email" value={studentEmail} onChange={(e) => { setStudentEmail(e.target.value); setStudentMessage(""); }} placeholder="you@kean.edu" autoComplete="email" inputMode="email" />
+                      </label>
+                      <button type="submit" className="primary-button" disabled={studentBusy}>{studentBusy ? "Sending..." : "Verify my Kean email"}</button>
+                      {studentMessage && <small role="status">{studentMessage}</small>}
+                    </form>
+                  )}
                 </div>
-                <div className="account-data-actions">
+                {accountView === "profile" && <form className="account-profile-form account-section-card" onSubmit={saveAccountProfile}>
+                  <label>Name<input value={profileName} maxLength={80} onChange={(event) => setProfileName(event.target.value)} autoComplete="name" /></label>
+                  <label>Email<input value={profile.profile.email} readOnly disabled /></label>
+                  <label>Mobile number<input value={profilePhone} maxLength={PHONE_INPUT_MAX_LENGTH} onChange={(event) => setProfilePhone(formatPhoneInput(event.target.value))} inputMode="tel" autoComplete="tel" placeholder="(908) 555-0100" /></label>
+                  {profile.profile.birthday?.onFile && profile.profile.birthday.month && profile.profile.birthday.day && <div className="account-locked-field"><span>Birthday</span><strong>{BIRTHDAY_MONTH_NAMES[profile.profile.birthday.month - 1]} {profile.profile.birthday.day}</strong><small>Birthday is locked after saving to protect the annual reward.</small></div>}
+                  <button type="submit" className="primary-button" disabled={accountActionBusy}>{accountActionBusy ? "Saving..." : "Save profile"}</button>
+                </form>}
+
+                {accountView === "rewards" && <div className="account-points-activity"><strong>Rewards activity</strong>
+                  {(profile.profile.activity ?? []).length === 0 && <p>No rewards activity yet.</p>}
+                  {(profile.profile.activity ?? []).map((entry) => <div key={entry.id}><span>{entry.reason.replaceAll("_", " ")}</span><b>{entry.pointsChange > 0 ? "+" : ""}{entry.pointsChange}</b></div>)}
+                  <small>Each earned award expires 12 months after it is issued. The oldest points are used first.</small>
+                </div>}
+
+                {accountView === "communications" && <div className="account-section-card account-preferences">
+                  <label><span><strong>Rewards and promotional email</strong><small>Offers, coffee news and member updates.</small></span><input type="checkbox" checked={marketingEmail} disabled={accountActionBusy} onChange={(event) => void updateMarketingPreference(event.target.checked)} /></label>
+                  <div><span><strong>Order-ready text messages</strong><small>Choose this separately at checkout for each order. We do not use order texts for marketing.</small></span></div>
+                </div>}
+
+                {accountView === "security" && <div className="account-section-card account-security-actions">
+                  <strong>Password</strong>
+                  <p>We will send a secure password-reset link to {profile.profile.email}.</p>
+                  <button type="button" className="primary-button" onClick={() => void sendAccountPasswordReset()} disabled={accountActionBusy}>{accountActionBusy ? "Sending..." : "Send password-reset email"}</button>
+                  <button type="button" className="account-signout" onClick={handleSignOut} disabled={authBusy}>Sign out</button>
+                </div>}
+
+                {accountView === "privacy" && <div className="account-data-actions account-section-card">
                   <a href="/api/profile/export" download>Download my information</a>
+                  <Link href="/privacy">Read the Privacy Policy</Link>
                   <button type="button" onClick={() => void closeCustomerAccount()} disabled={accountActionBusy}>Close and delete my account</button>
                   <small>Closing your account forfeits loyalty points. We anonymize retained order records and keep only records needed for legal, accounting, security, or opt-out purposes.</small>
-                </div>
+                </div>}
+
+                {accountView === "help" && <div className="account-section-card account-help-links">
+                  <a href="mailto:help@deafsharkcoffee.com">Contact Deaf Shark</a>
+                  <a href="tel:+19084818884">Call (908) 481-8884</a>
+                  <Link href="/terms">Terms and refund/cancellation information</Link>
+                  <Link href="/privacy">Privacy Policy</Link>
+                </div>}
                 {accountActionMessage && <small className="account-form-message" role="status">{accountActionMessage}</small>}
-                <button type="button" className="account-signout" onClick={handleSignOut} disabled={authBusy}>
+                {accountView === "home" && <button type="button" className="account-signout" onClick={handleSignOut} disabled={authBusy}>
                   Sign out
-                </button>
+                </button>}
                 {signOutError && <small className="account-form-message error" role="alert">{signOutError}</small>}
               </>
             )}

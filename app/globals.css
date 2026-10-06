@@ -821,6 +821,7 @@ h1, h2, h3, p { margin-top: 0; }
 .auth-consents b.consent-required { color: var(--ink); font-size: 13px; letter-spacing: 0; text-transform: none; }
 
 .account-modal > small { display: block; color: var(--muted); line-height: 1.5; margin-top: 4px; }
+.account-modal [hidden] { display: none !important; }
 .account-welcome { display: block; margin-bottom: 8px; color: var(--gold); font-size: 11px; font-weight: 850; letter-spacing: .15em; text-transform: uppercase; }
 .loyalty-card { display: grid; gap: 12px; margin: 24px 0 18px; border-radius: 22px; padding: 24px; background: var(--espresso); color: var(--paper); text-align: left; }
 .loyalty-card > span { color: #dca86b; font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
@@ -832,6 +833,7 @@ h1, h2, h3, p { margin-top: 0; }
 .loyalty-ready { margin: 2px 0 0; color: #f0d7b4; font-size: 13px; font-weight: 800; }
 .student-form { display: grid; gap: 9px; margin: 0 0 18px; border: 1px solid var(--line); border-radius: 14px; padding: 15px 16px; text-align: left; }
 .student-form label { display: grid; gap: 6px; color: var(--ink); font-size: 12.5px; font-weight: 800; }
+.student-form label > strong { font-size: inherit; }
 .student-form input { width: 100%; min-height: 44px; box-sizing: border-box; border: 1px solid rgba(45,26,18,.16); border-radius: 12px; background: #fff; color: var(--ink); padding: 0 13px; font: inherit; }
 .student-form input:focus { outline: 2px solid rgba(156,101,51,.22); border-color: var(--gold); }
 .student-form small { color: var(--muted); font-size: 12.5px; line-height: 1.45; }
@@ -841,6 +843,8 @@ h1, h2, h3, p { margin-top: 0; }
 .student-status { display: grid; gap: 4px; margin: 0 0 18px; border: 1px solid rgba(22,139,135,.28); border-radius: 14px; padding: 14px 16px; background: rgba(22,139,135,.07); text-align: left; }
 .student-status strong { color: var(--teal-dark, #0d5f5c); font-size: 14.5px; }
 .student-status small { color: var(--muted); font-size: 12.5px; }
+.account-member-benefits { display: grid; gap: 18px; margin-bottom: 20px; }
+.account-member-benefits > * { margin: 0; }
 /* Shown before the rewards programme opens: balance and bar only. */
 .loyalty-card-preview > strong { color: rgba(255,250,243,.5); }
 .loyalty-note { font-size: 13px; }
@@ -887,6 +891,34 @@ h1, h2, h3, p { margin-top: 0; }
 .account-profile-form label { display: grid; gap: 6px; color: var(--ink); font-size: 12px; font-weight: 800; }
 .account-profile-form input { width: 100%; min-height: 44px; box-sizing: border-box; border: 1px solid rgba(45,26,18,.16); border-radius: 12px; background: #fff; color: var(--ink); padding: 0 13px; font: inherit; }
 .account-profile-form input:focus { outline: 2px solid rgba(156,101,51,.22); border-color: var(--gold); }
+.account-view-header { display: grid; grid-template-columns: 42px minmax(0, 1fr) 42px; align-items: center; gap: 9px; margin: 22px 0 10px; }
+.account-view-header::after { content: ""; }
+.account-view-header button { width: 42px; height: 42px; border: 1px solid rgba(45,26,18,.13); border-radius: 50%; background: #fff; color: var(--espresso); font: inherit; font-size: 22px; cursor: pointer; }
+.account-view-header h3 { min-width: 0; margin: 0; font-family: Georgia, serif; font-size: clamp(22px, 6vw, 29px); line-height: 1.08; text-align: center; }
+.account-hub-menu { display: grid; margin: 20px 0 6px; border-top: 1px solid var(--line); text-align: left; }
+.account-hub-menu > button { display: flex; align-items: center; justify-content: space-between; gap: 18px; width: 100%; border: 0; border-bottom: 1px solid var(--line); padding: 16px 2px; background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.account-hub-menu > button:hover { color: var(--gold); }
+.account-hub-menu > button > span { display: grid; gap: 4px; }
+.account-hub-menu strong { font-size: 15px; }
+.account-hub-menu small { color: var(--muted); font-size: 11.5px; line-height: 1.4; }
+.account-hub-menu b { color: var(--muted); font-family: Georgia, serif; font-size: 30px; font-weight: 400; line-height: 1; }
+.account-section-card { margin: 18px 0; border: 1px solid rgba(34,18,12,.12); border-radius: 16px; padding: 17px; background: rgba(255,255,255,.58); text-align: left; }
+.account-profile-form.account-section-card { margin-top: 18px; }
+.account-profile-form input:disabled { opacity: 1; background: #f1ede8; color: var(--muted); }
+.account-locked-field { display: grid; gap: 3px; border-radius: 12px; padding: 12px 13px; background: #f1ede8; }
+.account-locked-field > span { color: var(--muted); font-size: 11px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
+.account-locked-field > small { color: var(--muted); font-size: 11px; line-height: 1.4; }
+.account-preferences { display: grid; gap: 0; padding-block: 4px; }
+.account-preferences > label, .account-preferences > div { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 15px 13px; }
+.account-preferences > label + div { border-top: 1px solid var(--line); }
+.account-preferences span { display: grid; gap: 4px; }
+.account-preferences small { color: var(--muted); font-size: 11.5px; line-height: 1.4; }
+.account-preferences input { width: 22px; height: 22px; flex: 0 0 22px; accent-color: var(--espresso); }
+.account-security-actions, .account-help-links { display: grid; gap: 12px; }
+.account-security-actions p { margin: -4px 0 3px; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.account-security-actions .account-signout { justify-self: start; margin-top: 2px; }
+.account-help-links a { border-bottom: 1px solid var(--line); padding: 5px 0 13px; color: var(--espresso); font-size: 14px; font-weight: 800; text-decoration: none; }
+.account-help-links a:last-child { border-bottom: 0; padding-bottom: 5px; }
 .account-signout { display: inline-block; margin-top: 14px; background: transparent; border: 0; padding: 0; color: #a33c2b; font-size: 13px; font-weight: 800; cursor: pointer; }
 .mobile-site-nav { display: none; }
 .mobile-scroll-progress { display: none; }
@@ -4157,8 +4189,8 @@ body.modal-open { touch-action: none; }
 .cart-recommendation > button { width: 100%; min-height: 30px; border: 1px solid var(--teal-dark); border-radius: 8px; padding: 0 6px; background: transparent; color: var(--teal-dark); font-size: 11.5px; font-weight: 850; cursor: pointer; }
 .cart-recommendation > button:hover { background: var(--teal-dark); color: white; }
 .empty-cart { min-height: 65vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-.empty-cart img { width: 96px; opacity: .18; }
-.empty-cart h3 { margin: 22px 0 8px; font-family: Georgia, serif; font-size: 26px; }
+.empty-cart img { width: 96px; opacity: 1; filter: brightness(0); }
+.empty-cart h3 { margin: 22px 0 8px; font-family: Georgia, serif; font-size: clamp(19px, 5.3vw, 26px); letter-spacing: -.02em; white-space: nowrap; }
 .empty-cart p { max-width: 280px; color: var(--muted); line-height: 1.5; }
 .empty-cart-menu-button { margin-top: 22px; min-width: 156px; text-decoration: none; }
 .checkout-card, .confirmation-card { position: relative; width: min(560px, 96vw); max-height: 94vh; overflow-y: auto; border-radius: 28px; padding: 46px; background: var(--paper); box-shadow: var(--shadow); }
@@ -5303,8 +5335,12 @@ body.modal-open { touch-action: none; }
   }
   .mobile-order-overlay-stage:not(.is-standalone) {
     position: relative;
+    z-index: 1;
     isolation: isolate;
     display: block;
+    /* Let the featured video carousel rise over the final pinned hero viewport
+       instead of appearing only after the hero has completely scrolled away. */
+    margin-top: calc(68px - 100svh);
     /* Match the carousel exactly so its reserved scroll space never creates a
        second tan band beneath the featured slide. */
     background: #be8e5d;

@@ -578,7 +578,7 @@ function ProductConfigurator({
           )}
           {hasSyrupOptions && (
             <fieldset className="option-group">
-              <legend>Flavor syrups</legend>
+              <legend>Extra flavor syrups</legend>
               <div className="syrup-grid">
                 {SYRUP_OPTIONS.map((flavor) => {
                   const isSelected = config.syrups.includes(flavor);

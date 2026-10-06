@@ -1,7 +1,7 @@
 import { issueWelcomeOffer } from "../../../lib/welcome-offer";
 import { and, desc, eq, like, sql } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../db";
-import { customerProfiles, loyaltyTransactions, memberOffers } from "../../../db/schema";
+import { customerProfiles, loyaltyTransactions, memberOffers, newsletterSubscriptions } from "../../../db/schema";
 import { getCustomerSession } from "../../../lib/auth";
 import { isStaffEmail } from "../../../lib/staff-auth";
 import { env } from "cloudflare:workers";
@@ -61,6 +61,9 @@ export async function GET(request: Request) {
   await ensureWelcomeBenefits(user);
   if (env.LOYALTY_ENABLED === "true") await refreshLoyaltyBalance(env.DB, user.id);
   const [profile] = await getDb().select().from(customerProfiles).where(eq(customerProfiles.userId, user.id)).limit(1);
+  const [marketingSubscription] = await getDb().select({ status: newsletterSubscriptions.status })
+    .from(newsletterSubscriptions).where(eq(newsletterSubscriptions.email, user.email.toLowerCase())).limit(1);
+  const preferences = { marketingEmail: marketingSubscription?.status === "active" };
   const birthday = birthdayStatus({ month: profile.birthdayMonth, day: profile.birthdayDay, setAt: profile.birthdaySetAt });
 
   if (env.LOYALTY_ENABLED !== "true") {
@@ -94,6 +97,7 @@ export async function GET(request: Request) {
           termsVersion: TERMS_VERSION,
           privacyVersion: PRIVACY_VERSION,
         },
+        preferences,
       },
     });
   }
@@ -165,13 +169,47 @@ export async function GET(request: Request) {
         termsVersion: TERMS_VERSION,
         privacyVersion: PRIVACY_VERSION,
       },
+      preferences,
     },
   });
 }
 
-/* No PATCH here on purpose. Name and phone are captured at signup and are
-   deliberately not editable afterwards: a ticket in the kitchen is matched to
-   them, so they must not change underneath an order already being made. A
-   customer who needs them corrected calls the shop. Removing the endpoint
-   rather than only hiding the form means the rule cannot be bypassed by
-   posting to the API directly. */
+export async function PATCH(request: Request) {
+  const session = await getCustomerSession(request);
+  if (!session || session.user.emailVerified !== true) return Response.json({ error: "Sign in to update your profile." }, { status: 401 });
+  await ensureSchema();
+  let payload: { displayName?: unknown; phone?: unknown; marketingEmail?: unknown };
+  try { payload = await request.json() as typeof payload; }
+  catch { return Response.json({ error: "We could not read that update." }, { status: 400 }); }
+
+  const displayName = typeof payload.displayName === "string" ? payload.displayName.trim().replace(/\s+/g, " ") : "";
+  const phoneText = typeof payload.phone === "string" ? payload.phone.trim() : "";
+  const phone = phoneText ? phoneText.replace(/[^0-9+()\- .]/g, "") : null;
+  if (displayName.length < 2 || displayName.length > 80) return Response.json({ error: "Enter the name we should use for your account." }, { status: 400 });
+  if (phone && phone.replace(/\D/g, "").length !== 10) return Response.json({ error: "Enter a complete 10-digit mobile number or leave it blank." }, { status: 400 });
+
+  const now = new Date();
+  await env.DB.batch([
+    env.DB.prepare("UPDATE customer_profiles SET display_name = ?, phone = ?, updated_at = unixepoch() WHERE user_id = ?")
+      .bind(displayName, phone, session.user.id),
+    env.DB.prepare('UPDATE "user" SET name = ?, updated_at = unixepoch() WHERE id = ?').bind(displayName, session.user.id),
+  ]);
+
+  if (typeof payload.marketingEmail === "boolean") {
+    if (payload.marketingEmail) {
+      await getDb().insert(newsletterSubscriptions).values({
+        email: session.user.email.toLowerCase(), status: "active",
+        consentText: "I agree to receive Deaf Shark Coffee news and promotions by email. I can unsubscribe at any time.",
+        consentSource: "account_preferences", consentedAt: now, updatedAt: now,
+      }).onConflictDoUpdate({
+        target: newsletterSubscriptions.email,
+        set: { status: "active", consentSource: "account_preferences", consentedAt: now, updatedAt: now },
+      });
+    } else {
+      await getDb().update(newsletterSubscriptions).set({ status: "unsubscribed", updatedAt: now })
+        .where(eq(newsletterSubscriptions.email, session.user.email.toLowerCase()));
+    }
+  }
+
+  return Response.json({ profile: { displayName, phone }, preferences: { marketingEmail: payload.marketingEmail === true } });
+}

@@ -26,10 +26,15 @@ export async function ensureReferralCode(userId: string, displayName: string, cu
   return null;
 }
 
-/** The member who owns a referral code, if any. */
+/** The member who owns a referral code, if any. Identity fields are returned so
+ * signup can reject obvious self-referrals before saving the relationship. */
 export async function referrerForCode(code: string) {
   if (!code) return null;
-  const [referrer] = await getDb().select({ userId: customerProfiles.userId })
+  const [referrer] = await getDb().select({
+    userId: customerProfiles.userId,
+    email: customerProfiles.email,
+    phone: customerProfiles.phone,
+  })
     .from(customerProfiles).where(eq(customerProfiles.referralCode, code)).limit(1);
-  return referrer?.userId ?? null;
+  return referrer ?? null;
 }

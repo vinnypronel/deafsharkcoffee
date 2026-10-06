@@ -73,6 +73,7 @@ function harness(t, reduced = false, delayLast = false, mobile = true, failLast 
       for (let step = 0; step < count; step++) {
         now += 16.67;
         for (const [id, fn] of [...callbacks]) { callbacks.delete(id); fn(now); }
+        await Promise.resolve();
       }
     },
     resize(height) { pinHeight = height; resize(); },
@@ -97,8 +98,8 @@ test("mobile frames follow forward/reverse scroll, coalesce events, and stop wor
   assert.equal(h.painted.at(-1), 120);
   assert.equal(h.queued, 0);
   assert.equal(h.requests, 24, "scrolling must not trigger more requests");
-  assert.equal(h.live, 24);
-  assert.equal(h.peak, 24);
+  assert.ok(h.live <= 6, "mobile keeps only a small decoded window");
+  assert.ok(h.peak <= 7, "a newly decoded sheet may briefly precede one eviction");
   h.stop();
   assert.equal(h.live, 0);
 });
@@ -142,10 +143,10 @@ test("both shipped sequences contain all twenty-four sheets", () => {
   }
 });
 
-test("scrubbing waits for the complete decoded sequence instead of stalling on a missing sheet", async (t) => {
+test("mobile scrubbing starts from its local decoded window without waiting for a distant sheet", async (t) => {
   const h = harness(t, false, true);
   await h.scroll(0.8);
-  assert.ok(h.painted.every(frame => frame === "poster"));
+  assert.equal(h.painted.at(-1), 191);
   h.releaseLast();
   await h.flush();
   assert.equal(h.painted.at(-1), 191);
@@ -187,10 +188,10 @@ test("unmount during a decode releases late bitmaps and never schedules more wor
 test("a failed sheet recovers online without reloading the other decoded sheets", async (t) => {
   const h = harness(t, false, false, true, true);
   await h.scroll(0.8);
-  assert.ok(h.painted.every(frame => frame === "poster"));
+  assert.equal(h.painted.at(-1), 191);
   h.window.dispatchEvent(new Event("online"));
   await h.flush();
   assert.equal(h.painted.at(-1), 191);
-  assert.equal(h.requests, 25);
-  assert.equal(h.live, 24);
+  assert.ok(h.requests >= 25 && h.requests <= 26, "only the failed sheet is retried");
+  assert.ok(h.live <= 6);
 });

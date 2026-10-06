@@ -1,7 +1,7 @@
 import { and, eq, ne } from "drizzle-orm";
 import { env } from "cloudflare:workers";
 import { ensureSchema, getDb } from "../../../../db";
-import { customerProfiles, orders } from "../../../../db/schema";
+import { customerProfiles, orders, users } from "../../../../db/schema";
 import { loadPromotions } from "../../../../lib/promotion-store";
 import { promotionAwards } from "../../../../lib/promotions";
 import {
@@ -9,6 +9,8 @@ import {
   REFERRAL_POINTS,
   REFERRAL_WINDOW_SECONDS,
   referralOrderQualifies,
+  normalizeReferralPhone,
+  referralPartiesAreDistinct,
   referralReference,
 } from "../../../../lib/referral";
 import { storeClock } from "../../../../lib/store-clock";
@@ -49,7 +51,11 @@ async function bonusStatements(order: typeof orders.$inferSelect, basePoints: nu
   if (!userId) return [];
   const [promotions, [profile]] = await Promise.all([
     loadPromotions(),
-    getDb().select({ referredByUserId: customerProfiles.referredByUserId }).from(customerProfiles).where(eq(customerProfiles.userId, userId)).limit(1),
+    getDb().select({
+      referredByUserId: customerProfiles.referredByUserId,
+      email: customerProfiles.email,
+      phone: customerProfiles.phone,
+    }).from(customerProfiles).where(eq(customerProfiles.userId, userId)).limit(1),
   ]);
 
   const visitsByPromotion = new Map<number, number>();
@@ -82,11 +88,31 @@ async function bonusStatements(order: typeof orders.$inferSelect, basePoints: nu
     onlyIfOrderComplete: order.id,
   }).map((statement) => env.DB.prepare(statement.sql).bind(...statement.values)));
 
-  if (
-    profile?.referredByUserId &&
-    profile.referredByUserId !== userId &&
-    referralOrderQualifies(order.subtotalCents, order.discountCents ?? 0)
-  ) {
+  if (profile?.referredByUserId && referralOrderQualifies(order.subtotalCents, order.discountCents ?? 0)) {
+    const [[referrer], [account], [priorCompletedOrder], referrerOrders] = await Promise.all([
+      getDb().select({ email: customerProfiles.email, phone: customerProfiles.phone })
+        .from(customerProfiles).where(eq(customerProfiles.userId, profile.referredByUserId)).limit(1),
+      getDb().select({ emailVerified: users.emailVerified }).from(users).where(eq(users.id, userId)).limit(1),
+      getDb().select({ id: orders.id }).from(orders).where(and(
+        eq(orders.customerUserId, userId),
+        eq(orders.status, "complete"),
+        ne(orders.id, order.id),
+      )).limit(1),
+      getDb().select({ phone: orders.phone }).from(orders)
+        .where(eq(orders.customerUserId, profile.referredByUserId)).limit(100),
+    ]);
+    const referredPhones = new Set([profile.phone, order.phone].map(normalizeReferralPhone).filter(Boolean));
+    const referrerPhones = new Set([referrer?.phone, ...referrerOrders.map((row) => row.phone)].map(normalizeReferralPhone).filter(Boolean));
+    const sharesKnownPhone = [...referredPhones].some((phone) => referrerPhones.has(phone));
+    const eligibleReferral = account?.emailVerified === true && !priorCompletedOrder && !sharesKnownPhone && referrer && referralPartiesAreDistinct({
+      referrerUserId: profile.referredByUserId,
+      referredUserId: userId,
+      referrerEmail: referrer.email,
+      referredEmail: profile.email,
+      referrerPhone: referrer.phone,
+      referredPhone: order.phone,
+    });
+    if (!eligibleReferral) return statements;
     const reason = "referral_first_order";
     statements.push(...loyaltyChangeStatements({
       userId: profile.referredByUserId,

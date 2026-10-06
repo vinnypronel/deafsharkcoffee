@@ -13,6 +13,44 @@ export function referralOrderQualifies(subtotalCents: number, discountCents: num
   return Math.max(0, subtotalCents - discountCents) >= REFERRAL_MINIMUM_PAID_CENTS;
 }
 
+/* Referral identity checks are deliberately stricter than sign-in identity.
+   Common mailbox aliases must not turn one person into several "friends". */
+export function normalizeReferralEmail(value: unknown) {
+  const email = typeof value === "string" ? value.trim().toLowerCase() : "";
+  const at = email.lastIndexOf("@");
+  if (at <= 0 || at === email.length - 1) return "";
+  let local = email.slice(0, at);
+  let domain = email.slice(at + 1);
+  if (domain === "googlemail.com") domain = "gmail.com";
+  if (["gmail.com", "outlook.com", "hotmail.com", "live.com", "icloud.com", "me.com", "mac.com"].includes(domain)) {
+    local = local.split("+")[0];
+  }
+  if (domain === "gmail.com") local = local.replaceAll(".", "");
+  return local && domain ? `${local}@${domain}` : "";
+}
+
+export function normalizeReferralPhone(value: unknown) {
+  const digits = typeof value === "string" ? value.replace(/\D/g, "") : "";
+  return digits.length >= 10 ? digits.slice(-10) : "";
+}
+
+export function referralPartiesAreDistinct(input: {
+  referrerUserId: string;
+  referredUserId: string;
+  referrerEmail: string;
+  referredEmail: string;
+  referrerPhone?: string | null;
+  referredPhone?: string | null;
+}) {
+  if (!input.referrerUserId || !input.referredUserId || input.referrerUserId === input.referredUserId) return false;
+  const referrerEmail = normalizeReferralEmail(input.referrerEmail);
+  const referredEmail = normalizeReferralEmail(input.referredEmail);
+  if (!referrerEmail || !referredEmail || referrerEmail === referredEmail) return false;
+  const referrerPhone = normalizeReferralPhone(input.referrerPhone);
+  const referredPhone = normalizeReferralPhone(input.referredPhone);
+  return !(referrerPhone && referredPhone && referrerPhone === referredPhone);
+}
+
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 export function normalizeReferralCode(value: unknown) {
