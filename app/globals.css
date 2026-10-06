@@ -5480,7 +5480,7 @@ body.modal-open { touch-action: none; }
   .config-product { min-height: 44vh; padding: 28px 24px; }
   .config-product .product-hot .product-photo,
   .config-product .product-iced .product-photo {
-    transform: translateY(-24px) scale(1.32);
+    transform: translateY(-18px) scale(1.48);
   }
   .config-product .product-visual-compact { height: 220px; }
   .config-product h2 { font-size: 34px; }
@@ -5496,13 +5496,13 @@ body.modal-open { touch-action: none; }
   }
   .configurator:not([data-layout="food"]) .config-product-info h2 {
     max-width: 100%;
-    font-size: clamp(34px, 9.6vw, 40px);
-    line-height: 1.02;
+    font-size: clamp(24px, 7.2vw, 30px);
+    line-height: 1.06;
     white-space: nowrap;
   }
   .configurator:not([data-layout="food"]) .config-product-info strong {
     align-self: flex-start;
-    font-size: 34px;
+    font-size: 22px;
     line-height: 1;
   }
   .config-options { padding: 34px 20px calc(32px + env(safe-area-inset-bottom)); }
