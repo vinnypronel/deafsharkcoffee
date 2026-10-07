@@ -195,7 +195,7 @@ export const DECAF_MODIFIER: ModifierGroup = {
   ],
 };
 
-const cheeseChoice = (defaultLabel = "Default cheese"): ModifierGroup => ({
+const cheeseChoice = (defaultLabel = "Yellow American"): ModifierGroup => ({
   label: "Cheese choice",
   type: "single",
   required: true,
@@ -1413,7 +1413,7 @@ export const featuredProducts = [
    "No lettuce" and "Add bacon" point at Lettuce and Bacon, milks, syrups and
    tea flavors are their own ingredient. Choices that are not ingredients
    (ice level, "No sweetener", a regular coffee) have none. */
-const NOT_INGREDIENTS = new Set(["Regular ice", "Light ice", "No ice", "No sweetener", "Regular", "Extra meat", "Extra cheese", "Default cheese", "Water"]);
+const NOT_INGREDIENTS = new Set(["Regular ice", "Light ice", "No ice", "No sweetener", "Regular", "Extra meat", "Extra cheese", "Yellow American", "Water"]);
 const INGREDIENT_ALIASES: Record<string, string> = { swiss: "Swiss cheese", provolone: "Provolone cheese", "pepper jack": "Pepper jack cheese" };
 
 export const NO_INGREDIENTS_OUT: ReadonlySet<string> = new Set();

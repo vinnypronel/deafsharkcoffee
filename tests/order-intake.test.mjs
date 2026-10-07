@@ -203,7 +203,7 @@ test("made-to-order cheese items offer the shop's cheese swaps", () => {
   for (const id of cheeseItemIds) {
     const product = menuProducts.find((item) => item.id === id);
     const cheeseChoice = product?.modifierGroups?.find((group) => group.label === "Cheese choice");
-    const expectedDefault = id === "ham-cheese-croissant" ? "Yellow American" : "Default cheese";
+    const expectedDefault = "Yellow American";
     assert.deepEqual(cheeseChoice?.options.map((option) => option.label), [
       expectedDefault,
       "Swiss",
