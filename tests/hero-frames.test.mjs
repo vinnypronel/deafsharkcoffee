@@ -27,7 +27,7 @@ function harness(t, reduced = false, delayLast = false, mobile = true, failLast 
   const painted = [];
   const callbacks = new Map();
   let next = 0;
-  const window = Object.assign(new EventTarget(), { innerHeight: 800, scrollY: 0, setTimeout, clearTimeout });
+  const window = Object.assign(new EventTarget(), { innerHeight: 800, innerWidth: 390, scrollY: 0, setTimeout, clearTimeout });
   const document = Object.assign(new EventTarget(), { hidden: false });
   set("window", window);
   set("document", document);
@@ -98,8 +98,8 @@ test("mobile frames follow forward/reverse scroll, coalesce events, and stop wor
   assert.equal(h.painted.at(-1), 120);
   assert.equal(h.queued, 0);
   assert.equal(h.requests, 24, "scrolling must not trigger more requests");
-  assert.ok(h.live <= 6, "mobile keeps only a small decoded window");
-  assert.ok(h.peak <= 7, "a newly decoded sheet may briefly precede one eviction");
+  assert.ok(h.live <= 4, "mobile keeps only a small decoded window");
+  assert.ok(h.peak <= 5, "a newly decoded sheet may briefly precede one eviction");
   h.stop();
   assert.equal(h.live, 0);
 });
@@ -170,9 +170,11 @@ test("desktop uses the complete sequence and never measures layout during scroll
 test("mobile toolbar height changes do not shift the current animation frame", async (t) => {
   const h = harness(t);
   await h.scroll(0.5);
+  const reads = h.layoutReads;
   h.resize(820);
   await h.flush();
   assert.equal(h.painted.at(-1), 120);
+  assert.equal(h.layoutReads, reads, "height-only toolbar changes must not remeasure the scroll timeline");
 });
 
 test("unmount during a decode releases late bitmaps and never schedules more work", async (t) => {
@@ -193,5 +195,5 @@ test("a failed sheet recovers online without reloading the other decoded sheets"
   await h.flush();
   assert.equal(h.painted.at(-1), 191);
   assert.ok(h.requests >= 25 && h.requests <= 26, "only the failed sheet is retried");
-  assert.ok(h.live <= 6);
+  assert.ok(h.live <= 4);
 });

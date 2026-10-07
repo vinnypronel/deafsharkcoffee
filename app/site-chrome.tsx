@@ -174,6 +174,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
   const [accountActionMessage, setAccountActionMessage] = useState("");
   const [accountActionBusy, setAccountActionBusy] = useState(false);
   const [accountView, setAccountView] = useState<AccountView>("home");
+  const [accountViewDirection, setAccountViewDirection] = useState<"forward" | "back">("forward");
   const [profileName, setProfileName] = useState("");
   const [profilePhone, setProfilePhone] = useState("");
   const [marketingEmail, setMarketingEmail] = useState(false);
@@ -410,6 +411,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
     setSearchOpen(false);
     setProfileClosing(false);
     setProfileOpen(true);
+    setAccountViewDirection("back");
     setAccountView("home");
     setAuthError("");
     setAuthNotice("");
@@ -1331,8 +1333,9 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
               <>
                 <h2>Welcome Back, {profile.profile.displayName.trim().split(/\s+/)[0]}</h2>
                 <p>{profile.profile.email}</p>
+                <div key={accountView} className={`account-view-transition account-view-${accountViewDirection}`}>
                 {accountView !== "home" && <div className="account-view-header">
-                  <button type="button" onClick={() => { setAccountView("home"); setAccountActionMessage(""); }} aria-label="Back to account menu">←</button>
+                  <button type="button" onClick={() => { setAccountViewDirection("back"); setAccountView("home"); setAccountActionMessage(""); }} aria-label="Back to account menu">←</button>
                   <h3>{({ profile: "Profile", rewards: "Rewards & offers", orders: "Orders & receipts", communications: "Communication preferences", security: "Security", privacy: "Privacy & data", help: "Help & policies" } as Record<string, string>)[accountView]}</h3>
                 </div>}
                 {profile.profile.legal && !profile.profile.legal.acceptedCurrent && (
@@ -1344,7 +1347,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                     <button type="submit" className="primary-button" disabled={accountActionBusy}>{accountActionBusy ? "Saving..." : "Accept and continue"}</button>
                   </form>
                 )}
-                {profile.profile.rewards && <div className="loyalty-card" hidden={accountView !== "home" && accountView !== "rewards"}>
+                {profile.profile.rewards && <div className="loyalty-card" hidden={accountView !== "rewards"}>
                   <span>Deaf Shark Rewards</span>
                   <strong>{profile.profile.points} points</strong>
                   <div><i style={{ width: `${profile.profile.rewards.progress.percent}%` }} /></div>
@@ -1367,7 +1370,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                     ["security", "Security", "Password and sign-out controls"],
                     ["privacy", "Privacy & data", "Download or delete your account data"],
                     ["help", "Help & policies", "Contact, terms, privacy and cancellations"],
-                  ] as Array<[AccountView, string, string]>).map(([view, label, detail]) => <button type="button" key={view} onClick={() => { setAccountView(view); setAccountActionMessage(""); }}><span><strong>{label}</strong><small>{detail}</small></span><b aria-hidden="true">›</b></button>)}
+                  ] as Array<[AccountView, string, string]>).map(([view, label, detail]) => <button type="button" key={view} onClick={() => { setAccountViewDirection("forward"); setAccountView(view); setAccountActionMessage(""); }}><span><strong>{label}</strong><small>{detail}</small></span><b aria-hidden="true">›</b></button>)}
                 </nav>}
 
                 {profile.profile.birthday?.isToday && (
@@ -1515,6 +1518,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                   Sign out
                 </button>}
                 {signOutError && <small className="account-form-message error" role="alert">{signOutError}</small>}
+                </div>
               </>
             )}
           </section>

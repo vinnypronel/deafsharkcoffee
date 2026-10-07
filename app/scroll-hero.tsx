@@ -25,7 +25,7 @@ export default function ScrollHero({
     const pin = pinRef.current;
     const canvas = canvasRef.current;
     if (!wrap || !pin || !canvas) return;
-    const ctx = canvas.getContext("2d", { alpha: false });
+    const ctx = canvas.getContext("2d", { alpha: false, desynchronized: true });
     if (!ctx) return;
 
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");

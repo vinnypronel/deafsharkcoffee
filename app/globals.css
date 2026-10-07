@@ -891,6 +891,16 @@ h1, h2, h3, p { margin-top: 0; }
 .account-profile-form label { display: grid; gap: 6px; color: var(--ink); font-size: 12px; font-weight: 800; }
 .account-profile-form input { width: 100%; min-height: 44px; box-sizing: border-box; border: 1px solid rgba(45,26,18,.16); border-radius: 12px; background: #fff; color: var(--ink); padding: 0 13px; font: inherit; }
 .account-profile-form input:focus { outline: 2px solid rgba(156,101,51,.22); border-color: var(--gold); }
+.account-view-transition { min-width: 0; animation: account-view-forward .3s cubic-bezier(.22,.8,.28,1) both; }
+.account-view-transition.account-view-back { animation-name: account-view-back; }
+@keyframes account-view-forward {
+  from { opacity: 0; transform: translateX(34px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes account-view-back {
+  from { opacity: 0; transform: translateX(-34px); }
+  to { opacity: 1; transform: translateX(0); }
+}
 .account-view-header { display: grid; grid-template-columns: 42px minmax(0, 1fr) 42px; align-items: center; gap: 9px; margin: 22px 0 10px; }
 .account-view-header::after { content: ""; }
 .account-view-header button { width: 42px; height: 42px; border: 1px solid rgba(45,26,18,.13); border-radius: 50%; background: #fff; color: var(--espresso); font: inherit; font-size: 22px; cursor: pointer; }
@@ -920,6 +930,9 @@ h1, h2, h3, p { margin-top: 0; }
 .account-help-links a { border-bottom: 1px solid var(--line); padding: 5px 0 13px; color: var(--espresso); font-size: 14px; font-weight: 800; text-decoration: none; }
 .account-help-links a:last-child { border-bottom: 0; padding-bottom: 5px; }
 .account-signout { display: inline-block; margin-top: 14px; background: transparent; border: 0; padding: 0; color: #a33c2b; font-size: 13px; font-weight: 800; cursor: pointer; }
+@media (prefers-reduced-motion: reduce) {
+  .account-view-transition { animation-duration: .01ms; }
+}
 .mobile-site-nav { display: none; }
 .mobile-scroll-progress { display: none; }
 

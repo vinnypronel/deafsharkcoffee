@@ -2,9 +2,10 @@ const SHEET_COUNT = 24;
 const FRAMES_PER_SHEET = 10;
 const COLUMNS = 5;
 const LAST_FRAME = SHEET_COUNT * FRAMES_PER_SHEET - 1;
+const MOBILE_SHEET_LIMIT = 4;
 
 // Desktop keeps the complete sequence decoded. Mobile keeps the compressed
-// sheets cached but only six decoded bitmaps resident (about 27 MiB instead of
+// sheets cached but only four decoded bitmaps resident (about 18 MiB instead of
 // 106 MiB), which avoids the memory pressure that made Safari scrolling jank.
 export function startHeroFrames(
   wrap: HTMLElement,
@@ -39,6 +40,8 @@ export function startHeroFrames(
   let attempts = 0;
   let wantedSheet = 0;
   let wantedFrame = 0;
+  let lastWarmCenter = -1;
+  let lastViewportWidth = window.innerWidth || 0;
 
   const sheetUrl = (index: number) => `/${mobile ? "hero-frames-v4/mobile" : "hero-frames-v3/desktop"}/${String(index).padStart(2, "0")}.jpg`;
   const touch = (index: number, bitmap: ImageBitmap) => {
@@ -47,7 +50,7 @@ export function startHeroFrames(
   };
   const trimMobile = () => {
     if (!mobile) return;
-    while (sheets.size > 6) {
+    while (sheets.size > MOBILE_SHEET_LIMIT) {
       const oldest = [...sheets.keys()].find((index) => index !== wantedSheet);
       if (oldest === undefined) break;
       const bitmap = sheets.get(oldest);
@@ -95,13 +98,19 @@ export function startHeroFrames(
   };
   const warmMobileWindow = (index: number) => {
     if (!mobile || disposed) return;
+    const direction = index >= wantedSheet ? 1 : -1;
     wantedSheet = index;
+    if (lastWarmCenter === index && sheets.has(index)) return;
+    lastWarmCenter = index;
     void decodeSheet(index).then((bitmap) => {
       if (!bitmap || disposed) return;
       ready = true;
       if (wantedSheet === index && painted !== wantedFrame) schedule();
       void (async () => {
-        for (const nearby of [index + 1, index - 1, index + 2, index - 2]) {
+        /* Keep only the immediately adjacent sheets warm. Decoding four
+           neighbours on every boundary crossing caused brief CPU and memory
+           spikes on iPhone Safari while it was also compositing a scroll. */
+        for (const nearby of [index + direction, index - direction]) {
           if (nearby >= 0 && nearby < SHEET_COUNT) await decodeSheet(nearby);
         }
       })();
@@ -226,7 +235,18 @@ export function startHeroFrames(
       retryTimer = window.setTimeout(() => { retryTimer = 0; void load(); }, attempts * 1000);
     }
   };
-  const resize = () => { geometryDirty = true; schedule(); };
+  const resize = () => {
+    const viewportWidth = window.innerWidth || 0;
+    /* Safari changes the visual viewport height while its address bar moves.
+       The mobile canvas uses stable lvh sizing, so remeasuring the entire hero
+       on those height-only events creates work without changing the timeline. */
+    if (!mobile || viewportWidth !== lastViewportWidth) {
+      lastViewportWidth = viewportWidth;
+      geometryDirty = true;
+    }
+    needsPaint = true;
+    schedule();
+  };
   const resume = () => {
     lastTime = 0;
     window.clearTimeout(retryTimer);
