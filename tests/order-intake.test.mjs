@@ -180,12 +180,14 @@ test("every sandwich served with fries can be ordered without French fries", () 
   }
 });
 
-test("every sandwich can switch to white bread for free", () => {
-  const sandwiches = menuProducts.filter((product) => product.category === "Sandwiches");
+test("only the NJ Classic, Ham and Cheese and Turkey BLT can switch to white bread", () => {
+  const swappable = new Set(["nj-classic", "ham-cheese-croissant", "turkey-blt"]);
 
-  for (const product of sandwiches) {
+  for (const product of menuProducts) {
     const breadGroup = product.modifierGroups?.find((group) => group.label === "Bread");
-    assert.ok(breadGroup?.options.some((option) => option.label === "White bread"), product.name);
+    const offersWhite = Boolean(breadGroup?.options.some((option) => option.label === "White bread"));
+    assert.equal(offersWhite, swappable.has(product.id), product.name);
+    if (!offersWhite) continue;
     const [regular] = priceCart([{ id: product.id, quantity: 1 }]);
     const [whiteBread] = priceCart([{
       id: product.id,
@@ -313,7 +315,7 @@ test("prices the October owner menu update and keeps required choices on the kit
   assert.ok(whiteBread.options.includes("Preparation: Not toasted"));
 
   const [hamAndCheese] = priceCart([{ id: "ham-cheese-croissant", quantity: 1 }]);
-  assert.equal(hamAndCheese.options.some((option) => option.startsWith("Bread:")), false);
+  assert.ok(hamAndCheese.options.includes("Bread: Kaiser roll"));
 
   const [frenchToast] = priceCart([{ id: "french-toast", quantity: 1, selection: { modifiers: { Bacon: ["Turkey bacon"], "Remove ingredients": ["No hash brown"] } } }]);
   assert.ok(frenchToast.options.includes("Bacon: Turkey bacon"));
@@ -367,7 +369,7 @@ test("matches the printed Morning Handhelds menu and accommodations", () => {
   assert.match(menuProducts.find((product) => product.id === "tuna-sandwich").description, /white bread/);
   assert.match(menuProducts.find((product) => product.id === "grilled-cheese").description, /white bread/);
   assert.deepEqual(group("breakfast-wrap", "Meat")?.options.map((option) => option.label).slice(0, 5), ["Ham", "Bacon", "Turkey bacon", "Taylor ham", "Sausage"]);
-  assert.deepEqual(group("turkey-blt", "Bread")?.options.map((option) => option.label), ["Roll", "Wrap"]);
+  assert.deepEqual(group("turkey-blt", "Bread")?.options.map((option) => option.label), ["Roll", "White bread", "Wrap"]);
   assert.deepEqual(group("plain-croissant", "Spread")?.options, [{ label: "Butter", price: 1 }, { label: "Jelly", price: 1 }]);
 });
 
