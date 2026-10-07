@@ -5353,6 +5353,9 @@ body.modal-open { touch-action: none; }
     /* Match the carousel exactly so its reserved scroll space never creates a
        second tan band beneath the featured slide. */
     background: #be8e5d;
+    overflow: clip;
+    border-top-left-radius: clamp(36px, 4.5vw, 60px);
+    border-top-right-radius: clamp(36px, 4.5vw, 60px);
   }
   /* Lift the cup toward the navbar and let the espresso backdrop fill beneath it.
      zoom < 1 frees vertical space, focus-y .18 keeps a gap under the header so it
