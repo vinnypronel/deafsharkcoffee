@@ -16,7 +16,8 @@ type OrderHistoryItem = { name: string; quantity: number; unitPrice?: number; op
 type ContactRecord = { id: number; name: string; email: string; phone?: string | null; topic: string; message: string; createdAt: string | Date };
 type ApplicationRecord = { id: number; fullName: string; email: string; phone: string; position: string; employmentType: string; experience?: string | null; why?: string | null; createdAt: string | Date };
 type SubscriberRecord = { id: number; email: string; status: string; consentText: string; consentedAt: string | Date };
-type Records = { orders: OrderRecord[]; contacts: ContactRecord[]; applications: ApplicationRecord[]; subscribers: SubscriberRecord[] };
+type OrderSummary = { totalOrders: number; subtotalCents: number };
+type Records = { orders: OrderRecord[]; orderSummary: OrderSummary; contacts: ContactRecord[]; applications: ApplicationRecord[]; subscribers: SubscriberRecord[] };
 type LoyaltyMember = { userId: string; email: string; displayName: string; phone?: string | null; points: number; lifetimePoints: number; updatedAt: string; birthday?: { onFile: boolean; month: number | null; day: number | null; isToday: boolean; eligibleToday: boolean; redeemedThisYear: boolean; maxCents: number }; referredByName?: string | null; welcomeOffer?: MemberOffer | null };
 const BIRTHDAY_MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 type LoyaltyTransaction = { id: number; userId: string; orderId?: number | null; pointsChange: number; balanceAfter: number; reason: string; createdAt: string };
@@ -41,7 +42,7 @@ export function AdminPanels({ view }: { view: View }) {
   const [featured, setFeatured] = useState<Featured[]>([]);
   const [menu, setMenu] = useState<MenuDraft[]>([]);
   const [events, setEvents] = useState<EventDraft[]>([]);
-  const [records, setRecords] = useState<Records>({ orders: [], contacts: [], applications: [], subscribers: [] });
+  const [records, setRecords] = useState<Records>({ orders: [], orderSummary: { totalOrders: 0, subtotalCents: 0 }, contacts: [], applications: [], subscribers: [] });
   const [loyalty, setLoyalty] = useState<LoyaltyData>({ members: [], transactions: [], offers: [], admins: [] });
   const [message, setMessage] = useState("");
   const [newEvent, setNewEvent] = useState<EventDraft>(emptyEvent);
@@ -148,6 +149,10 @@ export function AdminPanels({ view }: { view: View }) {
 
   if (view === "history") return (
     <AdminSection title="Complete order history" description="Every website order is retained here with its date, payment method, pickup type, total, and final status.">
+      <div className="record-summary order-history-totals" aria-label="All-time order totals">
+        <span><strong>{records.orderSummary.totalOrders.toLocaleString()}</strong> total orders</span>
+        <span><strong>{dollars(records.orderSummary.subtotalCents)}</strong> total order subtotal</span>
+      </div>
       <OrderHistoryTable orders={records.orders} />
     </AdminSection>
   );

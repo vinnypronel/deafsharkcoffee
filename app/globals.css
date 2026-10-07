@@ -4674,6 +4674,9 @@ body.modal-open { touch-action: none; }
 .record-summary { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 30px; }
 .record-summary span { border: 1px solid var(--line); border-radius: 13px; padding: 14px 18px; background: white; color: var(--muted); }
 .record-summary strong { margin-right: 5px; color: var(--ink); font-size: 21px; }
+.order-history-totals { margin-top: 28px; margin-bottom: 18px; }
+.order-history-totals span { min-width: 220px; padding: 18px 22px; }
+.order-history-totals strong { display: block; margin: 0 0 4px; font-family: Georgia, serif; font-size: 30px; }
 .records-block { margin-top: 34px; }
 .records-block h2 { margin: 0 0 14px; font-family: Georgia, serif; font-size: 30px; }
 .records-list { display: grid; gap: 10px; }

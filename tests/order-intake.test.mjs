@@ -180,6 +180,23 @@ test("every sandwich served with fries can be ordered without French fries", () 
   }
 });
 
+test("every sandwich can switch to white bread for free", () => {
+  const sandwiches = menuProducts.filter((product) => product.category === "Sandwiches");
+
+  for (const product of sandwiches) {
+    const breadGroup = product.modifierGroups?.find((group) => group.label === "Bread");
+    assert.ok(breadGroup?.options.some((option) => option.label === "White bread"), product.name);
+    const [regular] = priceCart([{ id: product.id, quantity: 1 }]);
+    const [whiteBread] = priceCart([{
+      id: product.id,
+      quantity: 1,
+      selection: { modifiers: { Bread: ["White bread"] } },
+    }]);
+    assert.equal(whiteBread.unitPrice, regular.unitPrice, product.name);
+    assert.ok(whiteBread.options.includes("Bread: White bread"), product.name);
+  }
+});
+
 test("made-to-order cheese items offer the shop's cheese swaps", () => {
   const cheeseItemIds = [
     "nj-classic",
