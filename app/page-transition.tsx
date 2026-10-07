@@ -8,6 +8,8 @@ export function PageTransition() {
   const [transitionState, setTransitionState] = useState<"idle" | "entering" | "covering" | "exiting">("exiting");
   const isNavigatingRef = useRef(false);
   const targetUrlRef = useRef<string | null>(null);
+  const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const stuckTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     function handleRejection(event: PromiseRejectionEvent) {
@@ -30,17 +32,44 @@ export function PageTransition() {
   // When pathname changes (or on initial load), exit the curtain smoothly upwards
   useEffect(() => {
     // Reveal the newly loaded page immediately
+    let endTimer: ReturnType<typeof setTimeout> | undefined;
     const timer = setTimeout(() => {
       setTransitionState("exiting");
-      const endTimer = setTimeout(() => {
+      endTimer = setTimeout(() => {
         setTransitionState("idle");
         isNavigatingRef.current = false;
-      }, 380);
-      return () => clearTimeout(endTimer);
+      }, 300);
     }, 15);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(endTimer);
+    };
   }, [pathname]);
+
+  // Going back can restore this page from the browser's back/forward cache with
+  // the curtain still covering it. Nothing re-runs in that case, so lift it here.
+  useEffect(() => {
+    let endTimer: ReturnType<typeof setTimeout> | undefined;
+    function liftCurtain() {
+      clearTimeout(leaveTimerRef.current);
+      clearTimeout(stuckTimerRef.current);
+      isNavigatingRef.current = false;
+      setTransitionState((state) => (state === "idle" ? state : "exiting"));
+      clearTimeout(endTimer);
+      endTimer = setTimeout(() => setTransitionState("idle"), 300);
+    }
+    function handlePageShow(event: PageTransitionEvent) {
+      if (event.persisted) liftCurtain();
+    }
+    window.addEventListener("pageshow", handlePageShow);
+    window.addEventListener("popstate", liftCurtain);
+    return () => {
+      clearTimeout(endTimer);
+      window.removeEventListener("pageshow", handlePageShow);
+      window.removeEventListener("popstate", liftCurtain);
+    };
+  }, []);
 
   // Intercept internal link clicks to trigger the drop-down transition
   useEffect(() => {
@@ -81,11 +110,17 @@ export function PageTransition() {
         // Phase 1: Drop curtain down from top to bottom
         setTransitionState("entering");
 
-        setTimeout(() => {
+        leaveTimerRef.current = setTimeout(() => {
           setTransitionState("covering");
           // Navigate once the curtain completely covers the screen
           window.location.href = targetUrlRef.current || href;
-        }, 370);
+          // If the browser never leaves (cancelled or failed load), do not
+          // leave the visitor stuck behind the curtain.
+          stuckTimerRef.current = setTimeout(() => {
+            isNavigatingRef.current = false;
+            setTransitionState("idle");
+          }, 6000);
+        }, 280);
       }
     }
 

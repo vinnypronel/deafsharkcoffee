@@ -3489,6 +3489,32 @@ h1, h2, h3, p { margin-top: 0; }
   color: var(--paper);
   transform: translateX(2px);
 }
+/* Arrow that draws in from left to right beside the hovered link, in step
+   with the underline. */
+.footer-col li a::before,
+.footer-legal a::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 7px);
+  width: 13px;
+  height: 10px;
+  margin-top: -5px;
+  background: var(--gold);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 13 10' fill='none' stroke='%23000' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 5h11M8 1l4 4-4 4'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 13 10' fill='none' stroke='%23000' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 5h11M8 1l4 4-4 4'/%3E%3C/svg%3E") center / contain no-repeat;
+  opacity: 0;
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path .24s ease, opacity .24s ease;
+  pointer-events: none;
+}
+.footer-col li a:hover::before,
+.footer-col li a:focus-visible::before,
+.footer-legal a:hover::before,
+.footer-legal a:focus-visible::before {
+  opacity: 1;
+  clip-path: inset(0);
+}
 .footer-col li a:hover::after,
 .footer-col li a:focus-visible::after,
 .footer-legal a:hover::after,
@@ -6253,11 +6279,11 @@ body.modal-open { touch-action: none; }
 /* The curtain settles in place rather than dropping from the top, then still
    sweeps up to reveal the next page. */
 .page-transition-curtain.curtain-enter {
-  animation: curtainFadeIn 0.3s ease-out forwards;
+  animation: curtainFadeIn 0.22s ease-out forwards;
 }
 
 .page-transition-curtain.curtain-exit {
-  animation: curtainSweepUp 0.38s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: curtainSweepUp 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 @keyframes curtainFadeIn {

@@ -19,6 +19,7 @@ import {
   hasMilkOptionsForProduct,
   hasSyrupOptionsForProduct,
   menuProducts,
+  picturesFirst,
   MILK_OPTIONS,
   ingredientForOption,
   ingredientKey,
@@ -1237,9 +1238,9 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
           if (Array.isArray(data.menu)) {
             const overrides = new Map<string, MenuContentOverride>(data.menu.map((item: MenuContentOverride) => [item.productId, item]));
             const removed = new Set(Array.isArray(data.removed) ? data.removed : []);
-            const nextProducts = menuProducts
+            const nextProducts = picturesFirst(menuProducts
               .filter((product) => !removed.has(product.id))
-              .map((product) => applyMenuContentOverride(product, overrides.get(product.id)));
+              .map((product) => applyMenuContentOverride(product, overrides.get(product.id))));
             setProducts((current) => JSON.stringify(current) === JSON.stringify(nextProducts) ? current : nextProducts);
           }
           if (typeof data.prepTime === "number") setPrepTime(data.prepTime);

@@ -476,7 +476,7 @@ export function priceProductSelection(product: Product, input: ProductSelection 
   };
 }
 
-export const menuProducts: Product[] = [
+const catalogProducts: Product[] = [
   {
     id: "pistachio-latte",
     name: "Pistachio Latte",
@@ -1404,6 +1404,22 @@ export const menuProducts: Product[] = [
     photo: "/menu/fridge/el-chichero-chicha-330ml-catalog-v1.png",
   },
 ];
+
+/* Within each menu section, items that have a picture come first and the ones
+   still showing "Image coming soon" go last. Everything else keeps its order. */
+export function picturesFirst(products: Product[]): Product[] {
+  const groupStart = new Map<string, number>();
+  products.forEach((product, index) => {
+    const group = `${product.category}|${product.section ?? ""}`;
+    if (!groupStart.has(group)) groupStart.set(group, index);
+  });
+  return products
+    .map((product, index) => ({ product, index, start: groupStart.get(`${product.category}|${product.section ?? ""}`)! }))
+    .sort((a, b) => a.start - b.start || Number(Boolean(a.product.imageComingSoon)) - Number(Boolean(b.product.imageComingSoon)) || a.index - b.index)
+    .map(({ product }) => product);
+}
+
+export const menuProducts: Product[] = picturesFirst(catalogProducts);
 
 export const featuredProducts = [
   { ...menuProducts.find((product) => product.id === "strawberry-matcha")!, featuredCategoryLabel: "Beverages" },
