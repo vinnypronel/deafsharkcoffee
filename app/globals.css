@@ -5338,6 +5338,9 @@ body.modal-open { touch-action: none; }
     height: calc(100svh - 68px);
     min-height: 0;
     margin-bottom: clamp(112px, 18svh, 168px);
+    overflow: hidden;
+    border-top-left-radius: clamp(36px, 4.5vw, 60px);
+    border-top-right-radius: clamp(36px, 4.5vw, 60px);
   }
   .mobile-order-overlay-stage:not(.is-standalone) {
     position: relative;

@@ -279,6 +279,7 @@ test("prices the October owner menu update and keeps required choices on the kit
   const [njClassic] = priceCart([{ id: "nj-classic", quantity: 1 }]);
   assert.ok(njClassic.options.includes("Meat: Taylor ham"));
   assert.ok(njClassic.options.includes("Bread: Kaiser roll"));
+  assert.ok(njClassic.options.includes("Preparation: Toasted"));
 
   for (const id of ["nj-classic"]) {
     const product = menuProducts.find((candidate) => candidate.id === id);
@@ -288,6 +289,11 @@ test("prices the October owner menu update and keeps required choices on the kit
     assert.equal(croissant.unitPrice, product.price + 0.75, `${id} croissant should cost 75 cents extra`);
     assert.ok(croissant.options.includes("Bread: Croissant"));
   }
+
+  const [whiteBread] = priceCart([{ id: "nj-classic", quantity: 1, selection: { modifiers: { Bread: ["White bread"], Preparation: ["Not toasted"] } } }]);
+  assert.equal(whiteBread.unitPrice, 8, "white bread is a free swap");
+  assert.ok(whiteBread.options.includes("Bread: White bread"));
+  assert.ok(whiteBread.options.includes("Preparation: Not toasted"));
 
   const [hamAndCheese] = priceCart([{ id: "ham-cheese-croissant", quantity: 1 }]);
   assert.equal(hamAndCheese.options.some((option) => option.startsWith("Bread:")), false);
@@ -338,7 +344,8 @@ test("matches the printed Morning Handhelds menu and accommodations", () => {
 
   const group = (id, label) => menuProducts.find((product) => product.id === id)?.modifierGroups?.find((candidate) => candidate.label === label);
   assert.deepEqual(group("nj-classic", "Meat")?.options.map((option) => option.label), ["Taylor ham", "Ham", "Bacon", "Turkey bacon", "Sausage"]);
-  assert.deepEqual(group("nj-classic", "Bread")?.options, [{ label: "Kaiser roll" }, { label: "Croissant", price: 0.75 }]);
+  assert.deepEqual(group("nj-classic", "Bread")?.options, [{ label: "Kaiser roll" }, { label: "White bread" }, { label: "Croissant", price: 0.75 }]);
+  assert.deepEqual(group("nj-classic", "Preparation")?.options.map((option) => option.label), ["Toasted", "Not toasted"]);
   assert.match(menuProducts.find((product) => product.id === "jersey-devil").description, /Kaiser roll/);
   assert.match(menuProducts.find((product) => product.id === "tuna-sandwich").description, /white bread/);
   assert.match(menuProducts.find((product) => product.id === "grilled-cheese").description, /white bread/);
