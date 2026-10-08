@@ -3,6 +3,7 @@ import { and, desc, eq, like, sql } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../db";
 import { customerProfiles, loyaltyTransactions, memberOffers, newsletterSubscriptions } from "../../../db/schema";
 import { getCustomerSession } from "../../../lib/auth";
+import { PHONE_IN_USE_MESSAGE, phoneBelongsToAnotherAccount, phoneKey } from "../../../lib/account-rules";
 import { isStaffEmail } from "../../../lib/staff-auth";
 import { env } from "cloudflare:workers";
 import { WELCOME_OFFER_TYPE, availableTiers, bestAvailableTier, nextTierProgress } from "../../../lib/loyalty";
@@ -190,6 +191,13 @@ export async function PATCH(request: Request) {
   const phone = phoneText ? phoneText.replace(/[^0-9+()\- .]/g, "") : null;
   if (displayName.length < 2 || displayName.length > 80) return Response.json({ error: "Enter the name we should use for your account." }, { status: 400 });
   if (phone && phone.replace(/\D/g, "").length !== 10) return Response.json({ error: "Enter a complete 10-digit mobile number or leave it blank." }, { status: 400 });
+
+  /* Only a changed number is checked, so an account that already shares one
+     can still save its other details. */
+  const current = await env.DB.prepare("SELECT phone FROM customer_profiles WHERE user_id = ?").bind(session.user.id).first<{ phone: string | null }>();
+  if (phoneKey(phone) !== phoneKey(current?.phone) && await phoneBelongsToAnotherAccount(phone, { userId: session.user.id })) {
+    return Response.json({ error: PHONE_IN_USE_MESSAGE }, { status: 409 });
+  }
 
   const now = new Date();
   await env.DB.batch([

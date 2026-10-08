@@ -589,6 +589,10 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
       setAuthError("Enter a complete email address, like you@example.com.");
       return;
     }
+    if (authMode === "signup" && /@(?:[a-z0-9-]+\.)*kean\.edu$/i.test(authEmail.trim())) {
+      setAuthError("Please sign up with a personal email, not your Kean address. You can add your Kean email in your profile afterwards to get the student discount.");
+      return;
+    }
     if (authMode === "signup" && !signupPasswordStrength.strong) {
       setAuthError("Make your password strong before creating your account.");
       return;

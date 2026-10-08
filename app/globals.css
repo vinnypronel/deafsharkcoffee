@@ -4750,6 +4750,7 @@ body.modal-open { touch-action: none; }
 .loyalty-member-card > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .loyalty-member-card > header div { min-width: 0; }
 .loyalty-member-card > header strong { display: block; font-family: Georgia, serif; font-size: 22px; }
+.loyalty-member-card > header strong .kean-student-mark { display: inline-block; width: 24px; height: 24px; margin-left: 8px; vertical-align: -3px; }
 .loyalty-member-card > header small { display: block; overflow-wrap: anywhere; margin-top: 4px; color: var(--muted); }
 .loyalty-member-card > header > span { flex: 0 0 auto; border-radius: 999px; padding: 8px 11px; background: var(--deep); color: white; font-weight: 800; }
 .loyalty-member-card > p { margin: 8px 0 17px; color: var(--muted); font-size: 13px; }

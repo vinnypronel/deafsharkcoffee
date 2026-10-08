@@ -16,9 +16,9 @@ type OrderHistoryItem = { name: string; quantity: number; unitPrice?: number; op
 type ContactRecord = { id: number; name: string; email: string; phone?: string | null; topic: string; message: string; createdAt: string | Date };
 type ApplicationRecord = { id: number; fullName: string; email: string; phone: string; position: string; employmentType: string; experience?: string | null; why?: string | null; createdAt: string | Date };
 type SubscriberRecord = { id: number; email: string; status: string; consentText: string; consentedAt: string | Date };
-type OrderSummary = { totalOrders: number; subtotalCents: number };
+type OrderSummary = { totalOrders: number; completedOrders: number; cancelledOrders: number; subtotalCents: number };
 type Records = { orders: OrderRecord[]; orderSummary: OrderSummary; contacts: ContactRecord[]; applications: ApplicationRecord[]; subscribers: SubscriberRecord[] };
-type LoyaltyMember = { userId: string; email: string; displayName: string; phone?: string | null; points: number; lifetimePoints: number; updatedAt: string; birthday?: { onFile: boolean; month: number | null; day: number | null; isToday: boolean; eligibleToday: boolean; redeemedThisYear: boolean; maxCents: number }; referredByName?: string | null; welcomeOffer?: MemberOffer | null };
+type LoyaltyMember = { userId: string; email: string; displayName: string; phone?: string | null; points: number; lifetimePoints: number; updatedAt: string; birthday?: { onFile: boolean; month: number | null; day: number | null; isToday: boolean; eligibleToday: boolean; redeemedThisYear: boolean; maxCents: number }; referredByName?: string | null; welcomeOffer?: MemberOffer | null; studentEmail?: string | null; studentVerifiedAt?: string | null };
 const BIRTHDAY_MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 type LoyaltyTransaction = { id: number; userId: string; orderId?: number | null; pointsChange: number; balanceAfter: number; reason: string; createdAt: string };
 type MemberOffer = { id: number; userId: string; offerType: string; code: string; status: string; issuedAt: string; redeemedAt?: string | null; redeemedBy?: string | null };
@@ -42,7 +42,7 @@ export function AdminPanels({ view }: { view: View }) {
   const [featured, setFeatured] = useState<Featured[]>([]);
   const [menu, setMenu] = useState<MenuDraft[]>([]);
   const [events, setEvents] = useState<EventDraft[]>([]);
-  const [records, setRecords] = useState<Records>({ orders: [], orderSummary: { totalOrders: 0, subtotalCents: 0 }, contacts: [], applications: [], subscribers: [] });
+  const [records, setRecords] = useState<Records>({ orders: [], orderSummary: { totalOrders: 0, completedOrders: 0, cancelledOrders: 0, subtotalCents: 0 }, contacts: [], applications: [], subscribers: [] });
   const [loyalty, setLoyalty] = useState<LoyaltyData>({ members: [], transactions: [], offers: [], admins: [] });
   const [message, setMessage] = useState("");
   const [newEvent, setNewEvent] = useState<EventDraft>(emptyEvent);
@@ -151,7 +151,9 @@ export function AdminPanels({ view }: { view: View }) {
     <AdminSection title="Complete order history" description="Every website order is retained here with its date, payment method, pickup type, total, and final status.">
       <div className="record-summary order-history-totals" aria-label="All-time order totals">
         <span><strong>{records.orderSummary.totalOrders.toLocaleString()}</strong> total orders</span>
-        <span><strong>{dollars(records.orderSummary.subtotalCents)}</strong> total order subtotal</span>
+        <span><strong>{records.orderSummary.completedOrders.toLocaleString()}</strong> completed orders</span>
+        <span><strong>{records.orderSummary.cancelledOrders.toLocaleString()}</strong> cancelled orders</span>
+        <span><strong>{dollars(records.orderSummary.subtotalCents)}</strong> online order subtotal</span>
       </div>
       <OrderHistoryTable orders={records.orders} />
     </AdminSection>
@@ -367,12 +369,12 @@ function LoyaltyManager({ data, message, setMessage, reload }: { data: LoyaltyDa
       <div className="loyalty-member-grid">
         {members.map((member) => {
           return <article className="loyalty-member-card" key={member.userId}>
-            <header><div><strong>{member.displayName}</strong><small>{member.email}{member.phone ? ` · ${member.phone}` : ""}</small></div><span>{member.points} pts</span></header>
+            <header><div><strong>{member.displayName}{member.studentVerifiedAt && <img className="kean-student-mark" src="/kean-seal.png" alt="Verified Kean student" title={`Verified Kean student${member.studentEmail ? ` (${member.studentEmail})` : ""}`} width="24" height="24" />}</strong><small>{member.email}{member.phone ? ` · ${member.phone}` : ""}</small></div><span>{member.points} pts</span></header>
             <div className="loyalty-progress"><i style={{ width: `${nextTierProgress(member.points).percent}%` }} /></div>
             <p>{bestAvailableTier(member.points) ? `${bestAvailableTier(member.points)?.label} available` : `${nextTierProgress(member.points).pointsAway} points to a ${nextTierProgress(member.points).tier.label}`} · {member.lifetimePoints} lifetime points{member.birthday?.onFile && member.birthday.month && member.birthday.day ? ` · Birthday ${BIRTHDAY_MONTHS[member.birthday.month - 1]} ${member.birthday.day}` : ""}{member.referredByName ? ` · Referred by ${member.referredByName}` : ""}</p>
-            {member.welcomeOffer && <div className={`welcome-offer-status ${member.welcomeOffer.status === "redeemed" ? "is-used" : "is-active"}`}>
-              <strong>{member.welcomeOffer.status === "redeemed" ? "✓ Signup coupon used" : "Signup coupon available"}</strong>
-              <small>{member.welcomeOffer.status === "redeemed" ? `Used ${when(member.welcomeOffer.redeemedAt)}` : "50% off one drink · one use"}</small>
+            {member.welcomeOffer && <div className={`welcome-offer-status ${member.welcomeOffer.status === "active" ? "is-active" : "is-used"}`}>
+              <strong>{member.welcomeOffer.status === "redeemed" ? "✓ Signup coupon used" : member.welcomeOffer.status === "active" ? "Signup coupon available" : "Signup coupon removed"}</strong>
+              <small>{member.welcomeOffer.status === "redeemed" ? `Used ${when(member.welcomeOffer.redeemedAt)}` : member.welcomeOffer.status === "active" ? "50% off one drink · one use" : "Duplicate account"}</small>
             </div>}
             {member.birthday?.isToday && <div className={`member-offer member-birthday${member.birthday.redeemedThisYear ? " member-offer-redeemed" : ""}`}>
               <div><strong>Birthday today: free drink up to ${(member.birthday.maxCents / 100).toFixed(0)}</strong><small>{member.birthday.redeemedThisYear ? "Already redeemed this year" : member.birthday.eligibleToday ? "In store only. Any drink, up to $8." : "Not eligible: birthday was added today"}</small></div>

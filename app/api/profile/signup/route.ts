@@ -2,6 +2,8 @@ import { eq } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../../db";
 import { customerProfiles, newsletterSubscriptions, users } from "../../../../db/schema";
 import { getAuth } from "../../../../lib/auth";
+import { KEAN_SIGNUP_MESSAGE, PHONE_IN_USE_MESSAGE, phoneBelongsToAnotherAccount } from "../../../../lib/account-rules";
+import { isKeanEmail } from "../../../../lib/loyalty";
 import { verifyPublicForm } from "../../../../lib/public-form";
 import { normalizeReferralCode, referralPartiesAreDistinct } from "../../../../lib/referral";
 import { referrerForCode } from "../../../../lib/referral-store";
@@ -91,6 +93,9 @@ export async function POST(request: Request) {
 
   if (!firstName || !lastName || displayName.length > 80) return badRequest("Enter your first and last name.");
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) return badRequest("Enter a complete email address.");
+  /* A Kean address is lost at graduation, and signing up with one is how people
+     end up with two accounts. It belongs on the profile as the student email. */
+  if (isKeanEmail(email)) return badRequest(KEAN_SIGNUP_MESSAGE);
   if (!STRONG_PASSWORD_PATTERN.test(password)) {
     return badRequest("Use a strong password with at least 8 characters, uppercase and lowercase letters, a number, and a symbol.");
   }
@@ -121,6 +126,10 @@ export async function POST(request: Request) {
   }
 
   await ensureSchema();
+
+  /* Checked before the account is created. Someone repeating their own signup
+     keeps their number, so the address being registered is exempt. */
+  if (await phoneBelongsToAnotherAccount(phone, { email })) return badRequest(PHONE_IN_USE_MESSAGE);
 
   try {
     await getAuth().api.signUpEmail({
