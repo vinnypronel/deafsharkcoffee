@@ -68,7 +68,7 @@ function harness(t, reduced = false, delayLast = false, mobile = true, failLast 
     get layoutReads() { return layoutReads; },
     get live() { return live; }, get peak() { return peak; },
     get requests() { return requests; }, get queued() { return callbacks.size; },
-    async flush(count = 70) {
+    async flush(count = 160) {
       for (let i = 0; i < 150; i++) await Promise.resolve();
       for (let step = 0; step < count; step++) {
         now += 16.67;
@@ -98,8 +98,8 @@ test("mobile frames follow forward/reverse scroll, coalesce events, and stop wor
   assert.equal(h.painted.at(-1), 120);
   assert.equal(h.queued, 0);
   assert.equal(h.requests, 24, "scrolling must not trigger more requests");
-  assert.ok(h.live <= 4, "mobile keeps only a small decoded window");
-  assert.ok(h.peak <= 5, "a newly decoded sheet may briefly precede one eviction");
+  assert.ok(h.live <= 8, "mobile keeps only a small decoded window");
+  assert.ok(h.peak <= 9, "a newly decoded sheet may briefly precede one eviction");
   h.stop();
   assert.equal(h.live, 0);
 });
@@ -195,5 +195,5 @@ test("a failed sheet recovers online without reloading the other decoded sheets"
   await h.flush();
   assert.equal(h.painted.at(-1), 191);
   assert.ok(h.requests >= 25 && h.requests <= 26, "only the failed sheet is retried");
-  assert.ok(h.live <= 4);
+  assert.ok(h.live <= 8);
 });

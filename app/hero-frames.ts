@@ -2,11 +2,19 @@ const SHEET_COUNT = 24;
 const FRAMES_PER_SHEET = 10;
 const COLUMNS = 5;
 const LAST_FRAME = SHEET_COUNT * FRAMES_PER_SHEET - 1;
-const MOBILE_SHEET_LIMIT = 4;
+const MOBILE_SHEET_LIMIT = 8;
+// How far ahead of playback mobile decodes, in sheets of ten frames.
+const MOBILE_SHEETS_AHEAD = 3;
+// Mobile playback follows the finger with a short ease and a top speed, so a
+// fast flick plays the footage through instead of jumping across frames that
+// are not decoded yet. At the cap the whole clip takes about 0.8 seconds.
+const MOBILE_EASE_MS = 60;
+const MOBILE_MAX_FRAMES_PER_MS = 0.3;
 
 // Desktop keeps the complete sequence decoded. Mobile keeps the compressed
-// sheets cached but only four decoded bitmaps resident (about 18 MiB instead of
-// 106 MiB), which avoids the memory pressure that made Safari scrolling jank.
+// sheets cached but only eight decoded bitmaps resident (about 37 MiB instead
+// of 106 MiB), which avoids the memory pressure that made Safari scrolling jank
+// while leaving room to decode ahead of the scroll direction.
 export function startHeroFrames(
   wrap: HTMLElement,
   pin: HTMLElement,
@@ -41,6 +49,7 @@ export function startHeroFrames(
   let wantedSheet = 0;
   let wantedFrame = 0;
   let lastWarmCenter = -1;
+  let lastWarmDirection = 0;
   let lastViewportWidth = window.innerWidth || 0;
 
   const sheetUrl = (index: number) => `/${mobile ? "hero-frames-v4/mobile" : "hero-frames-v3/desktop"}/${String(index).padStart(2, "0")}.jpg`;
@@ -96,22 +105,25 @@ export function startHeroFrames(
     decoding.set(index, request);
     return request;
   };
-  const warmMobileWindow = (index: number) => {
+  const warmMobileWindow = (index: number, direction: 1 | -1) => {
     if (!mobile || disposed) return;
-    const direction = index >= wantedSheet ? 1 : -1;
     wantedSheet = index;
-    if (lastWarmCenter === index && sheets.has(index)) return;
+    if (lastWarmCenter === index && lastWarmDirection === direction && sheets.has(index)) return;
     lastWarmCenter = index;
+    lastWarmDirection = direction;
     void decodeSheet(index).then((bitmap) => {
       if (!bitmap || disposed) return;
       ready = true;
       if (wantedSheet === index && painted !== wantedFrame) schedule();
       void (async () => {
-        /* Keep only the immediately adjacent sheets warm. Decoding four
-           neighbours on every boundary crossing caused brief CPU and memory
-           spikes on iPhone Safari while it was also compositing a scroll. */
-        for (const nearby of [index + direction, index - direction]) {
-          if (nearby >= 0 && nearby < SHEET_COUNT) await decodeSheet(nearby);
+        /* Decode the sheets playback is heading into, one at a time so the
+           work never spikes, then the one behind for a change of direction. */
+        const nearby = [];
+        for (let step = 1; step <= MOBILE_SHEETS_AHEAD; step++) nearby.push(index + direction * step);
+        nearby.push(index - direction);
+        for (const sheet of nearby) {
+          if (disposed || wantedSheet !== index) return;
+          if (sheet >= 0 && sheet < SHEET_COUNT) await decodeSheet(sheet);
         }
       })();
     });
@@ -166,11 +178,26 @@ export function startHeroFrames(
     if (scroll > bottom || scroll + window.innerHeight < top) { lastTime = 0; return; }
     const target = Math.min(1, Math.max(0, (scroll - top) / distance)) * LAST_FRAME;
     if (mobile) {
-      const targetFrame = Math.round(target);
-      const targetSheet = Math.floor(targetFrame / FRAMES_PER_SHEET);
-      wantedFrame = targetFrame;
-      warmMobileWindow(targetSheet);
-      if (sheets.has(targetSheet)) paint(targetFrame);
+      const elapsed = lastTime ? Math.min(Math.max(now - lastTime, 0), 50) : 16.67;
+      const gap = target - current;
+      const limit = elapsed * MOBILE_MAX_FRAMES_PER_MS;
+      const step = Math.min(Math.max(gap * (1 - Math.exp(-elapsed / MOBILE_EASE_MS)), -limit), limit);
+      const next = Math.abs(gap - step) < 0.05 ? target : current + step;
+      const frame = Math.round(next);
+      const sheet = Math.floor(frame / FRAMES_PER_SHEET);
+      wantedFrame = frame;
+      warmMobileWindow(sheet, gap >= 0 ? 1 : -1);
+      if (!sheets.has(sheet)) {
+        /* Hold the current frame until its sheet is decoded; the decode
+           schedules the next update itself. */
+        lastTime = 0;
+        return;
+      }
+      lastTime = now;
+      current = next;
+      paint(frame);
+      if (current !== target) raf = requestAnimationFrame(update);
+      else lastTime = 0;
       return;
     }
     const dt = lastTime ? Math.min(Math.max(now - lastTime, 0), 50) : 16.67;
@@ -193,7 +220,9 @@ export function startHeroFrames(
     if (mobile) {
       const initialFrame = Math.round(Math.min(1, Math.max(0, (window.scrollY - top) / distance)) * LAST_FRAME);
       wantedFrame = initialFrame;
-      warmMobileWindow(Math.floor(initialFrame / FRAMES_PER_SHEET));
+      // Open on the frame for the current scroll position, not a play-in from zero.
+      if (painted < 0) current = initialFrame;
+      warmMobileWindow(Math.floor(initialFrame / FRAMES_PER_SHEET), 1);
       /* Cache the remaining compressed JPEGs without retaining their decoded
          pixels. Two workers keep network time short without a decode storm. */
       let nextBlob = 0;

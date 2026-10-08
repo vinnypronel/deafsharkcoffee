@@ -1877,11 +1877,13 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
                 </div>
                 <div className="menu-items-list">
                   {renderItems(
+                    /* One combined list here, so items still waiting on a photo
+                       go to the very end, not just the end of their category. */
                     products.filter((p) => {
                       if (!DRINK_CATEGORIES.includes(p.category)) return false;
                       const temps = temperaturesFor(p);
                       return !(temps.length === 1 && temps[0] === "Hot");
-                    }),
+                    }).sort((a, b) => Number(Boolean(a.imageComingSoon)) - Number(Boolean(b.imageComingSoon))),
                     undefined,
                     false,
                   )}
