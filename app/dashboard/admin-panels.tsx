@@ -236,10 +236,10 @@ function OrderHistoryTable({ orders }: { orders: OrderRecord[] }) {
             <td className="order-history-toggle-cell"><button type="button" className="order-history-toggle" aria-expanded={isExpanded} aria-controls={detailsId} aria-label={`${isExpanded ? "Hide" : "Show"} items for order ${order.orderNumber}`} onClick={() => toggle(order.id)}><svg aria-hidden="true" viewBox="0 0 20 20"><path d="m5 7.5 5 5 5-5" /></svg></button></td>
             <td>{when(order.createdAt)}</td><td>#{order.orderNumber}</td><td><strong>{order.customerName}</strong><small>{order.phone}</small></td><td>{order.fulfillmentType === "scheduled" ? order.pickupEta : "ASAP"}</td><td>{order.paymentMethod}</td><td>{dollars(order.totalCents)}</td><td><span className={`record-status status-${order.status}`}>{order.status}</span></td>
           </tr>
-          {isExpanded && <tr className="order-history-details-row"><td colSpan={8}><div className="order-history-details" id={detailsId}>
+          <tr className={`order-history-details-row${isExpanded ? " is-open" : ""}`} aria-hidden={!isExpanded}><td colSpan={8}><div className="order-history-drop"><div className="order-history-drop-inner"><div className="order-history-details" id={detailsId}>
             <strong className="order-history-details-title">Items ordered</strong>
             {items.length ? <ul>{items.map((item, index) => <li key={`${item.name}-${index}`}><div><strong>{item.quantity} × {item.name}</strong>{item.options.length ? <small>{item.options.join(" · ")}</small> : null}</div>{item.unitPrice !== undefined && <span>{dollars(Math.round(item.unitPrice * item.quantity * 100))}</span>}</li>)}</ul> : <p>No item details were saved for this order.</p>}
-          </div></td></tr>}
+          </div></div></div></td></tr>
         </Fragment>;
       })}
       {orders.length === 0 && <tr><td colSpan={8} className="order-history-empty">No orders yet.</td></tr>}

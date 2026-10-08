@@ -4635,6 +4635,13 @@ body.modal-open { touch-action: none; }
 .dashboard-tabs a { border: 1px solid rgba(255,255,255,.18); }
 .dashboard-tabs button:hover, .dashboard-tabs a:hover { background: rgba(255,255,255,.1); color: #fff; }
 .dashboard-tabs button.active { background: white; color: var(--deep); }
+/* One white bar that slides to the current tab. Until it has been measured the
+   active tab keeps its own white background, so there is never a blank state. */
+.dashboard-tabs { position: relative; }
+.dashboard-tabs-indicator { position: absolute; top: 0; left: 0; z-index: 0; border-radius: 9px; background: white; pointer-events: none; transition: transform .3s cubic-bezier(.22, 1, .36, 1), width .3s cubic-bezier(.22, 1, .36, 1); }
+.dashboard-tabs.has-indicator button { position: relative; z-index: 1; transition: color .2s ease; }
+.dashboard-tabs.has-indicator button.active, .dashboard-tabs.has-indicator button.active:hover { background: transparent; }
+@media (prefers-reduced-motion: reduce) { .dashboard-tabs-indicator { transition: none; } }
 .dashboard-tabs span { display: inline-grid; place-items: center; min-width: 22px; height: 22px; margin-left: 6px; border-radius: 50%; background: var(--gold); font-size: 11px; }
 .connection-status { justify-self: end; display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 750; white-space: nowrap; }
 .connection-status i { width: 8px; height: 8px; border-radius: 50%; background: #d18b35; }
@@ -4740,7 +4747,14 @@ body.modal-open { touch-action: none; }
 .order-history-toggle:focus-visible { outline: 3px solid rgba(22,139,135,.18); outline-offset: 2px; border-color: var(--teal); }
 .order-history-toggle svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; transition: transform .18s ease; }
 .order-history-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
-.order-history-details-row > td { padding: 0; background: #fbf7f1; }
+/* The row is always in the table and its content opens by growing from zero
+   height, so the details slide down instead of appearing at once. */
+.order-history-details-row > td { padding: 0; border-bottom-color: transparent; background: #fbf7f1; transition: border-color .3s ease; }
+.order-history-details-row.is-open > td { border-bottom-color: var(--line); }
+.order-history-drop { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .32s cubic-bezier(.22, 1, .36, 1); }
+.order-history-details-row.is-open .order-history-drop { grid-template-rows: 1fr; }
+.order-history-drop-inner { min-height: 0; overflow: hidden; visibility: hidden; opacity: 0; transition: opacity .24s ease, visibility 0s linear .32s; }
+.order-history-details-row.is-open .order-history-drop-inner { visibility: visible; opacity: 1; transition: opacity .24s ease .06s, visibility 0s; }
 .order-history-details { padding: 20px 24px 22px 70px; }
 .order-history-details > .order-history-details-title { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
 .order-history-details ul { display: grid; gap: 0; margin: 12px 0 0; padding: 0; list-style: none; border: 1px solid var(--line); border-radius: 12px; background: white; overflow: hidden; }
@@ -4752,7 +4766,7 @@ body.modal-open { touch-action: none; }
 .order-history-details li > span { flex: 0 0 auto; font-weight: 800; }
 .order-history-details > p, .order-history-empty { color: var(--muted); }
 .order-history-empty { padding: 28px !important; text-align: center; }
-@media (prefers-reduced-motion: reduce) { .order-history-summary, .order-history-toggle svg { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .order-history-summary, .order-history-toggle svg, .order-history-drop, .order-history-drop-inner, .order-history-details-row > td { transition: none; } }
 .loyalty-search { display: grid; gap: 7px; max-width: 520px; margin: 0 0 24px; color: #5d514b; font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
 .loyalty-search input { min-height: 48px; border: 1px solid var(--line); border-radius: 12px; padding: 0 14px; background: white; color: var(--ink); font: inherit; font-size: 15px; letter-spacing: 0; outline: none; }
 .loyalty-search input:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(22,139,135,.12); }

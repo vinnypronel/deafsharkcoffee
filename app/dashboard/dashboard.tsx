@@ -149,6 +149,10 @@ export function Dashboard() {
   const [clock, setClock] = useState(() => Date.now());
   const [activeView, setActiveView] = useState<DashboardView>("orders");
   const activeSection = DASHBOARD_SECTIONS.find((section) => section.tabs.some((tab) => tab.view === activeView))?.key ?? "orders";
+  /* The white bar behind the current tab is one element that slides between
+     tabs, so it is measured from whichever tab is active. */
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const [tabIndicator, setTabIndicator] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
   const [mobileColumn, setMobileColumn] = useState<Order["status"]>("new");
   const [connection, setConnection] = useState<"live" | "waiting">("waiting");
   const [soundArmed, setSoundArmed] = useState(false);
@@ -302,6 +306,21 @@ export function Dashboard() {
   }, [loadData]);
 
   const openOrders = orders.filter((order) => ["new", "preparing", "ready"].includes(order.status));
+  const openOrderCount = openOrders.length;
+  useEffect(() => {
+    const tabs = tabsRef.current;
+    if (!tabs) return;
+    const measure = () => {
+      const active = tabs.querySelector<HTMLElement>("button.active");
+      if (!active) return setTabIndicator(null);
+      const next = { left: active.offsetLeft, top: active.offsetTop, width: active.offsetWidth, height: active.offsetHeight };
+      setTabIndicator((current) => current && current.left === next.left && current.top === next.top && current.width === next.width && current.height === next.height ? current : next);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(tabs);
+    return () => observer.disconnect();
+  }, [activeView, openOrderCount]);
   const newCount = orders.filter((order) => order.status === "new").length;
   /* The feed holds the latest 80 orders, which covers a full day at this shop. */
   const todayKey = new Date().toDateString();
@@ -372,7 +391,8 @@ export function Dashboard() {
               <button key={section.key} type="button" role="tab" aria-selected={activeSection === section.key} className={activeSection === section.key ? "active" : ""} onClick={() => setActiveView(section.tabs[0].view)}>{section.label}</button>
             ))}
           </div>
-          <div className="dashboard-tabs">
+          <div className={`dashboard-tabs${tabIndicator ? " has-indicator" : ""}`} ref={tabsRef}>
+            {tabIndicator && <i className="dashboard-tabs-indicator" aria-hidden="true" style={{ width: tabIndicator.width, height: tabIndicator.height, transform: `translate(${tabIndicator.left}px, ${tabIndicator.top}px)` }} />}
             {DASHBOARD_SECTIONS.find((section) => section.key === activeSection)!.tabs.map((tab) => (
               <button key={tab.view} type="button" className={activeView === tab.view ? "active" : ""} onClick={() => setActiveView(tab.view)}>
                 {tab.label}{tab.view === "orders" && <span>{openOrders.length}</span>}
