@@ -45,6 +45,21 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <link rel="icon" href="/favicon.ico" />
         <link rel="shortcut icon" href="/favicon.png" />
         <link rel="apple-touch-icon" href="/favicon.png" />
+        {/* Arriving from an in-site link: mark the page before the first paint so
+            its content fades in instead of flashing. Only on real navigations,
+            so a reload or a back button never replays the fade. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){try{" +
+              "if(sessionStorage.getItem('deaf-shark-route')!=='1')return;" +
+              "sessionStorage.removeItem('deaf-shark-route');" +
+              "var nav=performance.getEntriesByType&&performance.getEntriesByType('navigation')[0];" +
+              "if(nav&&nav.type!=='navigate')return;" +
+              "document.documentElement.setAttribute('data-route','in');" +
+              "}catch(e){}})();",
+          }}
+        />
         {/* Mobile browsers normally restore the previous scroll offset on reload.
             The home-page hero is scroll-scrubbed, so a reload must begin at frame
             zero and at the top instead of reviving a stale scene. */}

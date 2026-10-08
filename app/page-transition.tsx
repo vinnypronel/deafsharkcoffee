@@ -1,15 +1,21 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+
+type Phase = "hidden" | "enter" | "exit";
+
+const COVER_MS = 180;
+const EXIT_MS = 420;
+const FAILSAFE_MS = 4000;
+/* Set just before leaving a page, so the next page knows to fade in. The same
+   key is read by the inline script in layout.tsx before the first paint. */
+const ARRIVING_KEY = "deaf-shark-route";
 
 export function PageTransition() {
-  const pathname = usePathname();
-  const [transitionState, setTransitionState] = useState<"idle" | "entering" | "covering" | "exiting">("exiting");
-  const isNavigatingRef = useRef(false);
-  const targetUrlRef = useRef<string | null>(null);
-  const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const stuckTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const [phase, setPhase] = useState<Phase>("hidden");
+  /* True until the arrival fade has been picked up, so the first render does
+     not wipe the mark the inline script set and restart the fade. */
+  const arrivingRef = useRef(true);
 
   useEffect(() => {
     function handleRejection(event: PromiseRejectionEvent) {
@@ -29,129 +35,87 @@ export function PageTransition() {
     return () => window.removeEventListener("unhandledrejection", handleRejection);
   }, []);
 
-  // When pathname changes (or on initial load), exit the curtain smoothly upwards
+  // A page reached through an in-site link fades in and finishes the line.
   useEffect(() => {
-    // Reveal the newly loaded page immediately
-    let endTimer: ReturnType<typeof setTimeout> | undefined;
-    const timer = setTimeout(() => {
-      setTransitionState("exiting");
-      endTimer = setTimeout(() => {
-        setTransitionState("idle");
-        isNavigatingRef.current = false;
-      }, 300);
-    }, 15);
-
-    return () => {
-      clearTimeout(timer);
-      clearTimeout(endTimer);
-    };
-  }, [pathname]);
-
-  // Going back can restore this page from the browser's back/forward cache with
-  // the curtain still covering it. Nothing re-runs in that case, so lift it here.
-  useEffect(() => {
-    let endTimer: ReturnType<typeof setTimeout> | undefined;
-    function liftCurtain() {
-      clearTimeout(leaveTimerRef.current);
-      clearTimeout(stuckTimerRef.current);
-      isNavigatingRef.current = false;
-      setTransitionState((state) => (state === "idle" ? state : "exiting"));
-      clearTimeout(endTimer);
-      endTimer = setTimeout(() => setTransitionState("idle"), 300);
-    }
-    function handlePageShow(event: PageTransitionEvent) {
-      if (event.persisted) liftCurtain();
-    }
-    window.addEventListener("pageshow", handlePageShow);
-    window.addEventListener("popstate", liftCurtain);
-    return () => {
-      clearTimeout(endTimer);
-      window.removeEventListener("pageshow", handlePageShow);
-      window.removeEventListener("popstate", liftCurtain);
-    };
+    if (document.documentElement.dataset.route === "in") setPhase("exit");
+    else arrivingRef.current = false;
   }, []);
 
-  // Intercept internal link clicks to trigger the drop-down transition
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
-        return;
-      }
+    const timers: number[] = [];
+    let leaving = false;
 
-      const target = (e.target as HTMLElement).closest("a");
-      if (!target) return;
+    function settle() {
+      timers.forEach((timer) => window.clearTimeout(timer));
+      timers.length = 0;
+      leaving = false;
+      try { window.sessionStorage.removeItem(ARRIVING_KEY); } catch { /* Storage can be blocked. */ }
+      setPhase("hidden");
+    }
 
-      const href = target.getAttribute("href");
+    function handleClick(event: MouseEvent) {
+      if (event.defaultPrevented || event.button !== 0) return;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+      const anchor = (event.target as Element | null)?.closest("a");
+      if (!anchor) return;
+      const href = anchor.getAttribute("href");
       if (!href) return;
+      if (anchor.target && anchor.target !== "_self") return;
+      if (anchor.hasAttribute("download")) return;
+      if (/^(#|mailto:|tel:)/.test(href)) return;
 
-      // Ignore hash links, mailto, tel, target="_blank", or external urls
-      if (
-        href.startsWith("#") ||
-        href.startsWith("mailto:") ||
-        href.startsWith("tel:") ||
-        target.target === "_blank" ||
-        target.hasAttribute("download")
-      ) {
-        return;
-      }
-
-      const currentPath = window.location.pathname;
-      const url = new URL(href, window.location.origin);
-
+      let url: URL;
+      try { url = new URL(href, window.location.origin); } catch { return; }
       if (url.origin !== window.location.origin) return;
+      if (url.pathname === window.location.pathname) return;
 
-      // If it's navigating to a different page route
-      if (url.pathname !== currentPath) {
-        e.preventDefault();
-        if (isNavigatingRef.current) return;
-        isNavigatingRef.current = true;
-        targetUrlRef.current = url.pathname + url.search + url.hash;
-
-        // Phase 1: Drop curtain down from top to bottom
-        setTransitionState("entering");
-
-        leaveTimerRef.current = setTimeout(() => {
-          setTransitionState("covering");
-          // Navigate once the curtain completely covers the screen
-          window.location.href = targetUrlRef.current || href;
-          // If the browser never leaves (cancelled or failed load), do not
-          // leave the visitor stuck behind the curtain.
-          stuckTimerRef.current = setTimeout(() => {
-            isNavigatingRef.current = false;
-            setTransitionState("idle");
-          }, 6000);
-        }, 280);
-      }
+      event.preventDefault();
+      if (leaving) return;
+      leaving = true;
+      const destination = url.pathname + url.search + url.hash;
+      setPhase("enter");
+      timers.push(
+        window.setTimeout(() => {
+          try { window.sessionStorage.setItem(ARRIVING_KEY, "1"); } catch { /* The next page simply appears without the fade. */ }
+          window.location.href = destination;
+        }, COVER_MS),
+        // A cancelled or failed load must never leave the page faded out.
+        window.setTimeout(settle, COVER_MS + FAILSAFE_MS),
+      );
     }
 
-    document.addEventListener("click", handleClick, { capture: true });
-    return () => document.removeEventListener("click", handleClick, { capture: true });
+    /* Going back can restore this page from the browser's back/forward cache
+       exactly as it was left, mid-fade. Nothing re-runs then, so reset here. */
+    function handlePageShow(event: PageTransitionEvent) {
+      if (event.persisted) settle();
+    }
+
+    document.addEventListener("click", handleClick, true);
+    window.addEventListener("pageshow", handlePageShow);
+    window.addEventListener("popstate", settle);
+    return () => {
+      document.removeEventListener("click", handleClick, true);
+      window.removeEventListener("pageshow", handlePageShow);
+      window.removeEventListener("popstate", settle);
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
   }, []);
 
-  if (transitionState === "idle") {
-    return null;
-  }
+  useEffect(() => {
+    if (phase !== "exit") return;
+    const timer = window.setTimeout(() => setPhase("hidden"), EXIT_MS);
+    return () => window.clearTimeout(timer);
+  }, [phase]);
 
-  const isEntering = transitionState === "entering" || transitionState === "covering";
-  const isExiting = transitionState === "exiting";
+  useEffect(() => {
+    const root = document.documentElement;
+    if (phase === "enter") root.dataset.route = "out";
+    else if (phase === "exit") root.dataset.route = "in";
+    else if (!arrivingRef.current) delete root.dataset.route;
+    if (phase === "exit") arrivingRef.current = false;
+  }, [phase]);
 
-  return (
-    <div
-      className={`page-transition-curtain ${isEntering ? "curtain-enter" : ""} ${isExiting ? "curtain-exit" : ""}`}
-      aria-hidden="true"
-    >
-      <div className="curtain-glow" />
-      <div className="curtain-content">
-        <div className="curtain-stamp-wrap">
-          <img src="/deafshark-logo-640.webp" alt="" className="curtain-stamp-logo" decoding="async" />
-        </div>
-        <div className="curtain-brand-line">
-          <img src="/favicon.png" alt="" className="curtain-fin-icon" />
-          <span className="curtain-brand-title">Deaf Shark Coffee</span>
-        </div>
-        <div className="curtain-divider" />
-        <span className="curtain-origin-tag">Roasted in Union, NJ · El Salvador Origin</span>
-      </div>
-    </div>
-  );
+  return <div aria-hidden="true" className={`route-line route-line-${phase}`} />;
 }

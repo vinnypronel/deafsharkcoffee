@@ -218,7 +218,7 @@ const priceLabel = (product: Product) => {
   return money(lowest);
 };
 
-const CUP_PHOTOS = { hot: "/cup-hot.png", iced: "/cup-cold.png" } as const;
+const CUP_PHOTOS = { hot: "/cup-hot.png", iced: "/cup-cold.webp" } as const;
 
 function CupMark() {
   return (
@@ -1958,7 +1958,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
 
       {!isMenuPage && <section className="origin-section" id="coffee">
         <div className="origin-art">
-          <img src="/deafshark-dog-art.png" alt="Deaf Shark illustrated dog character beside coffee artwork" />
+          <img src="/deafshark-dog-art.webp" alt="Deaf Shark illustrated dog character beside coffee artwork" />
         </div>
         <div className="origin-copy">
           <span className="eyebrow">The coffee</span>
@@ -2173,7 +2173,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
       {CUSTOM_CHECKOUT_ENABLED && confirmation && (
         <div className="modal-backdrop">
           <section className="confirmation-card" role="dialog" aria-modal="true">
-            <img src="/deafshark-dog-art.png" alt="Deaf Shark character" />
+            <img src="/deafshark-dog-art.webp" alt="Deaf Shark character" />
             <span className="eyebrow">Order received</span>
             <h2>We have it.</h2>
             <p>Your pickup estimate is <strong>{confirmation.eta}</strong>. Please pay at the counter when you arrive.</p>

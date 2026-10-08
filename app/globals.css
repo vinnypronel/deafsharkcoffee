@@ -6289,138 +6289,61 @@ body.modal-open { touch-action: none; }
   }
 }
 
-/* =========================================================
-   PAGE TRANSITION CURTAIN (Fade In & Sweep Up)
-   ========================================================= */
-.page-transition-curtain {
+/* Page transition: the page content fades out, a thin line runs across the
+   top while the next page loads, and the new page fades in. The header stays
+   put. Opacity only, because a transform on main would unpin the fixed cart
+   button and other fixed pieces inside it. */
+html[data-route="out"] main > :not(.site-header) {
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+html[data-route="in"] main > :not(.site-header) {
+  animation: route-page-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+/* No end frame on purpose: each piece fades up to its own opacity, so hidden
+   overlays such as the menu takeover stay hidden. */
+@keyframes route-page-in {
+  from { opacity: 0; }
+}
+
+.route-line {
   position: fixed;
-  inset: 0;
+  inset: 0 0 auto;
   z-index: 99999;
-  background: #190e08;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  pointer-events: all;
-  will-change: transform;
-}
-
-/* The curtain settles in place rather than dropping from the top, then still
-   sweeps up to reveal the next page. */
-.page-transition-curtain.curtain-enter {
-  animation: curtainFadeIn 0.22s ease-out forwards;
-}
-
-.page-transition-curtain.curtain-exit {
-  animation: curtainSweepUp 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-
-@keyframes curtainFadeIn {
-  0% {
-    opacity: 0;
-    transform: translateY(0%);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0%);
-  }
-}
-
-@keyframes curtainSweepUp {
-  0% {
-    transform: translateY(0%);
-  }
-  100% {
-    transform: translateY(-100%);
-  }
-}
-
-.curtain-glow {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: clamp(280px, 50vw, 600px);
-  height: clamp(280px, 50vw, 600px);
-  background: radial-gradient(circle, rgba(190, 142, 93, 0.18) 0%, rgba(35, 18, 11, 0) 70%);
+  height: 3px;
   pointer-events: none;
+  transform-origin: left;
+  background: #be8e5d;
+  opacity: 0;
+  transform: scaleX(0);
 }
 
-.curtain-content {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  text-align: center;
-  padding: 20px;
+.route-line-enter {
+  opacity: 1;
+  transform: scaleX(0.8);
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.curtain-stamp-wrap {
-  width: clamp(70px, 8vw, 92px);
-  height: clamp(70px, 8vw, 92px);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 24px rgba(190, 142, 93, 0.25);
-  animation: stampPulse 2s ease-in-out infinite alternate;
+/* The arriving page starts the line where the last page left it. */
+.route-line-exit {
+  animation: route-line-finish 0.42s ease-out both;
 }
 
-.curtain-stamp-logo {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  object-fit: cover;
+@keyframes route-line-finish {
+  0% { opacity: 1; transform: scaleX(0.8); }
+  45% { opacity: 1; transform: scaleX(1); }
+  100% { opacity: 0; transform: scaleX(1); }
 }
 
-.curtain-brand-line {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 6px;
-}
-
-.curtain-fin-icon {
-  width: clamp(34px, 3vw, 44px);
-  height: auto;
-  object-fit: contain;
-  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4));
-}
-
-.curtain-brand-title {
-  font-family: Georgia, serif;
-  font-size: clamp(20px, 2.2vw, 28px);
-  font-weight: 700;
-  color: var(--paper);
-  letter-spacing: 0.02em;
-}
-
-.curtain-divider {
-  width: 48px;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--gold), transparent);
-  margin: 2px 0;
-}
-
-.curtain-origin-tag {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--gold);
-  opacity: 0.85;
-}
-
-@keyframes stampPulse {
-  0% {
-    transform: scale(0.98);
+@media (prefers-reduced-motion: reduce) {
+  html[data-route] main > :not(.site-header) {
+    opacity: 1;
+    transition: none;
+    animation: none;
   }
-  100% {
-    transform: scale(1.02);
-  }
+  .route-line { display: none; }
 }
 
 video:fullscreen {
