@@ -57,6 +57,6 @@ test("the Oreo frappe uses its generated image and offers only its removal optio
     stacked: true,
     options: [{ label: "No chocolate syrup" }, { label: "No whipped cream" }, { label: "No Oreo crumbles" }],
   }]);
-  assert.equal(hasMilkOptionsForProduct(frappe), false);
+  assert.equal(hasMilkOptionsForProduct(frappe), true);
   assert.equal(hasSyrupOptionsForProduct(frappe), false);
 });

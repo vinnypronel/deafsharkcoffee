@@ -27,7 +27,7 @@ export function availableTiers(points: number) {
 
 export const STUDENT_DISCOUNT_PERCENT = 10;
 
-/** Signup coupon: half off a single drink, one use, online only. */
+/** Signup coupon: half off a single drink when bought with another item, one use, online only. */
 export const WELCOME_OFFER_TYPE = "signup_half_off_drink";
 export const WELCOME_OFFER_PERCENT = 50;
 export const WELCOME_OFFER_LABEL = "50% off one drink";
@@ -77,6 +77,16 @@ export type DiscountChoice =
 /** A cart line, reduced to what the discount rules need. */
 export type DiscountableItem = { unitPriceCents: number; quantity: number; isDrink: boolean };
 
+/** The welcome coupon needs the drink plus at least one other item in the order. */
+export const WELCOME_OFFER_MIN_ITEMS = 2;
+export const WELCOME_OFFER_MIN_ITEMS_MESSAGE = "Add one more item to your order to use your welcome offer.";
+
+/** True when the order has enough items for the welcome coupon. A second of
+    the same drink counts as another item. */
+export function welcomeOfferHasEnoughItems(items: Array<{ quantity: number }>) {
+  return items.reduce((total, item) => total + Math.max(0, item.quantity), 0) >= WELCOME_OFFER_MIN_ITEMS;
+}
+
 /* The coupon covers exactly one unit of the drink line the customer selects.
    The server checks the index against its own repriced cart, so a client cannot
    point the discount at food or supply a fake price. */
@@ -124,6 +134,7 @@ export function resolveDiscount(input: {
     if (!input.welcomeOfferAvailable) throw new Error("That welcome offer is not available on this account.");
     const value = welcomeOfferValue(input.items ?? [], input.choice.itemIndex);
     if (value <= 0) throw new Error("Choose a drink to use your welcome offer.");
+    if (!welcomeOfferHasEnoughItems(input.items ?? [])) throw new Error(WELCOME_OFFER_MIN_ITEMS_MESSAGE);
     return {
       kind: "welcome",
       amountCents: Math.min(value, input.subtotalCents),

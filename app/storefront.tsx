@@ -4,7 +4,7 @@ import { type CSSProperties, type MouseEvent, useCallback, useEffect, useLayoutE
 import { flushSync } from "react-dom";
 import { StoreHours } from "./store-hours";
 import { PauseNotice } from "./pause-notice";
-import { pointsForSubtotal } from "../lib/loyalty";
+import { pointsForSubtotal, welcomeOfferHasEnoughItems } from "../lib/loyalty";
 import ScrollHero from "./scroll-hero";
 import {
   categories,
@@ -2641,12 +2641,14 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
     return [{ itemIndex, name: item.name, unitPriceCents: Math.round(item.unitPrice * 100) }];
   });
   const selectedWelcomeDrink = welcomeDrinkChoices.find((item) => item.itemIndex === welcomeItemIndex) ?? null;
+  /* The welcome coupon needs the drink plus one more item in the order. */
+  const welcomeOfferUsable = welcomeDrinkChoices.length > 0 && welcomeOfferHasEnoughItems(cart);
   const selectedReward = rewardOffers.find((reward) => reward.points === rewardPoints) ?? null;
   const discountCents = discountChoice === "reward" && selectedReward
     ? Math.min(selectedReward.valueCents, subtotalCents)
     : discountChoice === "student" && studentVerified
       ? Math.floor((subtotalCents * 10) / 100)
-      : discountChoice === "welcome" && welcomeOfferReady
+      : discountChoice === "welcome" && welcomeOfferReady && welcomeOfferUsable
         ? Math.min(Math.floor(((selectedWelcomeDrink?.unitPriceCents ?? 0) * 50) / 100), subtotalCents)
         : 0;
   const discount = discountCents / 100;
@@ -2729,7 +2731,7 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
           discount: discountChoice === "reward" && selectedReward
             ? { kind: "reward", points: selectedReward.points }
             : discountChoice === "welcome"
-              ? { kind: "welcome", itemIndex: welcomeItemIndex }
+              ? (welcomeOfferUsable ? { kind: "welcome", itemIndex: welcomeItemIndex } : { kind: "none" })
             : { kind: discountChoice },
           items: cart.map((item) => ({ id: item.id, quantity: item.quantity, selection: item.selection })),
         }),
@@ -2814,8 +2816,8 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
             <label htmlFor="discount-none"><input id="discount-none" type="radio" name="discount" checked={discountChoice === "none"} onChange={() => setDiscountChoice("none")} /><span>No discount</span></label>
             {rewardOffers.map((reward) => <label key={reward.points} htmlFor={`discount-reward-${reward.points}`}><input id={`discount-reward-${reward.points}`} type="radio" name="discount" checked={discountChoice === "reward" && rewardPoints === reward.points} onChange={() => { setRewardPoints(reward.points); setDiscountChoice("reward"); }} /><span>Redeem {reward.label}<small>Uses {reward.points} points</small></span></label>)}
             {welcomeOfferReady && <>
-              <label htmlFor="discount-welcome"><input id="discount-welcome" type="radio" name="discount" checked={discountChoice === "welcome"} onChange={() => { setWelcomeItemIndex((current) => current ?? welcomeDrinkChoices[0]?.itemIndex ?? null); setDiscountChoice("welcome"); }} disabled={welcomeDrinkChoices.length === 0} /><span>50% off one drink<small>{welcomeDrinkChoices.length === 0 ? "Add a drink to use this" : "New member offer · one use only"}</small></span></label>
-              {discountChoice === "welcome" && welcomeDrinkChoices.length > 0 && <div className="welcome-drink-picker" role="group" aria-label="Choose the drink for your signup coupon">
+              <label htmlFor="discount-welcome"><input id="discount-welcome" type="radio" name="discount" checked={discountChoice === "welcome"} onChange={() => { setWelcomeItemIndex((current) => current ?? welcomeDrinkChoices[0]?.itemIndex ?? null); setDiscountChoice("welcome"); }} disabled={!welcomeOfferUsable} /><span>50% off one drink<small>{welcomeDrinkChoices.length === 0 ? "Add a drink to use this" : !welcomeOfferUsable ? "Add one more item to use this" : "New member offer · with another item · one use only"}</small></span></label>
+              {discountChoice === "welcome" && welcomeOfferUsable && <div className="welcome-drink-picker" role="group" aria-label="Choose the drink for your signup coupon">
                 <strong>Choose your 50% off drink</strong>
                 {welcomeDrinkChoices.map((drink) => <label key={drink.itemIndex} htmlFor={`welcome-drink-${drink.itemIndex}`}><input id={`welcome-drink-${drink.itemIndex}`} type="radio" name="welcome-drink" checked={welcomeItemIndex === drink.itemIndex} onChange={() => setWelcomeItemIndex(drink.itemIndex)} /><span>{drink.name}<small>Save {money(Math.floor(drink.unitPriceCents * .5) / 100)}</small></span></label>)}
               </div>}

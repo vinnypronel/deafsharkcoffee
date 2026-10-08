@@ -5,9 +5,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DRINK_CATEGORIES,
   EXTRA_SHOT_PRICE,
+  hasMilkOptionsForProduct,
   modifierGroupsForProduct,
   menuProducts,
   SYRUP_PRICE,
+  temperaturesForProduct,
   type PrepStation,
   type ProductSelection,
 } from "../menu-data";
@@ -85,14 +87,21 @@ function orderItemDetails(item: OrderItem) {
   const selection = item.selection;
   if (!product || !selection) return item.options ?? [];
 
+  /* Every line names what it is, and a line only appears when that item really
+     has the choice, so a drink with no milk or size options never shows a
+     leftover default such as "Whole" or "Regular". */
   const details: string[] = [];
   const isDrink = DRINK_CATEGORIES.includes(product.category);
-  if (product.flavors?.length && selection.flavor) details.push(selection.flavor);
-  if (isDrink && selection.temperature) details.push(selection.temperature);
-  if (isDrink && selection.milk && selection.milk !== "None") details.push(selection.milk);
-  if (isDrink && selection.milk === "None") details.push("No milk");
-  if (isDrink && selection.base) details.push(`${selection.base} base`);
-  if (isDrink && selection.size) details.push(selection.size);
+  const isSmoothie = Boolean(product.bases?.length);
+  const temperature = selection.temperature;
+  const sizeChoices = temperature === "Hot" ? product.sizing?.hot : temperature === "Iced" ? product.sizing?.iced : undefined;
+  if (product.flavors?.length && selection.flavor) details.push(`${isDrink ? "Flavor" : "Choice"}: ${selection.flavor}`);
+  if (isDrink && temperature && temperaturesForProduct(product).length > 1) details.push(`Temperature: ${temperature}`);
+  if (isDrink && selection.base) details.push(`Base: ${selection.base}`);
+  if (isDrink && selection.milk && (isSmoothie ? selection.base === "Milk" : hasMilkOptionsForProduct(product))) {
+    details.push(selection.milk === "None" ? "Milk: None" : `Milk: ${selection.milk}`);
+  }
+  if (selection.size && (isDrink ? Boolean(sizeChoices?.length) : true)) details.push(`Size: ${selection.size}`);
   if (isDrink) for (const syrup of selection.syrups ?? []) details.push(optionWithPrice(`Syrup: ${syrup}`, SYRUP_PRICE));
   if (isDrink && selection.extraShot) {
     const label = selection.extraShot === 1 ? "Extra shot" : `${selection.extraShot} extra shots`;

@@ -1446,7 +1446,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                   {profile.profile.welcomeOffer?.status === "active" && <div className="welcome-offer welcome-offer-active">
                     <span>New member offer</span>
                     <strong>50% off one drink</strong>
-                    <p>Use it at checkout on any drink. One drink, one time.</p>
+                    <p>Use it at checkout on any drink when you order at least one other item. One drink, one time.</p>
                   </div>}
 
                   {profile.profile.referral?.code && (() => {

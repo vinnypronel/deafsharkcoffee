@@ -99,6 +99,14 @@ test("welcome coupon takes half off the single drink the customer chooses", () =
   assert.equal(applied.pointsSpent, 0);
 });
 
+test("welcome coupon needs another item in the order", () => {
+  const oneDrink = [{ unitPriceCents: 600, quantity: 1, isDrink: true }];
+  const input = (items) => ({ subtotalCents: 600, choice: { kind: "welcome", itemIndex: 0 }, pointsBalance: 0, studentVerified: false, welcomeOfferAvailable: true, items });
+  assert.throws(() => resolveDiscount(input(oneDrink)), /one more item/);
+  assert.equal(resolveDiscount(input([{ unitPriceCents: 600, quantity: 2, isDrink: true }])).amountCents, 300, "a second of the same drink counts");
+  assert.equal(resolveDiscount(input([...oneDrink, { unitPriceCents: 400, quantity: 1, isDrink: false }])).amountCents, 300, "food counts as the other item");
+});
+
 test("welcome coupon needs a drink and an unused offer", () => {
   const foodOnly = [{ unitPriceCents: 900, quantity: 1, isDrink: false }];
   assert.throws(() => resolveDiscount({ subtotalCents: 900, choice: { kind: "welcome", itemIndex: 0 }, pointsBalance: 0, studentVerified: false, welcomeOfferAvailable: true, items: foodOnly }), /Choose a drink/);

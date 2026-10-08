@@ -261,7 +261,7 @@ export const DRINK_CATEGORIES: MenuCategory[] = ["Special Drinks", "Fall Season"
 export const hasMilkOptionsForProduct = (product: Product) =>
   DRINK_CATEGORIES.includes(product.category) &&
   !product.bases?.length &&
-  !["chicha", "malta", "hot-tea", "dirty-soda", "coconut-matcha-refresher", "oreo-frappe"].includes(product.id);
+  !["chicha", "malta", "hot-tea", "dirty-soda", "coconut-matcha-refresher"].includes(product.id);
 
 export const hasSyrupOptionsForProduct = (product: Product) =>
   DRINK_CATEGORIES.includes(product.category) &&
