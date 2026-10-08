@@ -296,8 +296,6 @@ function MenuContentManager({ menu, setMenu, message, save, upload }: {
 
 function LoyaltyManager({ data, message, setMessage, reload }: { data: LoyaltyData; message: string; setMessage: (message: string) => void; reload: () => Promise<void> }) {
   const [search, setSearch] = useState("");
-  const [changes, setChanges] = useState<Record<string, string>>({});
-  const [reasons, setReasons] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<string | null>(null);
   const [section, setSection] = useState<"customers" | "admins">("customers");
   const query = search.trim().toLowerCase();
@@ -308,30 +306,6 @@ function LoyaltyManager({ data, message, setMessage, reload }: { data: LoyaltyDa
     if (!query) return true;
     return [member.displayName, member.email, member.phone].some((value) => value?.toLowerCase().includes(query));
   });
-
-  async function adjust(member: LoyaltyMember) {
-    const pointsChange = Number(changes[member.userId]);
-    const reason = reasons[member.userId]?.trim();
-    if (!Number.isInteger(pointsChange) || pointsChange === 0) return setMessage("Enter a whole number of points to add or remove.");
-    if (!reason) return setMessage("Add a reason so every points change has a record.");
-    setSaving(member.userId);
-    setMessage("Saving points adjustment…");
-    /* A stable id per submit so a retry of the same change is idempotent on the
-       server rather than applying the points twice. */
-    const adjustmentId = crypto.randomUUID();
-    const response = await fetch("/api/admin/loyalty", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: member.userId, pointsChange, reason, adjustmentId }),
-    });
-    const result = await response.json() as { error?: string; balanceAfter?: number };
-    setSaving(null);
-    if (!response.ok) return setMessage(result.error || "Could not update points.");
-    setChanges((current) => ({ ...current, [member.userId]: "" }));
-    setReasons((current) => ({ ...current, [member.userId]: "" }));
-    setMessage(`${member.displayName} now has ${result.balanceAfter} points.`);
-    await reload();
-  }
 
   async function redeemBirthday(member: LoyaltyMember) {
     if (!window.confirm(`Give ${member.displayName} their free birthday drink (up to $8)? This can only be done once this year.`)) return;
@@ -380,11 +354,6 @@ function LoyaltyManager({ data, message, setMessage, reload }: { data: LoyaltyDa
               <div><strong>Birthday today: free drink up to ${(member.birthday.maxCents / 100).toFixed(0)}</strong><small>{member.birthday.redeemedThisYear ? "Already redeemed this year" : member.birthday.eligibleToday ? "In store only. Any drink, up to $8." : "Not eligible: birthday was added today"}</small></div>
               {member.birthday.eligibleToday && !member.birthday.redeemedThisYear && <button className="admin-save" disabled={saving === `birthday:${member.userId}`} onClick={() => redeemBirthday(member)}>{saving === `birthday:${member.userId}` ? "Saving…" : "Redeem birthday drink"}</button>}
             </div>}
-            <div className="loyalty-adjustment">
-              <label>Points<input type="number" step="1" value={changes[member.userId] ?? ""} onChange={(event) => setChanges((current) => ({ ...current, [member.userId]: event.target.value }))} placeholder="+25 or -25" /></label>
-              <label>Reason<input value={reasons[member.userId] ?? ""} onChange={(event) => setReasons((current) => ({ ...current, [member.userId]: event.target.value }))} maxLength={120} placeholder="Customer service correction" /></label>
-              <button className="admin-save" disabled={saving === member.userId} onClick={() => adjust(member)}>{saving === member.userId ? "Saving…" : "Apply"}</button>
-            </div>
           </article>;
         })}
         {members.length === 0 && <p className="empty-records">No matching loyalty members.</p>}
