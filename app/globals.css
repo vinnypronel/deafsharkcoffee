@@ -2048,10 +2048,21 @@ h1, h2, h3, p { margin-top: 0; }
     /* Stick just under the pinned image card (header 68 + pin padding 8 + card
        + pin padding 16 + its 20px cream overhang) instead of hiding behind it. */
     top: calc(112px + clamp(190px, 27svh, 240px));
+    /* Before the card pins, this heading sits right under it, and the card's
+       20px cream overhang would cover the top of the letters. */
+    margin-top: 16px;
+  }
+  .order-section:not(.standalone-order) .menu-panel-header > div {
+    max-width: 100%;
   }
   .order-section:not(.standalone-order) .menu-panel-header h3 {
     font-size: clamp(19px, 5.2vw, 26px);
-    white-space: nowrap;
+    /* Room for the tops and tails of the letters, and wrap instead of clipping
+       when the phone uses a larger text size. */
+    line-height: 1.2;
+    padding-block: 2px;
+    white-space: normal;
+    text-wrap: balance;
   }
   .order-section:not(.standalone-order) .menu-panel-header .menu-milk-note {
     text-align: left;
@@ -6676,7 +6687,7 @@ video:-moz-full-screen {
   .order-section:not(.standalone-order) .menu-card-brand { display: none; }
   .order-section:not(.standalone-order) .menu-list-panel { position: relative; z-index: 1; }
   .order-section:not(.standalone-order) .menu-product-pin { top: var(--portrait-header-h, 68px); }
-  .order-section:not(.standalone-order) .menu-panel-header { top: calc(var(--portrait-header-h, 68px) + 46px + clamp(260px, 30svh, 440px)); }
+  .order-section:not(.standalone-order) .menu-panel-header { top: calc(var(--portrait-header-h, 68px) + 46px + clamp(260px, 30svh, 440px)); margin-top: 16px; }
 }
 
 /* Brand, tabs and the Orders / Website switch share one line when there is room.
