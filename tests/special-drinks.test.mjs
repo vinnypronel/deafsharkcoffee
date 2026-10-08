@@ -54,7 +54,8 @@ test("the Oreo frappe uses its generated image and offers only its removal optio
   assert.deepEqual(frappe.modifierGroups, [{
     label: "Remove ingredients",
     type: "multiple",
-    options: [{ label: "No whipped cream" }, { label: "No Oreo crumbles" }],
+    stacked: true,
+    options: [{ label: "No chocolate syrup" }, { label: "No whipped cream" }, { label: "No Oreo crumbles" }],
   }]);
   assert.equal(hasMilkOptionsForProduct(frappe), false);
   assert.equal(hasSyrupOptionsForProduct(frappe), false);

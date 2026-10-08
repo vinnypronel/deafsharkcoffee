@@ -35,6 +35,8 @@ export type ModifierGroup = {
   label: string;
   type: "single" | "multiple";
   required?: boolean;
+  /* Lays the choices out one per row instead of side by side. */
+  stacked?: boolean;
   options: ModifierOption[];
 };
 
@@ -530,12 +532,12 @@ const catalogProducts: Product[] = [
     name: "Oreo Frappe",
     category: "Special Drinks",
     price: 6.75,
-    description: "A creamy cookies-and-cream frappe with chocolate drizzle, whipped cream, and Oreo crumbles.",
+    description: "A creamy cookies-and-cream frappe with chocolate syrup, whipped cream, and Oreo crumbles.",
     configurable: true,
     temps: ["Iced"],
     visual: "iced",
     photo: "/menu/specials/oreo-frappe-v1.png",
-    modifierGroups: [removeIngredients("whipped cream", "Oreo crumbles")],
+    modifierGroups: [{ ...removeIngredients("chocolate syrup", "whipped cream", "Oreo crumbles"), stacked: true }],
   },
   {
     id: "pumpkin-spice-latte",

@@ -647,7 +647,7 @@ function ProductConfigurator({
               );
             }
             return (
-              <fieldset className={`option-group ${group.label === "Remove ingredients" ? "removal-option-group" : ""}`} key={group.label}>
+              <fieldset className={`option-group ${group.label === "Remove ingredients" ? "removal-option-group" : ""} ${group.stacked ? "option-group-stacked" : ""}`} key={group.label}>
                 <legend>{group.label}</legend>
                 <div className="syrup-grid">
                   {group.options.map((option) => {
