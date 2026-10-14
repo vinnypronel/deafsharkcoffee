@@ -488,7 +488,7 @@ const catalogProducts: Product[] = [
     configurable: true,
     decafAvailable: true,
     visual: "iced",
-    imageComingSoon: true,
+    photo: "/menu/specials/pistachio-latte-v1.png",
     drink: "latte",
   },
   {
