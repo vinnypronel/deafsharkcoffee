@@ -3041,7 +3041,7 @@ h1, h2, h3, p { margin-top: 0; }
 
 .visit-card .visit-action-btn {
   position: relative;
-  top: 10px;
+  top: 18px;
   min-height: 42px;
   margin-top: auto;
   padding: 0 18px;
@@ -3062,13 +3062,13 @@ h1, h2, h3, p { margin-top: 0; }
   background-size: auto;
 }
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
-  .visit-card .visit-action-btn:hover {
-    transform: translate(4px, -4px);
-    box-shadow: -5px 7px 20px rgba(45, 26, 18, .32);
+  .visit-section .visit-card .visit-action-btn:not([aria-disabled="true"]):hover {
+    transform: translate(7px, -7px);
+    box-shadow: -7px 10px 22px rgba(45, 26, 18, .34);
   }
 
-  .visit-card .visit-action-btn:active {
-    transform: translate(1px, -1px);
+  .visit-section .visit-card .visit-action-btn:not([aria-disabled="true"]):active {
+    transform: translate(2px, -2px);
   }
 }
 .visit-order-btn {
