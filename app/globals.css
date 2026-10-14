@@ -3053,6 +3053,11 @@ h1, h2, h3, p { margin-top: 0; }
   font-weight: 800;
   box-shadow: 0 4px 14px rgba(45, 26, 18, 0.16);
 }
+.visit-card .visit-action-btn::after {
+  content: "";
+  position: absolute;
+  inset: -12px;
+}
 .visit-card .visit-action-btn > span {
   color: #fff;
 }
