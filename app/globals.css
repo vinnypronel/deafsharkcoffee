@@ -3765,7 +3765,7 @@ h1, h2, h3, p { margin-top: 0; }
 /* Desktop: give the photo the larger share of the hero and let it grow taller. */
 @media (min-width: 1051px) {
   .contact-hero { grid-template-columns: 0.8fr 1.2fr; }
-  .contact-hero-photo { max-width: 1040px; }
+  .contact-hero-photo { max-width: 1040px; transform: translateY(-28px); }
   .contact-hero-photo img { max-height: min(82vh, 780px); }
 }
 .contact-grid { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); background: var(--paper); padding: clamp(40px, 4.5vw, 64px) max(5vw, calc((100vw - 1440px) / 2)) clamp(16px, 1.4vw, 22px); gap: 0; }
