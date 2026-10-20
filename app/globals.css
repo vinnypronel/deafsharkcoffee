@@ -4378,6 +4378,8 @@ body.modal-open { touch-action: none; }
 .checkout-rewards input:checked { border-color: var(--teal); }
 .checkout-rewards input:checked::after { transform: scale(1); }
 .checkout-rewards input:disabled { opacity: .45; cursor: not-allowed; }
+.checkout-rewards label:has(input:disabled) { cursor: not-allowed; }
+.checkout-rewards label:has(input:disabled) > span { color: var(--muted); }
 .checkout-rewards label span { display: flex; flex-direction: column; gap: 2px; font-weight: 700; font-size: 14px; }
 .checkout-rewards label small { color: var(--muted); font-weight: 400; font-size: 12.5px; }
 .welcome-drink-picker { display: grid; gap: 8px; margin: 2px 0 4px 31px; border-left: 2px solid rgba(22,139,135,.2); padding: 8px 0 4px 13px; }
@@ -7054,6 +7056,7 @@ video:-moz-full-screen {
 @media (max-width: 760px) {
   .checkout-sheet-backdrop { padding: 6dvh 0 0; }
   .checkout-card.checkout-sheet { width: 100vw; min-height: 0; max-height: 94dvh; border-radius: 24px 24px 0 0; padding: 56px 22px calc(28px + env(safe-area-inset-bottom)); }
+  .checkout-points-preview + .checkout-pickup-info { margin-top: 12px; }
   .cart-summary { padding: 18px 18px calc(22px + env(safe-area-inset-bottom)); }
 }
 
