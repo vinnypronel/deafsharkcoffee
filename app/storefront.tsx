@@ -3,6 +3,7 @@
 import { type CSSProperties, type MouseEvent, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { StoreHours } from "./store-hours";
+import { HomeSectionStack } from "./home-section-stack";
 import { PauseNotice } from "./pause-notice";
 import { pointsForSubtotal, welcomeOfferHasEnoughItems } from "../lib/loyalty";
 import ScrollHero from "./scroll-hero";
@@ -1902,18 +1903,21 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
           </div>
         </div>
         </section>
-      </div>
 
-      {!isMenuPage && (
-        <div className="mobile-menu-cta-shelf">
-          <a href="/menu" className="primary-button hero-cta-btn menu-full-button">
-            <span>View our full menu</span>
-            <svg className="btn-arrow" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <path d="M2.5 8h11M9.5 3.5l4.5 4.5-4.5 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </a>
-        </div>
-      )}
+        {/* Inside the stage so it travels with the menu card when the next
+            section slides over it on phones. */}
+        {!isMenuPage && (
+          <div className="mobile-menu-cta-shelf">
+            <a href="/menu" className="primary-button hero-cta-btn menu-full-button">
+              <span>View our full menu</span>
+              <svg className="btn-arrow" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M2.5 8h11M9.5 3.5l4.5 4.5-4.5 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </a>
+          </div>
+        )}
+      </div>
+      {!isMenuPage && <HomeSectionStack />}
 
       {!isMenuPage && <section className="take-home-section">
         {/* Mobile only: the copy panel sits below the video there, so the section

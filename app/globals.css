@@ -7063,3 +7063,40 @@ video:-moz-full-screen {
   .checkout-sheet-backdrop.is-closing,
   .checkout-sheet-backdrop.is-closing .checkout-sheet { animation-duration: .01ms; transition-duration: .01ms; }
 }
+
+/* Phone and tablet home page: every section pins once its bottom reaches the
+   screen bottom (or just under the header when it is shorter than the screen),
+   and the next section slides up over it as a rounded card. The class and the
+   card heights come from app/home-section-stack.tsx; desktop never gets it. */
+@media (max-width: 780px), (min-width: 781px) and (orientation: portrait) {
+  main.home-stack {
+    --stack-header-h: 68px;
+    --stack-radius: clamp(36px, 4.5vw, 60px);
+  }
+  main.home-stack > .mobile-order-overlay-stage,
+  main.home-stack > .take-home-section,
+  main.home-stack > .origin-section,
+  main.home-stack > .menu-boards-section,
+  main.home-stack > .visit-section {
+    position: sticky;
+    top: min(var(--stack-header-h), calc(100svh - var(--stack-card-h, 100svh)));
+  }
+  main.home-stack > .take-home-section,
+  main.home-stack > .origin-section,
+  main.home-stack > .menu-boards-section,
+  main.home-stack > .visit-section,
+  main.home-stack > .site-footer {
+    border-top-left-radius: var(--stack-radius);
+    border-top-right-radius: var(--stack-radius);
+    box-shadow: 0 -24px 70px rgba(18, 10, 6, 0.38);
+    overflow: clip;
+  }
+  main.home-stack > .take-home-section { z-index: 2; }
+  main.home-stack > .origin-section { z-index: 3; }
+  main.home-stack > .menu-boards-section { z-index: 4; border-top: 0; }
+  main.home-stack > .visit-section { z-index: 5; }
+  main.home-stack > .site-footer { position: relative; z-index: 6; border-top: 0; }
+}
+@media (min-width: 781px) and (orientation: portrait) {
+  main.home-stack { --stack-header-h: var(--portrait-header-h, 68px); }
+}
