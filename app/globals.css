@@ -5686,6 +5686,8 @@ body.modal-open { touch-action: none; }
   .visit-card a,
   .visit-card .visit-action-btn { margin-top: 12px; padding-top: 0; }
   .visit-map-container { min-height: 260px; }
+  /* Keep the embedded map's own top edge and controls visible on phones. */
+  .visit-map-frame { height: 100%; min-height: 280px; margin-top: 0; }
   .contact-map-section { padding: 4px 16px 32px; }
   .contact-map-container { height: 280px; }
   .configurator { width: 100vw; max-height: 100dvh; height: 100dvh; display: block; border-radius: 0; overflow-x: clip; touch-action: pan-y pinch-zoom; background: #f6ebdc; }
