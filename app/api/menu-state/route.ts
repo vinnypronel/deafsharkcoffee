@@ -2,7 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import { ensureSchema, getDb } from "../../../db";
 import { menuAvailability, menuContent, storeSettings } from "../../../db/schema";
 import { requireStaff } from "../../../lib/staff-auth";
-import { effectiveOrderingHours, validateWeeklyHours } from "../../../lib/store-hours";
+import { orderingWindowStatus, validateWeeklyHours } from "../../../lib/store-hours";
 import { readStoreHours, StoreHoursMigrationError, writeStoreHours } from "../../../lib/store-hours-store";
 import { readPauseState, validPauseMinutes, writePauseUntil } from "../../../lib/pause-state";
 import { readRemovedMenuIds } from "../../../lib/menu-removed";
@@ -35,7 +35,10 @@ export async function GET() {
       readPauseState(),
       readRemovedMenuIds(),
     ]);
-    const hours = effectiveOrderingHours({ ...settings, weeklyHours: storeHours.weeklyHours });
+    const hours = orderingWindowStatus(
+      { ...settings, weeklyHours: storeHours.weeklyHours },
+      settings.cutoffMinutes,
+    );
     return Response.json({
       availability: Object.fromEntries(items.map((item) => [item.productId, item.available])),
       menu: content,
@@ -43,9 +46,11 @@ export async function GET() {
       prepTime: settings.prepTimeMinutes,
       paused: pause.paused,
       pausedUntil: pause.pausedUntil,
+      orderingOpen: hours.orderingOpen && !pause.paused,
       hours: {
         openTime: hours.openTime,
         closeTime: hours.closeTime,
+        cutoffTime: hours.cutoffTime,
         closed: hours.closed,
         cutoffMinutes: settings.cutoffMinutes,
       },

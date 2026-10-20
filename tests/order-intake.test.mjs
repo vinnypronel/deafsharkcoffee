@@ -473,6 +473,13 @@ test("refuses an ASAP order after the closing cutoff", async () => {
   assert.equal(failure.code, "ordering_closed");
 });
 
+test("stops accepting new orders exactly at the daily cutoff", async () => {
+  const justBeforeCutoff = new Date("2026-09-10T21:59:00Z");
+  const atCutoff = new Date("2026-09-10T22:00:00Z");
+  assert.equal(resolveFulfillment({}, openSettings, justBeforeCutoff).pickupEta, "15 min");
+  assert.equal((await statusOf(() => resolveFulfillment({}, openSettings, atCutoff))).code, "ordering_closed");
+});
+
 test("uses Saturday hours and keeps Sunday closed", async () => {
   const saturdayNoon = new Date("2026-09-12T16:00:00Z");
   const saturdayLate = new Date("2026-09-12T17:45:00Z");

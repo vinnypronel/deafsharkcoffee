@@ -64,6 +64,10 @@ export function parseWeeklyHours(value: unknown): WeeklyHours {
 
 type StoredHours = { openTime: string; closeTime: string; weeklyHours?: WeeklyHours | null };
 type EffectiveOrderingHours = { openTime: string; closeTime: string; closed: boolean };
+export type OrderingWindowStatus = EffectiveOrderingHours & {
+  cutoffTime: string;
+  orderingOpen: boolean;
+};
 
 function storeWeekday(date: Date): Weekday {
   const short = new Intl.DateTimeFormat("en-US", { timeZone: STORE_TIME_ZONE, weekday: "short" }).format(date);
@@ -85,6 +89,42 @@ export function effectiveOrderingHours(settings: StoredHours, date = new Date())
     return { openTime: "08:00", closeTime: "14:00", closed: false };
   }
   return { openTime: settings.openTime, closeTime: settings.closeTime, closed: false };
+}
+
+function storeClockMinutes(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: STORE_TIME_ZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const hour = Number(parts.find((part) => part.type === "hour")?.value ?? 0);
+  const minute = Number(parts.find((part) => part.type === "minute")?.value ?? 0);
+  return hour * 60 + minute;
+}
+
+function clockFromMinutes(value: number) {
+  const bounded = Math.max(0, Math.min(23 * 60 + 59, value));
+  return `${String(Math.floor(bounded / 60)).padStart(2, "0")}:${String(bounded % 60).padStart(2, "0")}`;
+}
+
+/** The customer-facing ordering state for the current store day. Ordering is
+ * open from the posted opening time until, but not including, the cutoff. */
+export function orderingWindowStatus(
+  settings: StoredHours,
+  cutoffMinutes: number,
+  date = new Date(),
+): OrderingWindowStatus {
+  const hours = effectiveOrderingHours(settings, date);
+  if (hours.closed) return { ...hours, cutoffTime: "00:00", orderingOpen: false };
+  const openMinutes = minutes(hours.openTime);
+  const cutoff = Math.max(openMinutes, minutes(hours.closeTime) - Math.max(0, cutoffMinutes));
+  const now = storeClockMinutes(date);
+  return {
+    ...hours,
+    cutoffTime: clockFromMinutes(cutoff),
+    orderingOpen: now >= openMinutes && now < cutoff,
+  };
 }
 
 export function formatClock(clock: string) {

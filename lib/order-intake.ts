@@ -422,7 +422,7 @@ export function resolveFulfillment(
   }
 
   const nowMinutes = localClockMinutes(now);
-  if (nowMinutes < openMinutes || nowMinutes > closingCutoff) {
+  if (nowMinutes < openMinutes || nowMinutes >= closingCutoff) {
     throw new OrderRequestError(
       "Online ordering is closed for today. Please schedule during store hours.",
       409,

@@ -5,6 +5,7 @@ import {
   effectiveOrderingHours,
   formatClock,
   hoursLines,
+  orderingWindowStatus,
   parseWeeklyHours,
   validateWeeklyHours,
 } from "../lib/store-hours.ts";
@@ -31,6 +32,21 @@ test("saved weekly hours drive the ordering window", () => {
   const wednesdayNoon = new Date("2026-09-09T16:00:00Z");
   assert.deepEqual(effectiveOrderingHours({ ...legacy, weeklyHours: weekly }, sundayNoon), { openTime: "09:00", closeTime: "13:00", closed: false });
   assert.equal(effectiveOrderingHours({ ...legacy, weeklyHours: weekly }, wednesdayNoon).closed, true);
+});
+
+test("ordering opens with the shop and closes exactly 30 minutes before closing", () => {
+  const settings = { ...legacy, weeklyHours: DEFAULT_WEEKLY_HOURS };
+  assert.equal(orderingWindowStatus(settings, 30, new Date("2026-10-20T09:59:00Z")).orderingOpen, false);
+  assert.equal(orderingWindowStatus(settings, 30, new Date("2026-10-20T10:00:00Z")).orderingOpen, true);
+  assert.equal(orderingWindowStatus(settings, 30, new Date("2026-10-20T21:59:00Z")).orderingOpen, true);
+  assert.equal(orderingWindowStatus(settings, 30, new Date("2026-10-20T22:00:00Z")).orderingOpen, false);
+  assert.deepEqual(orderingWindowStatus(settings, 30, new Date("2026-10-20T22:05:00Z")), {
+    openTime: "06:00",
+    closeTime: "18:30",
+    cutoffTime: "18:00",
+    closed: false,
+    orderingOpen: false,
+  });
 });
 
 test("rejects invalid admin hours and repairs broken stored hours", () => {

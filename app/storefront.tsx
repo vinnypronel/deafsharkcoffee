@@ -936,10 +936,12 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [availability, setAvailability] = useState<Record<string, boolean>>({});
   const [prepTime, setPrepTime] = useState(15);
-  const [ordersPaused, setOrdersPaused] = useState(false);
+  const [manualOrdersPaused, setManualOrdersPaused] = useState(false);
+  const [orderingWindowOpen, setOrderingWindowOpen] = useState(true);
+  const ordersPaused = manualOrdersPaused || !orderingWindowOpen;
   const [pausedUntil, setPausedUntil] = useState<number | null>(null);
   /* A timed pause reaching zero reopens ordering right away; the next poll confirms. */
-  const endPause = useCallback(() => { setOrdersPaused(false); setPausedUntil(null); }, []);
+  const endPause = useCallback(() => { setManualOrdersPaused(false); setPausedUntil(null); }, []);
   const [scheduling, setScheduling] = useState<SchedulingSettings>({ enabled: true, horizonMinutes: 240, slotMinutes: 15 });
   const [confirmation, setConfirmation] = useState<{ number: string; eta: string } | null>(null);
   const [activeVideoModal, setActiveVideoModal] = useState<Product | null>(null);
@@ -1240,6 +1242,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
             prepTime?: number;
             paused?: boolean;
             pausedUntil?: number | null;
+            orderingOpen?: boolean;
             scheduling?: SchedulingSettings;
           };
           setAvailability(data.availability ?? {});
@@ -1252,7 +1255,8 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
             setProducts((current) => JSON.stringify(current) === JSON.stringify(nextProducts) ? current : nextProducts);
           }
           if (typeof data.prepTime === "number") setPrepTime(data.prepTime);
-          if (typeof data.paused === "boolean") setOrdersPaused(data.paused);
+          if (typeof data.paused === "boolean") setManualOrdersPaused(data.paused);
+          if (typeof data.orderingOpen === "boolean") setOrderingWindowOpen(data.orderingOpen);
           setPausedUntil(data.paused && typeof data.pausedUntil === "number" ? data.pausedUntil : null);
           if (data.scheduling) setScheduling(data.scheduling);
         }
