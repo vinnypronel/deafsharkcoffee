@@ -112,6 +112,12 @@ type SchedulingSettings = {
 
 type FeaturedProduct = Product & { featuredButtonLabel?: string; featuredCategoryLabel?: string };
 
+const HOME_REFRESHMENTS_EXCLUDED_IDS = new Set([
+  "smoothie-strawberry",
+  "peanut-horchata-latte",
+  "coconut-matcha-refresher",
+]);
+
 function LazyAutoplayVideo({
   src,
   poster,
@@ -1711,12 +1717,6 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
         {!isMenuPage && renderHeroProductPanel("hero-product-mobile")}
 
         <section className={`order-section ${isMenuPage ? "standalone-order" : ""}`} id="menu">
-        {/* The menu page carries the badge beside its title instead. */}
-        {!isMenuPage && (
-          <div className="order-section-badge-wrap" aria-hidden="true">
-            <img src="/deafshark-logo-640.webp" alt="Deaf Shark Coffee" className="order-section-badge" decoding="async" />
-          </div>
-        )}
         <div className="menu-showcase-grid" ref={menuRowsRef}>
           {/* Left Column: Title + Clean Product Card + Brand Tag (Sticky) */}
           <aside className="menu-product-card-wrap">
@@ -1881,6 +1881,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
                        go to the very end, not just the end of their category. */
                     products.filter((p) => {
                       if (!DRINK_CATEGORIES.includes(p.category)) return false;
+                      if (HOME_REFRESHMENTS_EXCLUDED_IDS.has(p.id)) return false;
                       const temps = temperaturesFor(p);
                       return !(temps.length === 1 && temps[0] === "Hot");
                     }).sort((a, b) => Number(Boolean(a.imageComingSoon)) - Number(Boolean(b.imageComingSoon))),

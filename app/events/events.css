@@ -68,9 +68,15 @@
 }
 
 @media (min-width: 1051px) {
+  /* Desktop: the photo takes the larger share of the hero and grows taller. */
+  .ev-hero { grid-template-columns: .85fr 1.15fr; gap: 5vw; }
   .ev-hero-media {
     transform: scale(1.08);
     transform-origin: center;
+  }
+  .ev-hero-media img {
+    min-height: 420px;
+    max-height: min(78vh, 720px);
   }
 }
 

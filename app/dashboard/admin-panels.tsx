@@ -215,8 +215,18 @@ function orderItemsFor(order: OrderRecord): OrderHistoryItem[] {
   }
 }
 
-function OrderHistoryTable({ orders }: { orders: OrderRecord[] }) {
+function OrderHistoryTable({ orders: allOrders }: { orders: OrderRecord[] }) {
   const [expanded, setExpanded] = useState<Set<number>>(() => new Set());
+  /* Neither box ticked shows every order; ticking one or both narrows the
+     list to those statuses. */
+  const [onlyStatuses, setOnlyStatuses] = useState<Set<string>>(() => new Set());
+  const toggleStatus = (status: string) => setOnlyStatuses((current) => {
+    const next = new Set(current);
+    if (next.has(status)) next.delete(status);
+    else next.add(status);
+    return next;
+  });
+  const orders = onlyStatuses.size ? allOrders.filter((order) => onlyStatuses.has(order.status)) : allOrders;
   const toggle = (orderId: number) => setExpanded((current) => {
     const next = new Set(current);
     if (next.has(orderId)) next.delete(orderId);
@@ -224,7 +234,12 @@ function OrderHistoryTable({ orders }: { orders: OrderRecord[] }) {
     return next;
   });
 
-  return <div className="admin-table-wrap"><table className="admin-table order-history-table">
+  return <>
+  <div className="order-history-filters" role="group" aria-label="Filter orders by status">
+    <label><input type="checkbox" checked={onlyStatuses.has("cancelled")} onChange={() => toggleStatus("cancelled")} /><span>Show cancelled only</span></label>
+    <label><input type="checkbox" checked={onlyStatuses.has("complete")} onChange={() => toggleStatus("complete")} /><span>Show completed only</span></label>
+  </div>
+  <div className="admin-table-wrap"><table className="admin-table order-history-table">
     <thead><tr><th aria-label="Order details" /><th>Date</th><th>Order</th><th>Customer</th><th>Pickup</th><th>Payment</th><th>Total</th><th>Status</th></tr></thead>
     <tbody>
       {orders.map((order) => {
@@ -242,9 +257,10 @@ function OrderHistoryTable({ orders }: { orders: OrderRecord[] }) {
           </div></div></div></td></tr>
         </Fragment>;
       })}
-      {orders.length === 0 && <tr><td colSpan={8} className="order-history-empty">No orders yet.</td></tr>}
+      {orders.length === 0 && <tr><td colSpan={8} className="order-history-empty">{onlyStatuses.size ? "No orders match this filter." : "No orders yet."}</td></tr>}
     </tbody>
-  </table></div>;
+  </table></div>
+  </>;
 }
 
 function MenuContentManager({ menu, setMenu, message, save, upload }: {

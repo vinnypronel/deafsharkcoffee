@@ -15,7 +15,7 @@ export default function ContactPage() {
     <main className="content-page">
       <CustomerHeader active="/contact" />
       <section className="page-hero contact-hero">
-        <div><span className="eyebrow">Visit the shop</span><h1>Come see us,<br />in Union!</h1><p>Stop in for coffee, breakfast, sandwiches, and bites. {CUSTOM_CHECKOUT_ENABLED ? "Or order ahead online for pickup." : "Online ordering is coming soon."}</p></div>
+        <div><span className="eyebrow">Visit the shop</span><h1>Come see us,<br />in Union!</h1><p>Stop in for coffee, breakfast, sandwiches, and more.<br />{CUSTOM_CHECKOUT_ENABLED ? "Or order ahead online for pickup." : "Online ordering is coming soon."}</p></div>
         <div className="contact-hero-photo"><img src="/grand-opening.jpg" alt="Deaf Shark Coffee grand opening ribbon cutting ceremony" /></div>
       </section>
       <section className="contact-grid">

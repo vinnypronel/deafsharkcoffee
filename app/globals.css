@@ -1976,7 +1976,7 @@ h1, h2, h3, p { margin-top: 0; }
 .menu-panel-header {
   position: relative;
   top: auto;
-  padding-right: 86px;
+  padding-right: 0;
   z-index: 4;
   background: #faf2e4;
   display: flex;
@@ -3209,6 +3209,9 @@ h1, h2, h3, p { margin-top: 0; }
   /* Bottom matches top so the map sits centred in its band rather than resting
      on the edge of the next section. */
   padding: clamp(32px, 3vw, 44px) max(5vw, calc((100vw - 1440px) / 2));
+  /* The contact cards above already end with their own spacing, so the map
+     starts right under the buttons instead of after a second gap. */
+  padding-top: 0;
   background: var(--paper);
 }
 .contact-map-container {
@@ -3759,7 +3762,13 @@ h1, h2, h3, p { margin-top: 0; }
   transition: transform .45s cubic-bezier(.22,1,.36,1), box-shadow .45s ease;
 }
 .contact-hero-photo:hover img { transform: scale(1.02); box-shadow: 0 32px 72px rgba(45,26,18,.48); }
-.contact-grid { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); background: var(--paper); padding: clamp(40px, 4.5vw, 64px) max(5vw, calc((100vw - 1440px) / 2)) clamp(36px, 4vw, 56px); gap: 0; }
+/* Desktop: give the photo the larger share of the hero and let it grow taller. */
+@media (min-width: 1051px) {
+  .contact-hero { grid-template-columns: 0.8fr 1.2fr; }
+  .contact-hero-photo { max-width: 1040px; }
+  .contact-hero-photo img { max-height: min(82vh, 780px); }
+}
+.contact-grid { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); background: var(--paper); padding: clamp(40px, 4.5vw, 64px) max(5vw, calc((100vw - 1440px) / 2)) clamp(16px, 1.4vw, 22px); gap: 0; }
 /* Tablet only: the stacked blocks leave a wide empty column, so the brand mark fills it. */
 .contact-grid-badge { display: none; }
 @media (min-width: 601px) and (max-width: 780px) {
@@ -4830,6 +4839,11 @@ body.modal-open { touch-action: none; }
 .order-history-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
 /* The row is always in the table and its content opens by growing from zero
    height, so the details slide down instead of appearing at once. */
+/* Square tick boxes above the order history to narrow it by status. */
+.order-history-filters { display: flex; flex-wrap: wrap; gap: 10px; margin: -12px 0 16px; }
+.order-history-filters label { display: inline-flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; background: white; font-weight: 750; font-size: 14px; cursor: pointer; }
+.order-history-filters input { width: 18px; height: 18px; margin: 0; border-radius: 3px; accent-color: var(--espresso); cursor: pointer; }
+.order-history-filters label:has(input:checked) { border-color: var(--espresso); background: #fffaf3; }
 .order-history-details-row > td { padding: 0; border-bottom-color: transparent; background: #fbf7f1; transition: border-color .3s ease; }
 .order-history-details-row.is-open > td { border-bottom-color: var(--line); }
 .order-history-drop { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .32s cubic-bezier(.22, 1, .36, 1); }
@@ -5670,7 +5684,7 @@ body.modal-open { touch-action: none; }
   .visit-card a,
   .visit-card .visit-action-btn { margin-top: 12px; padding-top: 0; }
   .visit-map-container { min-height: 260px; }
-  .contact-map-section { padding: 32px 16px; }
+  .contact-map-section { padding: 4px 16px 32px; }
   .contact-map-container { height: 280px; }
   .configurator { width: 100vw; max-height: 100dvh; height: 100dvh; display: block; border-radius: 0; overflow-x: clip; touch-action: pan-y pinch-zoom; background: #f6ebdc; }
   /* One cream for the whole sheet, so the options area does not read as a white band under the photo. */
