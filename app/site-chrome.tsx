@@ -9,6 +9,7 @@ import { OrderOnlineLink } from "./order-online-link";
 import { OrderStatus } from "./order-status";
 import { CUSTOM_CHECKOUT_ENABLED } from "./ordering";
 import TurnstileWidget from "./turnstile-widget";
+import { WebsiteFeedbackDialog, openWebsiteFeedback } from "./website-feedback";
 const BIRTHDAY_MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 const ORDER_STATUS_LABELS: Record<string, string> = { new: "Received", preparing: "In preparation", ready: "Ready for pickup", cancelled: "Cancelled" };
@@ -1502,6 +1503,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                   <p>We will send a secure password-reset link to {profile.profile.email}.</p>
                   <button type="button" className="primary-button" onClick={() => void sendAccountPasswordReset()} disabled={accountActionBusy}>{accountActionBusy ? "Sending..." : "Send password-reset email"}</button>
                   <button type="button" className="account-signout" onClick={handleSignOut} disabled={authBusy}>Sign out</button>
+                  <button type="button" className="account-report-problem" onClick={openWebsiteFeedback}>Report a problem or share feedback</button>
                 </div>}
 
                 {accountView === "privacy" && <div className="account-data-actions account-section-card">
@@ -1702,8 +1704,10 @@ export function SiteFooter() {
             <a href="/contact">Contact</a>
             <a href="/privacy">Privacy</a>
             <a href="/terms">Terms</a>
+            <a href="#website-feedback" onClick={(event) => { event.preventDefault(); openWebsiteFeedback(); }}>Feedback and help</a>
             {isStaff && <a href="/dashboard">Staff Dashboard</a>}
           </div>
+          <WebsiteFeedbackDialog />
         </div>
       </div>
     </footer>

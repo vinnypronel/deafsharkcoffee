@@ -4,6 +4,7 @@ import { type CSSProperties, type MouseEvent, useCallback, useEffect, useLayoutE
 import { flushSync } from "react-dom";
 import { StoreHours } from "./store-hours";
 import { HomeSectionStack } from "./home-section-stack";
+import { OrderFeedbackPrompt } from "./website-feedback";
 import { PauseNotice } from "./pause-notice";
 import { pointsForSubtotal, welcomeOfferHasEnoughItems } from "../lib/loyalty";
 import ScrollHero from "./scroll-hero";
@@ -2183,6 +2184,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
             <h2>We have it.</h2>
             <p>Your pickup estimate is <strong>{confirmation.eta}</strong>. Please pay at the counter when you arrive.</p>
             <div className="confirmation-actions"><button className="primary-button" onClick={() => { const number = confirmation.number; setConfirmation(null); window.dispatchEvent(new CustomEvent("deaf-shark-open-order", { detail: { orderNumber: number } })); }}>View order status</button><button className="soft-button" onClick={() => setConfirmation(null)}>Back to the menu</button></div>
+            <OrderFeedbackPrompt orderNumber={confirmation.number} />
           </section>
         </div>
       )}

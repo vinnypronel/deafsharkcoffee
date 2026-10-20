@@ -7100,3 +7100,32 @@ video:-moz-full-screen {
 @media (min-width: 781px) and (orientation: portrait) {
   main.home-stack { --stack-header-h: var(--portrait-header-h, 68px); }
 }
+
+/* Website feedback: the order confirmation prompt, the footer dialog, and the
+   form they share. Square-cornered choices, not pills. */
+.order-feedback { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); text-align: left; }
+.order-feedback > p { margin: 0 0 12px; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.order-feedback > p strong { display: block; margin-bottom: 2px; color: var(--ink); font-size: 15px; }
+.order-feedback-open { min-height: 40px; }
+.order-feedback > p.order-feedback-call { font-size: 13px; }
+.order-feedback-call a { color: var(--espresso); font-weight: 800; }
+.feedback-backdrop { z-index: 130; }
+.feedback-dialog { position: relative; width: min(520px, 96vw); max-height: 92vh; overflow-y: auto; border-radius: 24px; padding: 38px 34px 30px; background: var(--paper); box-shadow: 0 30px 90px rgba(0,0,0,.4); }
+.feedback-dialog h2 { margin: 6px 0 8px; font-family: Georgia, serif; font-size: 30px; line-height: 1.1; }
+.feedback-dialog > p.feedback-note { margin-top: -8px; font-size: 13px; }
+.feedback-dialog > p.feedback-note a { color: var(--espresso); font-weight: 800; }
+.feedback-dialog > p { margin: 0 0 18px; color: var(--muted); font-size: 14px; line-height: 1.55; }
+.feedback-form { display: grid; gap: 14px; }
+.feedback-kinds { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.feedback-kinds button { min-height: 44px; border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; background: white; color: var(--ink); font: inherit; font-size: 12.5px; font-weight: 750; line-height: 1.2; cursor: pointer; }
+.feedback-kinds button.active { border-color: var(--espresso); background: #fffaf3; box-shadow: inset 0 0 0 1px var(--espresso); }
+.feedback-field { display: grid; gap: 6px; }
+.feedback-field > span { font-size: 13px; font-weight: 750; }
+.feedback-field textarea, .feedback-field input { width: 100%; box-sizing: border-box; border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; background: white; font: inherit; font-size: 15px; resize: vertical; }
+.feedback-error { margin: 0; color: #a33c2b; font-size: 13px; font-weight: 700; }
+.feedback-submit { justify-self: start; }
+.feedback-sent { margin: 0; padding: 14px 16px; border-radius: 10px; background: #f1faf7; color: var(--teal-dark); font-weight: 750; }
+.account-report-problem { display: block; margin-top: 14px; border: 0; padding: 0; background: transparent; color: var(--espresso); font: inherit; font-size: 13px; font-weight: 800; text-decoration: underline; cursor: pointer; }
+@media (max-width: 520px) {
+  .feedback-dialog { padding: 34px 20px 24px; }
+}

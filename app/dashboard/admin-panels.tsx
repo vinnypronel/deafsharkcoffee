@@ -170,16 +170,21 @@ export function AdminPanels({ view }: { view: View }) {
   );
 }
 
-type FormsFilter = "all" | "contact" | "employment";
+type FormsFilter = "all" | "contact" | "employment" | "website";
 
 /* Contact and job forms side by side, with tabs to narrow to one kind. The
    newsletter list only shows under All, since it is sign-ups, not messages. */
 function FormsInbox({ records }: { records: Records }) {
   const [filter, setFilter] = useState<FormsFilter>("all");
+  /* Website feedback is stored alongside contact messages but kept in its own
+     tab, so problem reports about the site are not mixed in with shop questions. */
+  const shopContacts = records.contacts.filter((row) => row.topic !== "website");
+  const websiteFeedback = records.contacts.filter((row) => row.topic === "website");
   const tabs: Array<{ key: FormsFilter; label: string; count: number }> = [
     { key: "all", label: "All", count: records.contacts.length + records.applications.length },
-    { key: "contact", label: "Contact", count: records.contacts.length },
+    { key: "contact", label: "Contact", count: shopContacts.length },
     { key: "employment", label: "Employment", count: records.applications.length },
+    { key: "website", label: "Customer feedback", count: websiteFeedback.length },
   ];
   return (
     <AdminSection title="Contact / Employment forms" description="Every contact message and job application sent from the website, newest first.">
@@ -190,8 +195,9 @@ function FormsInbox({ records }: { records: Records }) {
           </button>
         ))}
       </div>
-      {filter !== "employment" && <RecordsBlock title="Contact messages" rows={records.contacts.map((row) => ({ id: row.id, date: row.createdAt, heading: row.name, meta: `${row.email}${row.phone ? ` · ${row.phone}` : ""} · ${row.topic}`, body: row.message }))} />}
-      {filter !== "contact" && <RecordsBlock title="Employment applications" rows={records.applications.map((row) => ({ id: row.id, date: row.createdAt, heading: row.fullName, meta: `${row.email} · ${row.phone} · ${row.position} · ${row.employmentType}`, body: [row.experience, row.why].filter(Boolean).join("\n\n") || "No additional notes." }))} />}
+      {(filter === "all" || filter === "website") && <RecordsBlock title="Customer feedback" rows={websiteFeedback.map((row) => ({ id: row.id, date: row.createdAt, heading: row.name, meta: row.email, body: row.message }))} />}
+      {(filter === "all" || filter === "contact") && <RecordsBlock title="Contact messages" rows={shopContacts.map((row) => ({ id: row.id, date: row.createdAt, heading: row.name, meta: `${row.email}${row.phone ? ` · ${row.phone}` : ""} · ${row.topic}`, body: row.message }))} />}
+      {(filter === "all" || filter === "employment") && <RecordsBlock title="Employment applications" rows={records.applications.map((row) => ({ id: row.id, date: row.createdAt, heading: row.fullName, meta: `${row.email} · ${row.phone} · ${row.position} · ${row.employmentType}`, body: [row.experience, row.why].filter(Boolean).join("\n\n") || "No additional notes." }))} />}
       {filter === "all" && <RecordsBlock title="Newsletter sign-ups" rows={records.subscribers.map((row) => ({ id: row.id, date: row.consentedAt, heading: row.email, meta: row.status, body: row.consentText }))} />}
     </AdminSection>
   );
