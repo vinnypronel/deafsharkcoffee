@@ -937,7 +937,8 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   const [availability, setAvailability] = useState<Record<string, boolean>>({});
   const [prepTime, setPrepTime] = useState(15);
   const [manualOrdersPaused, setManualOrdersPaused] = useState(false);
-  const [orderingWindowOpen, setOrderingWindowOpen] = useState(true);
+  /* Fail closed until the live store clock and saved weekly hours arrive. */
+  const [orderingWindowOpen, setOrderingWindowOpen] = useState(false);
   const ordersPaused = manualOrdersPaused || !orderingWindowOpen;
   const [pausedUntil, setPausedUntil] = useState<number | null>(null);
   /* A timed pause reaching zero reopens ordering right away; the next poll confirms. */
