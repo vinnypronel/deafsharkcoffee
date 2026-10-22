@@ -268,6 +268,7 @@ test("prices and routes the fall drinks and desserts from the posted menus", () 
     ["brown-sugar-shaken-espresso", 6.5],
     ["dirty-soda", 5.25],
     ["iced-toasted-marshmallow-latte", 7],
+    ["tiramisu-latte", 7.75],
   ]) {
     const [drink] = priceCart([{ id, quantity: 1 }]);
     assert.equal(drink.unitPrice, price);

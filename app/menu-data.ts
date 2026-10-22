@@ -528,7 +528,7 @@ const catalogProducts: Product[] = [
     id: "tiramisu-latte",
     name: "Tiramisu Latte",
     category: "Special Drinks",
-    price: 7.5,
+    price: 7.75,
     description: "Espresso and milk with tiramisu flavor.",
     configurable: true,
     decafAvailable: true,
