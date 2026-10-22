@@ -201,12 +201,9 @@ const cheeseChoice = (defaultLabel = "Yellow American"): ModifierGroup => ({
   label: "Cheese choice",
   type: "single",
   required: true,
-  options: [
-    { label: defaultLabel },
-    { label: "Swiss", price: 1 },
-    { label: "Provolone", price: 1 },
-    { label: "Pepper Jack", price: 1 },
-  ],
+  options: [defaultLabel, "Yellow American", "Swiss", "Provolone", "Pepper Jack"]
+    .filter((label, index, labels) => labels.indexOf(label) === index)
+    .map((label) => ({ label, ...(label === defaultLabel ? {} : { price: 1 }) })),
 });
 
 export const CHEESE_CHOICE = cheeseChoice();
@@ -1065,7 +1062,7 @@ const catalogProducts: Product[] = [
     description: "Pressed panini with pork, Swiss cheese, ham, pickles, and mustard. With French fries.",
     popular: true,
     configurable: true,
-    modifierGroups: [CHEESE_CHOICE, removeIngredients("Swiss cheese", "pickles", "mustard"), NO_FRENCH_FRIES, FOOD_ADD_ONS],
+    modifierGroups: [cheeseChoice("Swiss"), removeIngredients("Swiss cheese", "pickles", "mustard"), NO_FRENCH_FRIES, FOOD_ADD_ONS],
     visual: "sandwich",
     imageComingSoon: true,
   },
@@ -1192,7 +1189,6 @@ const catalogProducts: Product[] = [
     configurable: true,
     flavors: ["Chicken and cheese", "Cheese", "Revueltas (beans, cheese, and pork)"],
     flavorLabel: "Choose a filling",
-    modifierGroups: [CHEESE_CHOICE],
     visual: "bite",
     imageComingSoon: true,
   },

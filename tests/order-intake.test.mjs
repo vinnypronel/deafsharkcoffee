@@ -216,16 +216,15 @@ test("made-to-order cheese items offer the shop's cheese swaps", () => {
     "garden-salad",
     "emilia",
     "cachapa",
-    "pupusas",
   ];
 
   for (const id of cheeseItemIds) {
     const product = menuProducts.find((item) => item.id === id);
     const cheeseChoice = product?.modifierGroups?.find((group) => group.label === "Cheese choice");
-    const expectedDefault = "Yellow American";
+    const expectedDefault = id === "shark-cubano" ? "Swiss" : "Yellow American";
     assert.deepEqual(cheeseChoice?.options.map((option) => option.label), [
       expectedDefault,
-      "Swiss",
+      ...["Yellow American", "Swiss"].filter((label) => label !== expectedDefault),
       "Provolone",
       "Pepper Jack",
     ], id);
@@ -239,6 +238,13 @@ test("made-to-order cheese items offer the shop's cheese swaps", () => {
     assert.equal(swapped.unitPrice, product.price + 1, id);
     assert.ok(swapped.options.includes("Cheese choice: Pepper Jack"), id);
   }
+
+  const cuban = menuProducts.find((item) => item.id === "shark-cubano");
+  const cubanCheeses = cuban?.modifierGroups?.find((group) => group.label === "Cheese choice");
+  assert.deepEqual(cubanCheeses?.options.map((option) => option.price ?? 0), [0, 1, 1, 1], "shark-cubano");
+
+  const pupusas = menuProducts.find((item) => item.id === "pupusas");
+  assert.equal(Boolean(pupusas?.modifierGroups?.some((group) => group.label === "Cheese choice")), false);
 });
 
 test("places Garden Salad in Bites and marks only unfinished menu photos as coming soon", () => {
