@@ -144,6 +144,22 @@ export const MILK_OPTIONS = ["Whole", "Skim", "Oat", "Almond", "Half and Half"] 
 
 export const EXTRA_SHOT_PRICE = 1.25;
 export const MAX_EXTRA_SHOTS = 4;
+/* A flavor can be added more than once (two pumps of hazelnut). Each pump is
+   one entry in the syrups list and is charged on its own. */
+export const MAX_SYRUP_PUMPS_PER_FLAVOR = 4;
+export const MAX_SYRUP_PUMPS = 8;
+
+/** Flavors in the order first chosen, each with how many pumps. */
+export function syrupCounts(syrups: readonly string[]) {
+  const counts = new Map<string, number>();
+  for (const syrup of syrups) counts.set(syrup, (counts.get(syrup) ?? 0) + 1);
+  return [...counts.entries()].map(([flavor, count]) => ({ flavor, count }));
+}
+
+/** "Hazelnut x2, Vanilla" */
+export function formatSyrups(syrups: readonly string[]) {
+  return syrupCounts(syrups).map(({ flavor, count }) => (count > 1 ? `${flavor} x${count}` : flavor)).join(", ");
+}
 
 export const LUNCH_SPECIAL_HOURS = "12:00 PM to 3:00 PM, Monday to Friday";
 
@@ -389,11 +405,14 @@ export function priceProductSelection(product: Product, input: ProductSelection 
   if (smoothieUsesMilk) refuseIfOut(smoothieMilk);
 
   const hasSyrupOptions = hasSyrupOptionsForProduct(product);
-  const syrups = [...new Set(input.syrups ?? [])];
+  const syrups = [...(input.syrups ?? [])];
   if ((!hasSyrupOptions && syrups.length) || syrups.some((value) => !SYRUP_OPTIONS.includes(value as (typeof SYRUP_OPTIONS)[number]))) {
     throw new Error(`Invalid syrup choice for ${product.name}.`);
   }
-  syrups.forEach(refuseIfOut);
+  if (syrups.length > MAX_SYRUP_PUMPS || syrupCounts(syrups).some(({ count }) => count > MAX_SYRUP_PUMPS_PER_FLAVOR)) {
+    throw new Error(`Too many syrup pumps for ${product.name}.`);
+  }
+  [...new Set(syrups)].forEach(refuseIfOut);
 
   const hasShotOptions = hasExtraShotOptionsForProduct(product);
   const extraShot = input.extraShot ?? 0;
@@ -449,7 +468,7 @@ export function priceProductSelection(product: Product, input: ProductSelection 
     if (isSmoothie && base) options.push(`${base} base`);
     if (smoothieMilk) options.push(smoothieMilk);
     if (size) options.push(size);
-    if (syrups.length) options.push(`Syrup: ${syrups.join(", ")}`);
+    if (syrups.length) options.push(`Syrup: ${formatSyrups(syrups)}`);
   }
   if (hasTwoSizes && size) options.push(size);
   if (extraShot) options.push(extraShot === 1 ? "Extra shot" : `${extraShot} extra shots`);

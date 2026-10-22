@@ -97,6 +97,8 @@ export const orders = sqliteTable(
     smsConsentText: text("sms_consent_text"),
     pickupEta: text("pickup_eta").notNull().default("15 min"),
     fulfillmentType: text("fulfillment_type").notNull().default("asap"),
+    /* "to_go" or "for_here", chosen at checkout. */
+    diningOption: text("dining_option").notNull().default("to_go"),
     scheduledFor: integer("scheduled_for", { mode: "timestamp" }),
     customerUserId: text("customer_user_id"),
     /* Client-generated per checkout attempt. The unique index makes a retried or

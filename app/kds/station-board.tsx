@@ -25,6 +25,7 @@ type StationOrder = {
   paymentMethod: string;
   pickupEta: string;
   fulfillmentType?: "asap" | "scheduled";
+  diningOption?: string;
   scheduledFor?: string | null;
   createdAt: string;
 };
@@ -191,7 +192,7 @@ export function StationBoard({ station, embedded = false }: { station: Station; 
               <div><span className="kds-order-number">#{order.orderNumber.replace("DS", "")}</span><span className={`kds-status status-${order.stationStatus}`}>{statusLabels[order.stationStatus]}</span></div>
               <time dateTime={order.createdAt}>{orderAge(order.createdAt)}</time>
             </header>
-            <div className="kds-customer"><strong>{order.customerName}</strong><span>{pickupLabel(order)}</span></div>
+            <div className="kds-customer"><strong>{order.customerName}</strong><span><b className={`dining-tag ${order.diningOption === "for_here" ? "is-here" : ""}`}>{order.diningOption === "for_here" ? "For here" : "To go"}</b> · {pickupLabel(order)}</span></div>
             <div className="kds-items">
               {order.stationItems.map((item, index) => (
                 <div key={`${item.id}-${index}`}>

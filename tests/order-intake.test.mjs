@@ -575,3 +575,11 @@ test("order logs carry no customer identity, contents, or tokens", (t) => {
     [],
   );
 });
+
+test("a drink can take more than one pump of the same syrup, each charged", () => {
+  const [latte] = priceCart([{ id: "latte", quantity: 1, selection: { syrups: ["Hazelnut", "Hazelnut", "French Vanilla"] } }]);
+  const [plain] = priceCart([{ id: "latte", quantity: 1 }]);
+  assert.equal(Math.round((latte.unitPrice - plain.unitPrice) * 100), 150, "three pumps cost three syrup charges");
+  assert.ok(latte.options.includes("Syrup: Hazelnut x2, French Vanilla"));
+  assert.throws(() => priceCart([{ id: "latte", quantity: 1, selection: { syrups: Array(5).fill("Hazelnut") } }]), /Too many syrup pumps/);
+});

@@ -224,6 +224,7 @@ export async function POST(request: Request) {
 
     const { subtotalCents, discountCents, taxCents, totalCents } = orderTotals(orderItems, discount.amountCents);
     const { fulfillmentType, scheduledFor, pickupEta } = resolveFulfillment(payload, settings);
+    const diningOption = (payload as { diningOption?: unknown }).diningOption === "for_here" ? "for_here" : "to_go";
     const { hasCoffeeItems, hasKitchenItems } = stationFlags(orderItems);
     const smsOptIn = payload.smsOptIn === true;
 
@@ -296,6 +297,7 @@ export async function POST(request: Request) {
       smsConsentText: smsOptIn ? ORDER_READY_SMS_CONSENT : null,
       pickupEta,
       fulfillmentType,
+      diningOption,
       scheduledFor,
       customerUserId,
       idempotencyKey,
@@ -385,6 +387,7 @@ export async function POST(request: Request) {
       [
         `Order ${createdOrder.orderNumber}`,
         `${customerName} · ${phone}`,
+        diningOption === "for_here" ? "For here" : "To go",
         fulfillmentType === "scheduled" ? `Scheduled pickup: ${pickupEta}` : `Pickup in about ${pickupEta}`,
         ...orderItems.map((item) => `${item.quantity} x ${item.name}${item.options.length ? ` (${item.options.join(", ")})` : ""}`),
         `Total $${(totalCents / 100).toFixed(2)} · pay at pickup`,

@@ -5,6 +5,7 @@ import {
   hasMilkOptionsForProduct,
   menuProducts,
   modifierGroupsForProduct,
+  syrupCounts,
   temperaturesForProduct,
   type ProductSelection,
 } from "./menu-data";
@@ -62,7 +63,9 @@ export function itemBreakdown(item: StoredLineItem): ItemBreakdown {
     details.push({ label: `Milk: ${selection.milk}` });
   }
   if (selection.size && (isDrink ? Boolean(sizeChoices?.length) : true)) details.push({ label: `Size: ${selection.size}` });
-  for (const syrup of isDrink ? selection.syrups ?? [] : []) details.push({ label: `Syrup: ${syrup}`, cents: cents(SYRUP_PRICE) });
+  for (const { flavor, count } of syrupCounts(isDrink ? selection.syrups ?? [] : [])) {
+    details.push({ label: `Syrup: ${flavor}${count > 1 ? ` x${count}` : ""}`, cents: cents(SYRUP_PRICE) * count });
+  }
   if (isDrink && selection.extraShot) {
     details.push({
       label: selection.extraShot === 1 ? "Extra shot" : `${selection.extraShot} extra shots`,

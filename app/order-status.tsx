@@ -11,6 +11,7 @@ type CustomerOrder = OrderMoney & {
   pickupEta: string;
   paymentMethod: string;
   fulfillmentType?: string;
+  diningOption?: string;
   scheduledFor?: string | null;
   createdAt?: string;
   items: StoredLineItem[];
@@ -170,7 +171,7 @@ export function OrderStatus({ orderNumber, onClose }: { orderNumber: string; onC
                     </div>
                   ) : (
                     <div>
-                      <span>{order.fulfillmentType === "scheduled" ? "Scheduled pickup" : "Estimated pickup"}</span>
+                      <span>{order.fulfillmentType === "scheduled" ? "Scheduled pickup" : "Estimated pickup"} · {order.diningOption === "for_here" ? "For here" : "To go"}</span>
                       <strong>{pickupWindow(order)}</strong>
                     </div>
                   )}

@@ -30,6 +30,8 @@ import {
   outIngredientsFrom,
   prepStationFor,
   priceProductSelection,
+  MAX_SYRUP_PUMPS,
+  MAX_SYRUP_PUMPS_PER_FLAVOR,
   SYRUP_OPTIONS,
   SYRUP_PRICE,
   type ModifierGroup,
@@ -395,8 +397,12 @@ function ProductConfigurator({
     const syrupOpt = opts.find((o) => o.startsWith("Syrup:"));
     if (syrupOpt) {
       const syrupList = syrupOpt.replace("Syrup:", "").split(",").map((s) => s.trim());
-      for (const s of syrupList) {
-        if (SYRUP_OPTIONS.includes(s as SyrupFlavor)) syrups.push(s as SyrupFlavor);
+      for (const entry of syrupList) {
+        /* "Hazelnut x2" is two pumps of hazelnut. */
+        const match = entry.match(/^(.*?)(?:\s+x(\d+))?$/);
+        const s = match?.[1]?.trim() ?? entry;
+        const count = Math.min(MAX_SYRUP_PUMPS_PER_FLAVOR, Math.max(1, Number(match?.[2] ?? 1)));
+        if (SYRUP_OPTIONS.includes(s as SyrupFlavor)) for (let i = 0; i < count; i++) syrups.push(s as SyrupFlavor);
       }
     }
 
@@ -590,27 +596,42 @@ function ProductConfigurator({
               <legend>Extra flavor syrups</legend>
               <div className="syrup-grid">
                 {SYRUP_OPTIONS.map((flavor) => {
-                  const isSelected = config.syrups.includes(flavor);
+                  /* Tap a flavor to add a pump; once chosen it shows a count with
+                     minus and plus, so two pumps of one flavor is possible. */
+                  const pumps = config.syrups.filter((s) => s === flavor).length;
+                  const isSelected = pumps > 0;
                   const out = Boolean(outFor(flavor));
+                  const atLimit = pumps >= MAX_SYRUP_PUMPS_PER_FLAVOR || config.syrups.length >= MAX_SYRUP_PUMPS;
+                  const addPump = () => setConfig({ ...config, syrups: [...config.syrups, flavor] });
+                  const removePump = () => {
+                    const index = config.syrups.lastIndexOf(flavor);
+                    setConfig({ ...config, syrups: config.syrups.filter((_, i) => i !== index) });
+                  };
+                  if (!isSelected) {
+                    return (
+                      <button
+                        type="button"
+                        key={flavor}
+                        disabled={out || config.syrups.length >= MAX_SYRUP_PUMPS}
+                        className={`syrup-pill ${out ? "is-out" : ""}`}
+                        onClick={addPump}
+                        aria-label={`Add ${flavor} syrup`}
+                      >
+                        <span className="syrup-name">{flavor}</span>
+                        <small>{out ? "Out today" : `+${money(SYRUP_PRICE)}`}</small>
+                      </button>
+                    );
+                  }
                   return (
-                    <button
-                      type="button"
-                      key={flavor}
-                      disabled={out && !isSelected}
-                      className={`syrup-pill ${isSelected ? "selected" : ""} ${out ? "is-out" : ""}`}
-                      onClick={() => {
-                        setConfig({
-                          ...config,
-                          syrups: isSelected
-                            ? config.syrups.filter((s) => s !== flavor)
-                            : [...config.syrups, flavor],
-                        });
-                      }}
-                      aria-pressed={isSelected}
-                    >
+                    <div key={flavor} className="syrup-pill selected syrup-pill-counted" role="group" aria-label={`${flavor} syrup, ${pumps} ${pumps === 1 ? "pump" : "pumps"}`}>
                       <span className="syrup-name">{flavor}</span>
-                      <small>{out ? "Out today" : `+${money(SYRUP_PRICE)}`}</small>
-                    </button>
+                      <span className="syrup-stepper">
+                        <button type="button" onClick={removePump} aria-label={`One less ${flavor}`}>−</button>
+                        <b>{pumps}</b>
+                        <button type="button" onClick={addPump} disabled={atLimit || out} aria-label={`One more ${flavor}`}>+</button>
+                      </span>
+                      <small>+{money(SYRUP_PRICE * pumps)}</small>
+                    </div>
                   );
                 })}
               </div>
@@ -2582,6 +2603,7 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [fulfillmentType, setFulfillmentType] = useState<"asap" | "scheduled">("asap");
+  const [diningOption, setDiningOption] = useState<"to_go" | "for_here">("to_go");
   const [scheduledFor, setScheduledFor] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -2739,6 +2761,7 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
           paymentMethod: "pickup",
           smsOptIn,
           fulfillmentType,
+          diningOption,
           scheduledFor: fulfillmentType === "scheduled" ? new Date(scheduledFor).toISOString() : undefined,
           turnstileToken,
           idempotencyKey,
@@ -2812,6 +2835,11 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
           <span>Ordering from your account</span>
           <div><strong>{name || "Account name"}</strong><small>{phone || "Mobile number on file"}</small></div>
         </div>
+        <fieldset className="payment-options pickup-options dining-options">
+          <legend>To go or for here</legend>
+          <label htmlFor="dining-to-go"><input id="dining-to-go" type="radio" name="dining" checked={diningOption === "to_go"} onChange={() => setDiningOption("to_go")} /><span><strong>To go</strong><small>Packed to take with you</small></span></label>
+          <label htmlFor="dining-for-here"><input id="dining-for-here" type="radio" name="dining" checked={diningOption === "for_here"} onChange={() => setDiningOption("for_here")} /><span><strong>For here</strong><small>Served to enjoy in the shop</small></span></label>
+        </fieldset>
         <fieldset className="payment-options pickup-options">
           <legend>Pickup time</legend>
           <label htmlFor="fulfillment-asap" aria-label="As soon as possible"><input id="fulfillment-asap" type="radio" name="fulfillment" checked={fulfillmentType === "asap"} onChange={() => setFulfillmentType("asap")} /><span><strong>As soon as possible</strong><small>Estimated in about {prepTime} minutes</small></span></label>

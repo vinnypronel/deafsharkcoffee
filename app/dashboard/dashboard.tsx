@@ -42,6 +42,7 @@ type Order = {
   paymentMethod: string;
   pickupEta: string;
   fulfillmentType?: "asap" | "scheduled";
+  diningOption?: string;
   scheduledFor?: string | null;
   createdAt: string;
 };
@@ -472,7 +473,7 @@ function OrderCard({ order, onAdvance, onCancel }: { order: Order; onAdvance: ()
   return (
     <article className="order-card">
       <div className="order-card-top"><div><span className={`source-badge source-${order.source}`}>{order.source === "website" ? "Website" : order.source}</span></div><time dateTime={order.createdAt}>{formatDateTime(order.createdAt)}</time></div>
-      <div className="customer-line"><strong>{order.customerName}</strong><span>{order.fulfillmentType === "scheduled" ? "Scheduled" : "ASAP"} pickup · {order.pickupEta}</span></div>
+      <div className="customer-line"><strong>{order.customerName}</strong><span><b className={`dining-tag ${order.diningOption === "for_here" ? "is-here" : ""}`}>{order.diningOption === "for_here" ? "For here" : "To go"}</b> · {order.fulfillmentType === "scheduled" ? "Scheduled" : "ASAP"} pickup · {order.pickupEta}</span></div>
       <DiscountBadge order={order} />
       <div className="order-items">
         {visibleItems.map((item, index) => {

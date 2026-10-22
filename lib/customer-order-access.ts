@@ -13,6 +13,7 @@ export type CustomerOrderRecord = {
   paymentMethod: string;
   pickupEta: string;
   fulfillmentType: string;
+  diningOption?: string;
   scheduledFor: Date | null;
   createdAt: Date;
 };
@@ -81,6 +82,7 @@ export async function serveOwnedCustomerOrder(
         paymentMethod: order.paymentMethod,
         pickupEta: order.pickupEta,
         fulfillmentType: order.fulfillmentType,
+        diningOption: order.diningOption,
         scheduledFor: order.scheduledFor,
         createdAt: order.createdAt,
       },
