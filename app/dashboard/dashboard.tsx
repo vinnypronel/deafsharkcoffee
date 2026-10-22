@@ -446,6 +446,24 @@ export function Dashboard() {
    collapse behind a toggle. Every item is still one tap away. */
 const ORDER_ITEMS_VISIBLE = 3;
 
+/* Tells the counter at a glance that the price already includes a discount,
+   so nobody applies it twice or wonders why the total is lower. */
+function DiscountBadge({ order }: { order: Order }) {
+  if (!order.discountCents) return null;
+  const amount = money(order.discountCents);
+  if (order.discountKind === "student") {
+    return <div className="ticket-discount ticket-discount-kean"><img src="/kean-seal.png" alt="" width="22" height="22" /><span><b>Kean student</b> 10% off · {amount}</span></div>;
+  }
+  const label = order.discountKind === "welcome" ? "Welcome coupon" : order.discountKind === "reward" ? "Rewards" : "Discount";
+  const detail = order.discountKind === "welcome" ? "50% off one drink" : order.discountKind === "reward" && order.rewardPointsSpent ? `${order.rewardPointsSpent} points` : "applied";
+  return (
+    <div className="ticket-discount">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8.5V6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v2.5a2.5 2.5 0 0 0 0 5V18a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-4.5a2.5 2.5 0 0 0 0-5Z" /><path d="M14 5v14" strokeDasharray="2 2" /></svg>
+      <span><b>{label}</b> {detail} · {amount} off</span>
+    </div>
+  );
+}
+
 function OrderCard({ order, onAdvance, onCancel }: { order: Order; onAdvance: () => void; onCancel: () => void }) {
   const [expanded, setExpanded] = useState(false);
   const [expandedDetails, setExpandedDetails] = useState<Record<string, boolean>>({});
@@ -455,6 +473,7 @@ function OrderCard({ order, onAdvance, onCancel }: { order: Order; onAdvance: ()
     <article className="order-card">
       <div className="order-card-top"><div><span className={`source-badge source-${order.source}`}>{order.source === "website" ? "Website" : order.source}</span></div><time dateTime={order.createdAt}>{formatDateTime(order.createdAt)}</time></div>
       <div className="customer-line"><strong>{order.customerName}</strong><span>{order.fulfillmentType === "scheduled" ? "Scheduled" : "ASAP"} pickup · {order.pickupEta}</span></div>
+      <DiscountBadge order={order} />
       <div className="order-items">
         {visibleItems.map((item, index) => {
           const detailKey = `${item.id}-${index}`;

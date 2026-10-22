@@ -7154,3 +7154,10 @@ video:-moz-full-screen {
 .ticket-money-lines { padding: 8px 0 0; border-top: 0; }
 .ticket-money-lines > div { font-size: 12px; }
 .order-item-price { margin-left: 8px; font-style: normal; font-weight: 750; opacity: .7; }
+
+/* Counter ticket: a discount used on the order, shown under the customer's name. */
+.ticket-discount { display: flex; align-items: center; gap: 8px; margin: -2px 0 9px; border-radius: 8px; padding: 6px 9px; background: #fbf1e3; color: #6b3f1d; font-size: 12px; }
+.ticket-discount b { font-weight: 850; }
+.ticket-discount svg { flex: 0 0 auto; width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ticket-discount img { flex: 0 0 auto; width: 22px; height: 22px; }
+.ticket-discount-kean { background: #eef2f8; color: #12355b; }
