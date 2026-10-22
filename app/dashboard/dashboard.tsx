@@ -3,13 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  DRINK_CATEGORIES,
-  EXTRA_SHOT_PRICE,
-  hasMilkOptionsForProduct,
-  modifierGroupsForProduct,
   menuProducts,
-  SYRUP_PRICE,
-  temperaturesForProduct,
   type PrepStation,
   type ProductSelection,
 } from "../menu-data";
@@ -17,6 +11,7 @@ import { AdminPanels } from "./admin-panels";
 import { AvailabilityPanel } from "./availability-panel";
 import { formatCountdown } from "../pause-notice";
 import { StationBoard } from "../kds/station-board";
+import { itemBreakdown, money, orderTotalLines, signedMoney } from "../order-lines";
 
 type OrderItem = {
   id: string;
@@ -35,6 +30,11 @@ type Order = {
   phone: string;
   items: OrderItem[];
   totalCents: number;
+  subtotalCents?: number | null;
+  discountCents?: number | null;
+  discountKind?: string | null;
+  rewardPointsSpent?: number | null;
+  taxCents?: number | null;
   status: "new" | "preparing" | "ready" | "complete" | "cancelled";
   coffeeStatus?: "new" | "preparing" | "ready" | "not_needed";
   kitchenStatus?: "new" | "preparing" | "ready" | "not_needed";
@@ -82,40 +82,10 @@ function optionWithPrice(label: string, price = 0) {
   return `${label}${formatAddOnPrice(price)}`;
 }
 
+/* Labeled choices for the counter ticket, with each paid extra's charge.
+   Shared with the customer receipts through order-lines, so both agree. */
 function orderItemDetails(item: OrderItem) {
-  const product = menuProducts.find((candidate) => candidate.id === item.id);
-  const selection = item.selection;
-  if (!product || !selection) return item.options ?? [];
-
-  /* Every line names what it is, and a line only appears when that item really
-     has the choice, so a drink with no milk or size options never shows a
-     leftover default such as "Whole" or "Regular". */
-  const details: string[] = [];
-  const isDrink = DRINK_CATEGORIES.includes(product.category);
-  const isSmoothie = Boolean(product.bases?.length);
-  const temperature = selection.temperature;
-  const sizeChoices = temperature === "Hot" ? product.sizing?.hot : temperature === "Iced" ? product.sizing?.iced : undefined;
-  if (product.flavors?.length && selection.flavor) details.push(`${isDrink ? "Flavor" : "Choice"}: ${selection.flavor}`);
-  if (isDrink && temperature && temperaturesForProduct(product).length > 1) details.push(`Temperature: ${temperature}`);
-  if (isDrink && selection.base) details.push(`Base: ${selection.base}`);
-  if (isDrink && selection.milk && (isSmoothie ? selection.base === "Milk" : hasMilkOptionsForProduct(product))) {
-    details.push(selection.milk === "None" ? "Milk: None" : `Milk: ${selection.milk}`);
-  }
-  if (selection.size && (isDrink ? Boolean(sizeChoices?.length) : true)) details.push(`Size: ${selection.size}`);
-  if (isDrink) for (const syrup of selection.syrups ?? []) details.push(optionWithPrice(`Syrup: ${syrup}`, SYRUP_PRICE));
-  if (isDrink && selection.extraShot) {
-    const label = selection.extraShot === 1 ? "Extra shot" : `${selection.extraShot} extra shots`;
-    details.push(optionWithPrice(label, selection.extraShot * EXTRA_SHOT_PRICE));
-  }
-  const groups = modifierGroupsForProduct(product, selection.temperature);
-  for (const group of groups) {
-    for (const selected of selection.modifiers?.[group.label] ?? []) {
-      const price = group.options.find((option) => option.label === selected)?.price ?? 0;
-      details.push(optionWithPrice(`${group.label}: ${selected}`, price));
-    }
-  }
-  if (selection.notes) details.push(selection.notes);
-  return details;
+  return itemBreakdown(item).details.map((detail) => detail.cents ? `${detail.label} +${money(detail.cents)}` : detail.label);
 }
 
 type DashboardView = "orders" | "coffee" | "kitchen" | "menu" | "history" | "loyalty" | "promotions" | "website" | "menuItems" | "hours" | "events" | "forms";
@@ -495,7 +465,7 @@ function OrderCard({ order, onAdvance, onCancel }: { order: Order; onAdvance: ()
             <div key={detailKey}>
               <b>{item.quantity}</b>
               <span>
-                <strong>{item.name}</strong>
+                <strong>{item.name}{typeof item.unitPrice === "number" && <em className="order-item-price">{money(Math.round(item.unitPrice * 100) * Math.max(1, item.quantity))}</em>}</strong>
                 {details.length > 0 && (
                   <>
                     <button
@@ -526,6 +496,11 @@ function OrderCard({ order, onAdvance, onCancel }: { order: Order; onAdvance: ()
           </button>
         )}
       </div>
+      {(order.discountCents || typeof order.taxCents === "number") && (
+        <dl className="order-money-lines ticket-money-lines">
+          {orderTotalLines(order).filter((line) => !line.strong).map((line) => <div key={line.label}><dt>{line.label}</dt><dd>{signedMoney(line.cents)}</dd></div>)}
+        </dl>
+      )}
       <div className="payment-line"><span>{order.paymentMethod === "pickup" ? "Pay at pickup" : "Paid online"}</span><strong>${(order.totalCents / 100).toFixed(2)}</strong></div>
       <button className="advance-button" onClick={onAdvance}>{nextLabel[order.status]}</button>
       {order.status === "new" && <button className="cancel-order" onClick={onCancel}>Cancel order</button>}

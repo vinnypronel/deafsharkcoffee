@@ -3,6 +3,11 @@ export type CustomerOrderRecord = {
   orderNumber: string;
   customerName: string;
   itemsJson: string;
+  subtotalCents?: number | null;
+  discountCents?: number | null;
+  discountKind?: string | null;
+  rewardPointsSpent?: number | null;
+  taxCents?: number | null;
   totalCents: number;
   status: string;
   paymentMethod: string;
@@ -66,6 +71,11 @@ export async function serveOwnedCustomerOrder(
         orderNumber: order.orderNumber,
         customerName: order.customerName,
         items: JSON.parse(order.itemsJson),
+        subtotalCents: order.subtotalCents,
+        discountCents: order.discountCents,
+        discountKind: order.discountKind,
+        rewardPointsSpent: order.rewardPointsSpent,
+        taxCents: order.taxCents,
         totalCents: order.totalCents,
         status: order.status,
         paymentMethod: order.paymentMethod,

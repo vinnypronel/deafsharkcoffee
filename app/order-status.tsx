@@ -2,17 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { CUSTOM_CHECKOUT_ENABLED } from "./ordering";
+import { type OrderMoney, type StoredLineItem } from "./order-lines";
+import { OrderMoneyLines, PricedItem } from "./order-receipt";
 
-type CustomerOrder = {
+type CustomerOrder = OrderMoney & {
   orderNumber: string;
   status: string;
-  totalCents: number;
   pickupEta: string;
   paymentMethod: string;
   fulfillmentType?: string;
   scheduledFor?: string | null;
   createdAt?: string;
-  items: Array<{ name: string; quantity: number; options?: string[] }>;
+  items: StoredLineItem[];
 };
 
 const statusLabels: Record<string, string> = {
@@ -188,13 +189,11 @@ export function OrderStatus({ orderNumber, onClose }: { orderNumber: string; onC
                   {order.items.map((item, index) => (
                     <li key={index}>
                       <span className="order-item-quantity">{item.quantity}</span>
-                      <div>
-                        <strong>{item.name}</strong>
-                        {item.options?.length ? <small>{item.options.join(" · ")}</small> : null}
-                      </div>
+                      <PricedItem item={item} showQuantity={false} />
                     </li>
                   ))}
                 </ul>
+                <OrderMoneyLines order={order} />
               </section>
 
               <div className="order-status-footer">

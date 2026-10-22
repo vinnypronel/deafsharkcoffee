@@ -7134,3 +7134,23 @@ video:-moz-full-screen {
 @media (max-width: 520px) {
   .feedback-dialog { padding: 34px 20px 24px; }
 }
+
+/* Receipts: each item with its price, its paid extras, then subtotal,
+   discount, tax and total. Colors follow whatever card they sit on. */
+.priced-item { display: grid; gap: 3px; min-width: 0; }
+.priced-item-head { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; }
+.priced-item-head > b { flex: 0 0 auto; font-weight: 850; }
+.priced-item small { display: block; margin: 0; }
+.priced-item .priced-item-line { display: flex; justify-content: space-between; gap: 14px; }
+.priced-item .priced-item-line > span:last-child { flex: 0 0 auto; }
+.order-money-lines { display: grid; gap: 5px; margin: 0; padding: 12px 18px 16px; border-top: 1px solid rgba(128, 104, 88, .28); }
+.order-money-lines > div { display: flex; justify-content: space-between; gap: 14px; font-size: 13px; opacity: .78; }
+.order-money-lines dt, .order-money-lines dd { margin: 0; }
+.order-money-lines > div.is-total { margin-top: 3px; padding-top: 7px; border-top: 1px solid rgba(128, 104, 88, .28); font-size: 15px; font-weight: 850; opacity: 1; }
+.order-status-items .priced-item-head > strong { font-size: 14px; }
+.account-order-body .order-money-lines { padding: 10px 0 8px; }
+.order-history-details li { display: block; }
+.order-history-details .order-money-lines { max-width: 360px; margin-left: auto; padding: 12px 15px 0; border-top: 0; }
+.ticket-money-lines { padding: 8px 0 0; border-top: 0; }
+.ticket-money-lines > div { font-size: 12px; }
+.order-item-price { margin-left: 8px; font-style: normal; font-weight: 750; opacity: .7; }

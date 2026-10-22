@@ -10,6 +10,8 @@ import { OrderStatus } from "./order-status";
 import { CUSTOM_CHECKOUT_ENABLED } from "./ordering";
 import TurnstileWidget from "./turnstile-widget";
 import { WebsiteFeedbackDialog, openWebsiteFeedback } from "./website-feedback";
+import { OrderMoneyLines, PricedItem } from "./order-receipt";
+import type { ProductSelection } from "./menu-data";
 const BIRTHDAY_MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 const ORDER_STATUS_LABELS: Record<string, string> = { new: "Received", preparing: "In preparation", ready: "Ready for pickup", cancelled: "Cancelled" };
@@ -126,7 +128,7 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
      right instead of disappearing. */
   const [profileClosing, setProfileClosing] = useState(false);
   const [trackingOrder, setTrackingOrder] = useState<string | null>(null);
-  const [recentOrders, setRecentOrders] = useState<Array<{ orderNumber: string; status: string; totalCents: number; createdAt?: string | number; discountCents?: number; rewardPointsSpent?: number; pointsEarned?: number; items?: Array<{ name: string; quantity: number; options: string[] }> }>>([]);
+  const [recentOrders, setRecentOrders] = useState<Array<{ orderNumber: string; status: string; totalCents: number; createdAt?: string | number; discountCents?: number; rewardPointsSpent?: number; pointsEarned?: number; subtotalCents?: number | null; taxCents?: number | null; discountKind?: string | null; items?: Array<{ id?: string; name: string; quantity: number; unitPrice?: number; options: string[]; selection?: ProductSelection }> }>>([]);
   const [query, setQuery] = useState("");
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [authConfig, setAuthConfig] = useState<AuthConfig>({
@@ -1427,13 +1429,12 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
                         <div className="account-order-body">
                           <ul>
                             {(order.items ?? []).map((item, index) => (
-                              <li key={index}><b>{item.quantity} x {item.name}</b>{item.options.length > 0 && <small>{item.options.join(" · ")}</small>}</li>
+                              <li key={index}><PricedItem item={item} /></li>
                             ))}
                           </ul>
+                          <OrderMoneyLines order={order} />
                           <dl>
                             <div><dt>Order number</dt><dd>{order.orderNumber}</dd></div>
-                            {(order.discountCents ?? 0) > 0 && <div><dt>Discount</dt><dd>-${((order.discountCents ?? 0) / 100).toFixed(2)}</dd></div>}
-                            <div><dt>Total</dt><dd>${(order.totalCents / 100).toFixed(2)}</dd></div>
                             {(order.rewardPointsSpent ?? 0) > 0 && <div><dt>Points used</dt><dd>-{order.rewardPointsSpent}</dd></div>}
                             <div><dt>Points earned</dt><dd>{(order.pointsEarned ?? 0) > 0 ? `+${order.pointsEarned}` : order.status === "cancelled" ? "None" : order.status === "complete" ? "0" : "Added at pickup"}</dd></div>
                           </dl>

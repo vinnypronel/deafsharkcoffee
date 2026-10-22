@@ -2,7 +2,8 @@
 
 import { Fragment, useCallback, useEffect, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
-import { categories as menuCategories, menuProducts } from "../menu-data";
+import { categories as menuCategories, menuProducts, type ProductSelection } from "../menu-data";
+import { OrderMoneyLines, PricedItem } from "../order-receipt";
 import { PromotionsManager } from "./promotions-manager";
 import { bestAvailableTier, nextTierProgress } from "../../lib/loyalty";
 import { DISPLAY_WEEK, WEEKDAY_NAMES, parseWeeklyHours, type DayHours, type Weekday, type WeeklyHours } from "../../lib/store-hours";
@@ -11,8 +12,8 @@ type View = "menu" | "website" | "hours" | "events" | "forms" | "history" | "loy
 type Featured = { slot: number; productId: string; categoryLabel: string; title: string; buttonLabel: string; priceCents: number; mediaUrl: string };
 type MenuDraft = { productId: string; name: string; category: string; description: string; priceCents: number; photoUrl: string; removed?: boolean };
 type EventDraft = { id?: number; title: string; description: string; dateLabel: string; timeLabel: string; location: string; entryLabel: string; details: string; buttonLabel: string; buttonHref: string; imageLeftUrl: string; imageRightUrl: string; imageCaption: string | null; published: boolean; sortOrder: number; createdAt?: string };
-type OrderRecord = { id: number; orderNumber: string; customerName: string; phone: string; itemsJson: string; fulfillmentType: string; pickupEta: string; paymentMethod: string; totalCents: number; status: string; createdAt: string | Date };
-type OrderHistoryItem = { name: string; quantity: number; unitPrice?: number; options: string[] };
+type OrderRecord = { id: number; orderNumber: string; customerName: string; phone: string; itemsJson: string; fulfillmentType: string; pickupEta: string; paymentMethod: string; totalCents: number; subtotalCents?: number | null; discountCents?: number | null; discountKind?: string | null; rewardPointsSpent?: number | null; taxCents?: number | null; status: string; createdAt: string | Date };
+type OrderHistoryItem = { id?: string; name: string; quantity: number; unitPrice?: number; options: string[]; selection?: ProductSelection };
 type ContactRecord = { id: number; name: string; email: string; phone?: string | null; topic: string; message: string; createdAt: string | Date };
 type ApplicationRecord = { id: number; fullName: string; email: string; phone: string; position: string; employmentType: string; experience?: string | null; why?: string | null; createdAt: string | Date };
 type SubscriberRecord = { id: number; email: string; status: string; consentText: string; consentedAt: string | Date };
@@ -214,7 +215,8 @@ function orderItemsFor(order: OrderRecord): OrderHistoryItem[] {
       const quantity = typeof item.quantity === "number" && Number.isFinite(item.quantity) && item.quantity > 0 ? item.quantity : 1;
       const unitPrice = typeof item.unitPrice === "number" && Number.isFinite(item.unitPrice) ? item.unitPrice : undefined;
       const options = Array.isArray(item.options) ? item.options.filter((option): option is string => typeof option === "string" && !!option.trim()) : [];
-      return [{ name: item.name, quantity, unitPrice, options }];
+      const selection = item.selection && typeof item.selection === "object" ? item.selection as ProductSelection : undefined;
+      return [{ id: typeof item.id === "string" ? item.id : undefined, name: item.name, quantity, unitPrice, options, selection }];
     });
   } catch {
     return [];
@@ -259,7 +261,8 @@ function OrderHistoryTable({ orders: allOrders }: { orders: OrderRecord[] }) {
           </tr>
           <tr className={`order-history-details-row${isExpanded ? " is-open" : ""}`} aria-hidden={!isExpanded}><td colSpan={8}><div className="order-history-drop"><div className="order-history-drop-inner"><div className="order-history-details" id={detailsId}>
             <strong className="order-history-details-title">Items ordered</strong>
-            {items.length ? <ul>{items.map((item, index) => <li key={`${item.name}-${index}`}><div><strong>{item.quantity} × {item.name}</strong>{item.options.length ? <small>{item.options.join(" · ")}</small> : null}</div>{item.unitPrice !== undefined && <span>{dollars(Math.round(item.unitPrice * item.quantity * 100))}</span>}</li>)}</ul> : <p>No item details were saved for this order.</p>}
+            {items.length ? <ul>{items.map((item, index) => <li key={`${item.name}-${index}`}><PricedItem item={item} /></li>)}</ul> : <p>No item details were saved for this order.</p>}
+            <OrderMoneyLines order={order} />
           </div></div></div></td></tr>
         </Fragment>;
       })}
