@@ -234,7 +234,13 @@ function OrderHistoryTable({ orders: allOrders }: { orders: OrderRecord[] }) {
     else next.add(status);
     return next;
   });
-  const orders = onlyStatuses.size ? allOrders.filter((order) => onlyStatuses.has(order.status)) : allOrders;
+  const [todayOnly, setTodayOnly] = useState(false);
+  /* "Today" is the shop's day in Union, not the tablet's clock zone. */
+  const shopDay = (value: string | Date) => new Date(value).toLocaleDateString("en-US", { timeZone: "America/New_York" });
+  const today = shopDay(new Date());
+  const orders = allOrders
+    .filter((order) => !onlyStatuses.size || onlyStatuses.has(order.status))
+    .filter((order) => !todayOnly || shopDay(order.createdAt) === today);
   const toggle = (orderId: number) => setExpanded((current) => {
     const next = new Set(current);
     if (next.has(orderId)) next.delete(orderId);
@@ -246,6 +252,7 @@ function OrderHistoryTable({ orders: allOrders }: { orders: OrderRecord[] }) {
   <div className="order-history-filters" role="group" aria-label="Filter orders by status">
     <label><input type="checkbox" checked={onlyStatuses.has("cancelled")} onChange={() => toggleStatus("cancelled")} /><span>Show cancelled only</span></label>
     <label><input type="checkbox" checked={onlyStatuses.has("complete")} onChange={() => toggleStatus("complete")} /><span>Show completed only</span></label>
+    <label><input type="checkbox" checked={todayOnly} onChange={() => setTodayOnly((value) => !value)} /><span>Show today only</span></label>
   </div>
   <div className="admin-table-wrap"><table className="admin-table order-history-table">
     <thead><tr><th aria-label="Order details" /><th>Date</th><th>Order</th><th>Customer</th><th>Pickup</th><th>Payment</th><th>Total</th><th>Status</th></tr></thead>
@@ -266,7 +273,7 @@ function OrderHistoryTable({ orders: allOrders }: { orders: OrderRecord[] }) {
           </div></div></div></td></tr>
         </Fragment>;
       })}
-      {orders.length === 0 && <tr><td colSpan={8} className="order-history-empty">{onlyStatuses.size ? "No orders match this filter." : "No orders yet."}</td></tr>}
+      {orders.length === 0 && <tr><td colSpan={8} className="order-history-empty">{onlyStatuses.size || todayOnly ? "No orders match this filter." : "No orders yet."}</td></tr>}
     </tbody>
   </table></div>
   </>;
