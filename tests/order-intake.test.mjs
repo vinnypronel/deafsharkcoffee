@@ -200,43 +200,40 @@ test("only the NJ Classic, Ham and Cheese and Turkey BLT can switch to white bre
 });
 
 test("made-to-order cheese items offer the shop's cheese swaps", () => {
-  const cheeseItemIds = [
-    "nj-classic",
-    "jersey-devil",
-    "ham-cheese-croissant",
-    "grilled-cheese",
-    "breakfast-wrap",
-    "tuna-sandwich",
-    "shark-cubano",
-    "chicken-deluxe",
-    "chicken-pesto",
-    "chicken-cutlet-fuego",
-    "tuna-wrap",
-    "italian",
-    "garden-salad",
-    "emilia",
-    "cachapa",
-  ];
+  /* Each item's own cheese is included; any other cheese is $1. */
+  const defaults = {
+    "nj-classic": "Yellow American",
+    "jersey-devil": "Pepper Jack",
+    "ham-cheese-croissant": "Yellow American",
+    "grilled-cheese": "Yellow American",
+    "breakfast-wrap": "Yellow American",
+    "tuna-sandwich": "Yellow American",
+    "shark-cubano": "Swiss",
+    "chicken-deluxe": "Fresh mozzarella",
+    "chicken-pesto": "Provolone",
+    "chicken-cutlet-fuego": "Pepper Jack",
+    "tuna-wrap": "Asiago",
+    "italian": "Provolone",
+    "emilia": "Provolone",
+  };
 
-  for (const id of cheeseItemIds) {
+  for (const [id, expectedDefault] of Object.entries(defaults)) {
     const product = menuProducts.find((item) => item.id === id);
     const cheeseChoice = product?.modifierGroups?.find((group) => group.label === "Cheese choice");
-    const expectedDefault = id === "shark-cubano" ? "Swiss" : "Yellow American";
-    assert.deepEqual(cheeseChoice?.options.map((option) => option.label), [
-      expectedDefault,
-      ...["Yellow American", "Swiss"].filter((label) => label !== expectedDefault),
-      "Provolone",
-      "Pepper Jack",
-    ], id);
-    assert.deepEqual(cheeseChoice?.options.map((option) => option.price ?? 0), [0, 1, 1, 1], id);
+    const swaps = ["Yellow American", "Swiss", "Provolone", "Pepper Jack"].filter((label) => label !== expectedDefault);
+    assert.deepEqual(cheeseChoice?.options.map((option) => option.label), [expectedDefault, ...swaps], id);
+    assert.deepEqual(cheeseChoice?.options.map((option) => option.price ?? 0), [0, ...swaps.map(() => 1)], id);
 
-    const [swapped] = priceCart([{
-      id,
-      quantity: 1,
-      selection: { modifiers: { "Cheese choice": ["Pepper Jack"] } },
-    }]);
+    const [regular] = priceCart([{ id, quantity: 1 }]);
+    assert.ok(regular.options.includes(`Cheese choice: ${expectedDefault}`), id);
+    const [swapped] = priceCart([{ id, quantity: 1, selection: { modifiers: { "Cheese choice": [swaps[0]] } } }]);
     assert.equal(swapped.unitPrice, product.price + 1, id);
-    assert.ok(swapped.options.includes("Cheese choice: Pepper Jack"), id);
+    assert.ok(swapped.options.includes(`Cheese choice: ${swaps[0]}`), id);
+  }
+
+  for (const id of ["garden-salad", "cachapa"]) {
+    const product = menuProducts.find((item) => item.id === id);
+    assert.equal(product?.modifierGroups?.some((group) => group.label === "Cheese choice") ?? false, false, `${id} has one cheese only`);
   }
 
   const cuban = menuProducts.find((item) => item.id === "shark-cubano");
@@ -255,7 +252,11 @@ test("places Garden Salad in Bites and marks only unfinished menu photos as comi
   assert.equal(cachapa?.photo, "/menu/owner/cachapa-v5.png");
   assert.equal(cachapa?.imageComingSoon, undefined);
 
-  for (const id of ["shark-cubano", "tequenos", "pupusas"]) {
+  const tequenos = menuProducts.find((product) => product.id === "tequenos");
+  assert.equal(tequenos?.photo, "/menu/owner/tequenos-v7.webp");
+  assert.equal(tequenos?.imageComingSoon, undefined);
+
+  for (const id of ["shark-cubano", "pupusas"]) {
     const product = menuProducts.find((item) => item.id === id);
     assert.equal(product?.photo, undefined, id);
     assert.equal(product?.imageComingSoon, true, id);
@@ -277,7 +278,7 @@ test("prices and routes the fall drinks and desserts from the posted menus", () 
 
   for (const [id, price] of [
     ["chocoflan", 7],
-    ["tres-leches", 6],
+    ["tres-leches", 5],
     ["tiramisu", 7],
   ]) {
     const [dessert] = priceCart([{ id, quantity: 1 }]);
@@ -582,4 +583,13 @@ test("a drink can take more than one pump of the same syrup, each charged", () =
   assert.equal(Math.round((latte.unitPrice - plain.unitPrice) * 100), 150, "three pumps cost three syrup charges");
   assert.ok(latte.options.includes("Syrup: Hazelnut x2, French Vanilla"));
   assert.throws(() => priceCart([{ id: "latte", quantity: 1, selection: { syrups: Array(5).fill("Hazelnut") } }]), /Too many syrup pumps/);
+});
+
+test("wings come with ranch or blue cheese, and both is $1 more", () => {
+  const [plain] = priceCart([{ id: "chicken-wings-fries", quantity: 1 }]);
+  assert.ok(plain.options.includes("Dipping sauce: Ranch"));
+  const [blue] = priceCart([{ id: "chicken-wings-fries", quantity: 1, selection: { modifiers: { "Dipping sauce": ["Blue cheese"] } } }]);
+  assert.equal(blue.unitPrice, plain.unitPrice);
+  const [both] = priceCart([{ id: "chicken-wings-fries", quantity: 1, selection: { modifiers: { "Dipping sauce": ["Ranch and blue cheese"] } } }]);
+  assert.equal(Math.round((both.unitPrice - plain.unitPrice) * 100), 100);
 });

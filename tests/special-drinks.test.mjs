@@ -29,12 +29,37 @@ test("special drinks are orderable at the advertised price", () => {
   assert.equal(frappe.category, "Special Drinks");
   assert.equal(frappe.price, 6.75);
   assert.equal(priceProductSelection(frappe).unitPrice, 6.75);
+
+  const advertisedPrices = {
+    "hot-chocolate": 4.5,
+    "protein-chocolate": 8.95,
+    "protein-vanilla": 8.95,
+    "tiramisu-latte": 7.75,
+  };
+  for (const [id, price] of Object.entries(advertisedPrices)) {
+    const product = byId(id);
+    assert.ok(product, `${id} should be on the menu`);
+    assert.equal(product.category, "Special Drinks");
+    assert.equal(product.price, price);
+    assert.equal(priceProductSelection(product).unitPrice, price);
+  }
 });
 
 test("special drink serving options match the shop sign", () => {
   assert.deepEqual(temperaturesForProduct(byId("pistachio-latte")), ["Hot", "Iced"]);
   assert.deepEqual(temperaturesForProduct(byId("coconut-caramel-latte")), ["Hot", "Iced"]);
   assert.deepEqual(temperaturesForProduct(byId("coconut-matcha-refresher")), ["Iced"]);
+  assert.deepEqual(temperaturesForProduct(byId("hot-chocolate")), ["Hot"]);
+  assert.deepEqual(temperaturesForProduct(byId("protein-chocolate")), ["Iced"]);
+  assert.deepEqual(temperaturesForProduct(byId("protein-vanilla")), ["Iced"]);
+});
+
+test("the posted protein drinks offer milk choices without unrelated syrup customization", () => {
+  for (const id of ["protein-chocolate", "protein-vanilla"]) {
+    const product = byId(id);
+    assert.equal(hasMilkOptionsForProduct(product), true);
+    assert.equal(hasSyrupOptionsForProduct(product), false);
+  }
 });
 
 test("the coconut matcha refresher does not offer unrelated milk or syrup customization", () => {
