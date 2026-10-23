@@ -1905,14 +1905,14 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
                 </div>
                 <div className="menu-items-list">
                   {renderItems(
-                    /* One combined list here, so items still waiting on a photo
-                       go to the very end, not just the end of their category. */
+                    /* The home page highlight only shows drinks that have a
+                       photo; ones still waiting on one stay on the full menu. */
                     products.filter((p) => {
                       if (!DRINK_CATEGORIES.includes(p.category)) return false;
                       if (HOME_REFRESHMENTS_EXCLUDED_IDS.has(p.id)) return false;
                       const temps = temperaturesFor(p);
                       return !(temps.length === 1 && temps[0] === "Hot");
-                    }).sort((a, b) => Number(Boolean(a.imageComingSoon)) - Number(Boolean(b.imageComingSoon))),
+                    }).filter((p) => !p.imageComingSoon),
                     undefined,
                     false,
                   )}
