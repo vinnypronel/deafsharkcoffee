@@ -31,7 +31,7 @@ test("special drinks are orderable at the advertised price", () => {
   assert.equal(priceProductSelection(frappe).unitPrice, 6.75);
 
   const advertisedPrices = {
-    "hot-chocolate": 4.5,
+    "hot-chocolate": 3.5,
     "protein-chocolate": 8.95,
     "protein-vanilla": 8.95,
     "tiramisu-latte": 7.75,

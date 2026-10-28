@@ -2,6 +2,7 @@ import {
   DRINK_CATEGORIES,
   EXTRA_SHOT_PRICE,
   SYRUP_PRICE,
+  altMilkCharge,
   hasMilkOptionsForProduct,
   menuProducts,
   modifierGroupsForProduct,
@@ -60,7 +61,8 @@ export function itemBreakdown(item: StoredLineItem): ItemBreakdown {
   if (isDrink && temperature && temperaturesForProduct(product).length > 1) details.push({ label: `Temperature: ${temperature}` });
   if (isDrink && selection.base) details.push({ label: `Base: ${selection.base}` });
   if (isDrink && selection.milk && (isSmoothie ? selection.base === "Milk" : hasMilkOptionsForProduct(product))) {
-    details.push({ label: `Milk: ${selection.milk}` });
+    const milkCharge = altMilkCharge(product, selection.milk);
+    details.push({ label: `Milk: ${selection.milk}`, cents: milkCharge ? cents(milkCharge) : undefined });
   }
   if (selection.size && (isDrink ? Boolean(sizeChoices?.length) : true)) details.push({ label: `Size: ${selection.size}` });
   for (const { flavor, count } of syrupCounts(isDrink ? selection.syrups ?? [] : [])) {

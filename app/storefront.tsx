@@ -562,7 +562,7 @@ function ProductConfigurator({
           )}
           {isSmoothie && (
             <OptionGroup
-              label="Blended with"
+              label={product.category === "Smoothies" ? "Blended with" : "Made with"}
               values={product.bases as string[]}
               selected={config.base}
               onSelect={(value) => setConfig({ ...config, base: value, milk: value === "Milk" && config.milk === "None" ? "Whole" : config.milk })}
@@ -574,6 +574,7 @@ function ProductConfigurator({
               label="Milk"
               values={MILK_OPTIONS as unknown as string[]}
               selected={config.milk === "None" ? "Whole" : config.milk}
+              suffix={product.altMilkPrice ? Object.fromEntries(MILK_OPTIONS.filter((milk) => milk !== "Whole").map((milk) => [milk, `+${money(product.altMilkPrice ?? 0)}`])) : undefined}
               isOut={(value) => Boolean(outFor(value))}
               onSelect={(value) => setConfig({ ...config, milk: value as MilkChoice })}
             />

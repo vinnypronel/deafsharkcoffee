@@ -96,6 +96,8 @@ export type Product = {
   flavorLabel?: string;
   /* Smoothies are blended with water or milk. */
   bases?: string[];
+  /* Charge for any milk other than whole when the drink is made with milk. */
+  altMilkPrice?: number;
   /* Espresso-based drinks that can be prepared decaf for an upcharge. */
   decafAvailable?: boolean;
   modifierGroups?: ModifierGroup[];
@@ -349,6 +351,10 @@ export const modifierGroupsForProduct = (product: Product, temperature?: "Hot" |
 
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
 
+/** Upcharge for a milk other than whole on drinks that set altMilkPrice. */
+export const altMilkCharge = (product: Product, milk: string | undefined) =>
+  product.altMilkPrice && milk && milk !== "Whole" && milk !== "None" ? product.altMilkPrice : 0;
+
 /* `out` holds the ingredient keys staff marked out today (see ingredientKey).
    A chosen option that needs one is refused; a "No X" removal whose X is out
    is added automatically, so the ticket says the item is made without it. */
@@ -457,6 +463,7 @@ export function priceProductSelection(product: Product, input: ProductSelection 
     (hasTwoSizes && size === "Large" ? 6 : 0) +
     extraShot * EXTRA_SHOT_PRICE +
     syrups.length * SYRUP_PRICE +
+    altMilkCharge(product, smoothieMilk) +
     modifierPrice,
   );
 
@@ -559,12 +566,16 @@ const catalogProducts: Product[] = [
     id: "hot-chocolate",
     name: "Hot Chocolate",
     category: "Special Drinks",
-    price: 4.5,
-    description: "Creamy hot chocolate with milk, topped with toasted marshmallow.",
+    price: 3.5,
+    description: "Creamy hot chocolate made with your choice of milk or water.",
     configurable: true,
     temps: ["Hot"],
+    /* Made with milk (any of the shop's milks) or water. */
+    bases: ["Milk", "Water"],
+    altMilkPrice: 0.75,
+    modifierGroups: [{ label: "Add-ons", type: "multiple", options: [{ label: "Marshmallows", price: 0.75 }] }],
     visual: "hot",
-    imageComingSoon: true,
+    photo: "/cup-hot.png",
   },
   {
     id: "protein-chocolate",

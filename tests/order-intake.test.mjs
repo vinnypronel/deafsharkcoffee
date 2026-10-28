@@ -593,3 +593,16 @@ test("wings come with ranch or blue cheese, and both is $1 more", () => {
   const [both] = priceCart([{ id: "chicken-wings-fries", quantity: 1, selection: { modifiers: { "Dipping sauce": ["Ranch and blue cheese"] } } }]);
   assert.equal(Math.round((both.unitPrice - plain.unitPrice) * 100), 100);
 });
+
+test("hot chocolate: $3.50 with whole milk or water, other milks and marshmallows are 75 cents each", () => {
+  const price = (selection) => priceCart([{ id: "hot-chocolate", quantity: 1, selection }])[0];
+  assert.equal(price(undefined).unitPrice, 3.5);
+  assert.ok(price(undefined).options.includes("Milk base"));
+  assert.equal(price({ base: "Milk", milk: "Whole" }).unitPrice, 3.5);
+  assert.equal(price({ base: "Water" }).unitPrice, 3.5);
+  assert.ok(price({ base: "Water" }).options.includes("Water base"));
+  assert.equal(price({ modifiers: { "Add-ons": ["Marshmallows"] } }).unitPrice, 4.25);
+  assert.equal(price({ base: "Milk", milk: "Oat" }).unitPrice, 4.25);
+  assert.equal(price({ base: "Milk", milk: "Almond", modifiers: { "Add-ons": ["Marshmallows"] } }).unitPrice, 5);
+  assert.equal(price({ base: "Water", milk: "Oat" }).unitPrice, 3.5, "water has no milk to charge for");
+});
