@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, gte, inArray, or, and as andOp } from "drizzle-orm";
 import { env } from "cloudflare:workers";
 import { ensureSchema, getDb } from "../../../db";
 import { customerProfiles, menuAvailability, menuContent, orders, storeSettings } from "../../../db/schema";
@@ -45,11 +45,19 @@ export async function GET(request: Request) {
     const staff = await requireStaff(request);
     if (staff.response) return staff.response;
     await ensureSchema();
+    /* Polled every few seconds by the counter tablet, so it reads only what
+       the board shows: every open order, plus orders finished in the last day
+       for the "completed today" count. Old orders are never re-read here. */
+    const since = new Date(Date.now() - 36 * 60 * 60 * 1000);
     const rows = await getDb()
       .select()
       .from(orders)
+      .where(or(
+        inArray(orders.status, ["new", "preparing", "ready"]),
+        andOp(inArray(orders.status, ["complete", "cancelled"]), gte(orders.createdAt, since)),
+      ))
       .orderBy(desc(orders.createdAt))
-      .limit(80);
+      .limit(200);
 
     return Response.json({
       orders: rows.map((order) => ({

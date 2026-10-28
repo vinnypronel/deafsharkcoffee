@@ -1293,7 +1293,11 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
     const refreshWhenVisible = () => {
       if (document.visibilityState === "visible") void loadAvailability();
     };
-    const timer = window.setInterval(loadAvailability, 5000);
+    /* A tab in the background skips its timed checks; it refreshes the moment
+       it is shown again, so nothing on screen is ever older than it is now. */
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void loadAvailability();
+    }, 5000);
     window.addEventListener("focus", loadAvailability);
     document.addEventListener("visibilitychange", refreshWhenVisible);
     return () => {

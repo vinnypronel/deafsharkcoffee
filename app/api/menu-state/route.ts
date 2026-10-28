@@ -19,6 +19,19 @@ const DEFAULT_SETTINGS = {
   slotMinutes: 15,
 };
 
+/* Every open menu page and the counter tablet ask for this every few seconds.
+   One answer is shared for a few seconds per Cloudflare location instead of
+   reading the database for each request, and any staff change below clears it
+   at once. Placing an order never uses this: the order route checks pause and
+   stock live, so nobody can order while ordering is off. */
+const SHARED_SECONDS = 5;
+const sharedKey = () => new Request("https://deafsharkcoffee.com/__shared/menu-state");
+const sharedCache = () => (globalThis as { caches?: { default?: Cache } }).caches?.default;
+
+async function clearSharedMenuState() {
+  try { await sharedCache()?.delete(sharedKey()); } catch { /* The copy simply expires on its own. */ }
+}
+
 async function readSettings() {
   const [settings] = await getDb().select().from(storeSettings).where(eq(storeSettings.id, 1)).limit(1);
   return settings ?? DEFAULT_SETTINGS;
@@ -26,6 +39,11 @@ async function readSettings() {
 
 export async function GET() {
   try {
+    const cache = sharedCache();
+    if (cache) {
+      const hit = await cache.match(sharedKey()).catch(() => undefined);
+      if (hit) return new Response(hit.body, { headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+    }
     await ensureSchema();
     const [items, content, settings, storeHours, pause, removed] = await Promise.all([
       getDb().select().from(menuAvailability).orderBy(desc(menuAvailability.updatedAt)),
@@ -39,7 +57,7 @@ export async function GET() {
       { ...settings, weeklyHours: storeHours.weeklyHours },
       settings.cutoffMinutes,
     );
-    return Response.json({
+    const body = JSON.stringify({
       availability: Object.fromEntries(items.map((item) => [item.productId, item.available])),
       menu: content,
       removed,
@@ -62,6 +80,10 @@ export async function GET() {
         slotMinutes: settings.slotMinutes,
       },
     });
+    if (cache) {
+      await cache.put(sharedKey(), new Response(body, { headers: { "Content-Type": "application/json", "Cache-Control": `public, max-age=${SHARED_SECONDS}` } })).catch(() => undefined);
+    }
+    return new Response(body, { headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
   } catch (error) {
     console.error(JSON.stringify({ event: "menu_state_failed", errorType: error instanceof Error ? error.name : "UnknownError" }));
     return Response.json({ error: "Unable to load menu state right now." }, { status: 500 });
@@ -125,6 +147,7 @@ export async function PATCH(request: Request) {
         });
     }
 
+    await clearSharedMenuState();
     const [settings, storeHours, pause] = await Promise.all([readSettings(), readStoreHours(), readPauseState()]);
     return Response.json({
       success: true,

@@ -243,12 +243,19 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
       }
     }
     void loadActiveOrder();
-    const timer = window.setInterval(loadActiveOrder, 20000);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void loadActiveOrder();
+    }, 20000);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void loadActiveOrder();
+    };
+    document.addEventListener("visibilitychange", refreshWhenVisible);
     window.addEventListener("deaf-shark-session-changed", loadActiveOrder);
     window.addEventListener("deaf-shark-order-placed", loadActiveOrder);
     return () => {
       stopped = true;
       window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
       window.removeEventListener("deaf-shark-session-changed", loadActiveOrder);
       window.removeEventListener("deaf-shark-order-placed", loadActiveOrder);
     };
