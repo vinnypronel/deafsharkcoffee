@@ -1,12 +1,14 @@
 "use client";
 
-import { type CSSProperties, type MouseEvent, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { type CSSProperties, type MouseEvent, useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
 import { StoreHours } from "./store-hours";
 import { HomeSectionStack } from "./home-section-stack";
 import { OrderFeedbackPrompt } from "./website-feedback";
-import { PauseNotice } from "./pause-notice";
-import { pointsForSubtotal, welcomeOfferHasEnoughItems } from "../lib/loyalty";
+import { ClosedOrderingContext, PauseNotice, useClosedOrdering } from "./pause-notice";
+import { DEFAULT_WEEKLY_HOURS, closedOrderingMessage, formatClock, parseWeeklyHours, type WeeklyHours } from "../lib/store-hours";
+import { CafeStructuredData } from "./cafe-structured-data";
+import { REWARD_MIN_SUBTOTAL_CENTS, pointsForSubtotal, welcomeOfferHasEnoughItems } from "../lib/loyalty";
 import ScrollHero from "./scroll-hero";
 import {
   categories,
@@ -122,6 +124,47 @@ const HOME_REFRESHMENTS_EXCLUDED_IDS = new Set([
   "coconut-matcha-refresher",
 ]);
 
+const MOBILE_FEATURED_LAYOUT = "(max-width: 780px), (orientation: portrait)";
+const featuredLayout = () => window.matchMedia(MOBILE_FEATURED_LAYOUT).matches ? "mobile" : "pinned";
+const serverFeaturedLayout = () => null;
+function subscribeFeaturedLayout(onChange: () => void) {
+  const media = window.matchMedia(MOBILE_FEATURED_LAYOUT);
+  media.addEventListener("change", onChange);
+  return () => media.removeEventListener("change", onChange);
+}
+
+function useVisibleVideo(videoRef: React.RefObject<HTMLVideoElement | null>, src: string | undefined, paused = false) {
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !src) return;
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let inView = false;
+
+    const updatePlayback = () => {
+      if (!inView || document.hidden || motion.matches || paused) {
+        video.pause();
+        return;
+      }
+      if (video.getAttribute("src") !== src) video.setAttribute("src", src);
+      if (video.paused) void video.play().catch(() => {});
+    };
+    const observer = new IntersectionObserver(([entry]) => {
+      inView = entry.isIntersecting && entry.intersectionRatio >= 0.05;
+      updatePlayback();
+    }, { threshold: 0.05 });
+    observer.observe(video);
+    document.addEventListener("visibilitychange", updatePlayback);
+    motion.addEventListener("change", updatePlayback);
+
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", updatePlayback);
+      motion.removeEventListener("change", updatePlayback);
+      video.pause();
+    };
+  }, [videoRef, src, paused]);
+}
+
 function LazyAutoplayVideo({
   src,
   poster,
@@ -132,48 +175,18 @@ function LazyAutoplayVideo({
   ariaLabel: string;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [shouldLoad, setShouldLoad] = useState(false);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    if (!("IntersectionObserver" in window)) {
-      const fallbackTimer = globalThis.setTimeout(() => setShouldLoad(true), 0);
-      return () => globalThis.clearTimeout(fallbackTimer);
-    }
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting) return;
-        setShouldLoad(true);
-        observer.disconnect();
-      },
-      { rootMargin: "300px 0px" },
-    );
-    observer.observe(video);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video || !shouldLoad) return;
-    video.load();
-    video.play().catch(() => {});
-  }, [shouldLoad]);
+  useVisibleVideo(videoRef, src);
 
   return (
     <video
       ref={videoRef}
-      autoPlay={shouldLoad}
       muted
       loop
       playsInline
-      preload={shouldLoad ? "metadata" : "none"}
+      preload="none"
       poster={poster}
       aria-label={ariaLabel}
-    >
-      {shouldLoad && <source src={src} type="video/mp4" />}
-    </video>
+    />
   );
 }
 
@@ -794,64 +807,32 @@ function PriceTicker({ targetPrice }: { targetPrice: number }) {
 
 function HeroFeaturedVideo({
   product,
+  src,
+  inline,
+  paused,
   onOpenModal,
 }: {
   product: FeaturedProduct;
+  src: string;
+  inline: boolean;
+  paused: boolean;
   onOpenModal: () => void;
 }) {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-
-  /* The element is keyed on the source, so it remounts and re-fires its own load
-     events whenever the video changes. The markup is server rendered, so the
-     first clip can finish buffering before React hydrates and the canplay /
-     loadeddata listeners attach: check readyState here instead of waiting on an
-     event that already fired, or the panel stays an empty brown box. */
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const reveal = () => setIsPlaying(true);
-    if (video.readyState >= 2) reveal();
-
-    video.play().then(reveal).catch(() => {
-      /* Autoplay can be refused (low power mode, a paused tab). Show the frame
-         anyway once there is one to show. */
-      if (video.readyState >= 1) reveal();
-    });
-
-    const onReady = () => reveal();
-    video.addEventListener("loadeddata", onReady);
-    video.addEventListener("canplay", onReady);
-    const fallback = window.setTimeout(() => {
-      if (video.readyState >= 1) reveal();
-    }, 1500);
-
-    return () => {
-      video.removeEventListener("loadeddata", onReady);
-      video.removeEventListener("canplay", onReady);
-      window.clearTimeout(fallback);
-    };
-  }, [product.video]);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  useVisibleVideo(videoRef, inline ? src : undefined, paused);
+  const poster = product.photo;
 
   return (
     <div className="hero-featured-video-wrap">
-      <video
+      {inline ? <video
         ref={videoRef}
-        key={product.video}
-        src={product.video}
-        autoPlay
         muted
         loop
         playsInline
-        preload="auto"
-        suppressHydrationWarning
-        className={`hero-featured-video ${isPlaying ? "is-playing" : "is-loading"}`}
-        onLoadStart={() => setIsPlaying(false)}
-        onPlaying={() => setIsPlaying(true)}
-        onLoadedData={() => setIsPlaying(true)}
-        onCanPlay={() => setIsPlaying(true)}
-      />
+        preload="none"
+        poster={poster}
+        className="hero-featured-video"
+      /> : poster && <img src={poster} alt="" className="hero-featured-video" loading="lazy" decoding="async" />}
       <button
         type="button"
         className="hero-video-play-btn"
@@ -867,7 +848,8 @@ function HeroFeaturedVideo({
   );
 }
 
-export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
+export function Storefront({ page = "home", canonicalUrl }: { page?: "home" | "menu"; canonicalUrl?: string }) {
+  const activeFeaturedLayout = useSyncExternalStore(subscribeFeaturedLayout, featuredLayout, serverFeaturedLayout);
   const [activeCategory, setActiveCategory] = useState<MenuCategory>(categories[0]);
   const categoryNavRef = useRef<HTMLDivElement | null>(null);
   const mobileCategoryNavRef = useRef<HTMLDivElement | null>(null);
@@ -959,9 +941,19 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   const [availability, setAvailability] = useState<Record<string, boolean>>({});
   const [prepTime, setPrepTime] = useState(15);
   const [manualOrdersPaused, setManualOrdersPaused] = useState(false);
+  const [menuStateLoaded, setMenuStateLoaded] = useState(false);
   /* Fail closed until the live store clock and saved weekly hours arrive. */
   const [orderingWindowOpen, setOrderingWindowOpen] = useState(false);
   const ordersPaused = manualOrdersPaused || !orderingWindowOpen;
+  /* Ordering off because of the shop's hours, not a staff pause, gets its own
+     message saying when online ordering opens again. */
+  const [storeWeek, setStoreWeek] = useState<{ weekly: WeeklyHours; cutoffMinutes: number } | null>(null);
+  const [hoursNote, setHoursNote] = useState("");
+  /* Set in the window before opening: orders are ASAP only and ready at this time. */
+  const [preOrderReady, setPreOrderReady] = useState<string | null>(null);
+  const closedOrdering = !manualOrdersPaused && !orderingWindowOpen && storeWeek
+    ? closedOrderingMessage(storeWeek.weekly, storeWeek.cutoffMinutes)
+    : null;
   const [pausedUntil, setPausedUntil] = useState<number | null>(null);
   /* A timed pause reaching zero reopens ordering right away; the next poll confirms. */
   const endPause = useCallback(() => { setManualOrdersPaused(false); setPausedUntil(null); }, []);
@@ -1254,9 +1246,16 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   }, [activeCategory, isMenuPage]);
 
   useEffect(() => {
+    let timer = 0;
+    let request: AbortController | null = null;
+
     async function loadAvailability() {
+      if (document.hidden || request) return;
+      const controller = new AbortController();
+      request = controller;
+      const timeout = window.setTimeout(() => controller.abort(), 10000);
       try {
-        const response = await fetch("/api/menu-state", { cache: "no-store" });
+        const response = await fetch("/api/menu-state", { cache: "no-store", signal: controller.signal });
         if (response.ok) {
           const data = await response.json() as {
             availability?: Record<string, boolean>;
@@ -1267,7 +1266,11 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
             pausedUntil?: number | null;
             orderingOpen?: boolean;
             scheduling?: SchedulingSettings;
+            weeklyHours?: unknown;
+            hoursNote?: string;
+            hours?: { cutoffMinutes?: number; preOrder?: boolean; openTime?: string };
           };
+          if (controller.signal.aborted) return;
           setAvailability(data.availability ?? {});
           if (Array.isArray(data.menu)) {
             const overrides = new Map<string, MenuContentOverride>(data.menu.map((item: MenuContentOverride) => [item.productId, item]));
@@ -1278,36 +1281,89 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
             setProducts((current) => JSON.stringify(current) === JSON.stringify(nextProducts) ? current : nextProducts);
           }
           if (typeof data.prepTime === "number") setPrepTime(data.prepTime);
+          setMenuStateLoaded(true);
           if (typeof data.paused === "boolean") setManualOrdersPaused(data.paused);
           if (typeof data.orderingOpen === "boolean") setOrderingWindowOpen(data.orderingOpen);
+          if (data.hours?.preOrder && data.hours.openTime && typeof data.prepTime === "number") {
+            const [hour, minute] = data.hours.openTime.split(":").map(Number);
+            const ready = hour * 60 + minute + data.prepTime;
+            setPreOrderReady(formatClock(`${String(Math.floor(ready / 60) % 24).padStart(2, "0")}:${String(ready % 60).padStart(2, "0")}`));
+          } else {
+            setPreOrderReady(null);
+          }
+          if (data.weeklyHours) {
+            const weekly = parseWeeklyHours(data.weeklyHours);
+            const cutoffMinutes = typeof data.hours?.cutoffMinutes === "number" ? data.hours.cutoffMinutes : 30;
+            setStoreWeek((current) => current && current.cutoffMinutes === cutoffMinutes && JSON.stringify(current.weekly) === JSON.stringify(weekly) ? current : { weekly, cutoffMinutes });
+          }
+          setHoursNote(typeof data.hoursNote === "string" ? data.hoursNote : "");
           setPausedUntil(data.paused && typeof data.pausedUntil === "number" ? data.pausedUntil : null);
           if (data.scheduling) setScheduling(data.scheduling);
         }
       } catch {
         // Menu remains available if the demo database is not connected yet.
+      } finally {
+        window.clearTimeout(timeout);
+        if (request === controller) {
+          request = null;
+          if (!document.hidden) timer = window.setTimeout(loadAvailability, 5000);
+        }
       }
     }
-    loadAvailability();
-    /* Ordering pause/resume is an active counter control. Keep the customer UI
-       close to live so a staff resume re-enables ordering without a refresh. */
-    const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") void loadAvailability();
+    const stopPolling = () => {
+      window.clearTimeout(timer);
+      request?.abort();
+      request = null;
     };
-    /* A tab in the background skips its timed checks; it refreshes the moment
-       it is shown again, so nothing on screen is ever older than it is now. */
-    const timer = window.setInterval(() => {
-      if (document.visibilityState === "visible") void loadAvailability();
-    }, 5000);
-    window.addEventListener("focus", loadAvailability);
-    document.addEventListener("visibilitychange", refreshWhenVisible);
+    const visibilityChanged = () => {
+      if (document.hidden) stopPolling();
+      else void loadAvailability();
+    };
+    void loadAvailability();
+    document.addEventListener("visibilitychange", visibilityChanged);
     return () => {
-      window.clearInterval(timer);
-      window.removeEventListener("focus", loadAvailability);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      stopPolling();
+      document.removeEventListener("visibilitychange", visibilityChanged);
     };
   }, []);
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  /* Keeps every cart in step with the live menu. When the shop changes a price,
+     removes an item, marks it sold out, or runs out of a chosen ingredient, each
+     cart line is re-priced the same way the server prices orders: changed prices
+     update, and lines that can no longer be ordered are taken out, with a short
+     note in the cart saying what happened. */
+  const [cartNotice, setCartNotice] = useState<string[]>([]);
+  useEffect(() => {
+    if (!menuStateLoaded || !cart.length) return;
+    const outIngredients = outIngredientsFrom(availability);
+    const notes: string[] = [];
+    let changed = false;
+    const next = cart.flatMap((line) => {
+      const product = products.find((candidate) => candidate.id === line.id);
+      if (!product || availability[line.id] === false) {
+        notes.push(`${line.name} was removed from your cart because it is not available right now.`);
+        changed = true;
+        return [];
+      }
+      try {
+        const priced = priceProductSelection(product, line.selection, outIngredients);
+        const samePrice = Math.round(priced.unitPrice * 100) === Math.round(line.unitPrice * 100);
+        if (samePrice && line.name === product.name && JSON.stringify(priced.options) === JSON.stringify(line.options)) return [line];
+        if (!samePrice) notes.push(`The price of ${product.name} changed to ${money(priced.unitPrice)}.`);
+        changed = true;
+        return [{ ...line, name: product.name, unitPrice: priced.unitPrice, options: priced.options }];
+      } catch {
+        notes.push(`${line.name} was removed from your cart because one of its choices is not available right now.`);
+        changed = true;
+        return [];
+      }
+    });
+    if (!changed) return;
+    setCart(mergeCartLines(next));
+    if (notes.length) setCartNotice((current) => [...current, ...notes].slice(-4));
+  }, [menuStateLoaded, products, availability, cart]);
+
   const subtotal = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
 
   const [editingCartItem, setEditingCartItem] = useState<CartItem | null>(null);
@@ -1636,9 +1692,10 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
     return () => window.removeEventListener("scroll", onScroll);
   }, [isMenuPage]);
 
-  const renderHeroProductPanel = (className = "") => (
+  const heroVideoSource = heroProduct.video === "/featured-strawberry-matcha.mp4" ? "/featured-strawberry-matcha-v2.mp4" : heroProduct.video;
+  const renderHeroProductPanel = (layout: "mobile" | "pinned") => (
     <div
-      className={`hero-product ${className}`.trim()}
+      className={`hero-product hero-product-${layout}`}
       aria-live="polite"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
@@ -1653,10 +1710,14 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
         {heroProduct.featuredCategoryLabel || heroProduct.category}
       </div>
       <div key={heroProduct.id} className={`hero-visual-container hero-visual-swipe hero-swipe-${swipeDirection}`}>
-        {heroProduct.video ? (
+        {heroVideoSource ? (
           <HeroFeaturedVideo
+            key={heroVideoSource}
             product={heroProduct}
-            onOpenModal={() => setActiveVideoModal(heroProduct)}
+            src={heroVideoSource}
+            inline={layout === activeFeaturedLayout && heroVideoSource !== "/featured-ocean-blend.mp4" && heroVideoSource !== "/ocean-blend-bags.mp4"}
+            paused={Boolean(activeVideoModal)}
+            onOpenModal={() => setActiveVideoModal({ ...heroProduct, video: heroVideoSource })}
           />
         ) : (
           <ProductVisual product={heroProduct} />
@@ -1695,7 +1756,9 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
               }}
               aria-label={`Show ${product.name}`}
             >
-              {isActive && <span key={`${product.id}-timer`} className="dot-fill" />}
+              <span className="dot-mark" aria-hidden="true">
+                {isActive && <span key={`${product.id}-timer`} className="dot-fill" />}
+              </span>
             </button>
           );
         })}
@@ -1704,6 +1767,8 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
   );
 
   return (
+    <ClosedOrderingContext.Provider value={closedOrdering}>
+    {!isMenuPage && canonicalUrl && <CafeStructuredData canonicalUrl={canonicalUrl} weeklyHours={storeWeek?.weekly ?? DEFAULT_WEEKLY_HOURS} />}
     <main>
       <CustomerHeader
         active={isMenuPage ? "/menu" : "/"}
@@ -1742,12 +1807,12 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
               </a>
             </div>
           </div>
-          {renderHeroProductPanel("hero-product-pinned")}
+          {renderHeroProductPanel("pinned")}
         </section>
       </ScrollHero>}
 
       <div className={`mobile-order-overlay-stage ${isMenuPage ? "is-standalone" : ""}`}>
-        {!isMenuPage && renderHeroProductPanel("hero-product-mobile")}
+        {!isMenuPage && renderHeroProductPanel("mobile")}
 
         <section className={`order-section ${isMenuPage ? "standalone-order" : ""}`} id="menu">
         <div className="menu-showcase-grid" ref={menuRowsRef}>
@@ -1794,12 +1859,12 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
                     >
                       <span aria-hidden="true">‹</span>
                     </button>
-                    <div ref={mobileCategoryNavRef} className="mobile-category-nav" role="tablist" aria-label="Menu categories">
+                    <div ref={mobileCategoryNavRef} className="mobile-category-nav" role="group" aria-label="Menu categories">
                       {categories.map((category) => (
                         <button
                           key={category}
-                          role="tab"
-                          aria-selected={activeCategory === category}
+                          type="button"
+                          aria-current={activeCategory === category ? "location" : undefined}
                           className={activeCategory === category ? "active" : ""}
                           onClick={() => scrollToCategory(category)}
                         >
@@ -1817,8 +1882,8 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
                       <span aria-hidden="true">›</span>
                     </button>
                   </div>
-                  <div className="mobile-pinned-category-header">
-                    <h3>{categoryLabel(activeCategory)}</h3>
+                  <div className="mobile-pinned-category-header" aria-hidden="true">
+                    <div className="mobile-pinned-category-title">{categoryLabel(activeCategory)}</div>
                     {DRINK_CATEGORIES.includes(activeCategory) && (
                       <span>Whole, skim, oat, almond, or half and half · no extra charge</span>
                     )}
@@ -1841,12 +1906,12 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
                 >
                   <span aria-hidden="true">‹</span>
                 </button>
-                <div ref={categoryNavRef} className="category-nav" role="tablist" aria-label="Menu categories" onScroll={updateCategoryStripEdges}>
+                <div ref={categoryNavRef} className="category-nav" role="group" aria-label="Menu categories" onScroll={updateCategoryStripEdges}>
                   {categories.map((category) => (
                     <button
                       key={category}
-                      role="tab"
-                      aria-selected={activeCategory === category}
+                      type="button"
+                      aria-current={activeCategory === category ? "location" : undefined}
                       className={activeCategory === category ? "active" : ""}
                       onClick={() => scrollToCategory(category)}
                     >
@@ -1965,7 +2030,6 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
               <li><span className="take-home-num">-</span> 12 oz bag</li>
               <li><span className="take-home-num">-</span> Ocean Blend</li>
               <li><span className="take-home-num">-</span> Medium roast</li>
-              <li><span className="take-home-num">-</span> Whole bean</li>
               <li><span className="take-home-num">-</span> From El Salvador</li>
               <li><span className="take-home-num">-</span> Roasted in Union</li>
             </ul>
@@ -2091,7 +2155,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
               </div>
               <div className="visit-card visit-hours-card">
                 <span className="visit-card-label">Hours</span>
-                <StoreHours />
+                <StoreHours weeklyHours={storeWeek?.weekly ?? DEFAULT_WEEKLY_HOURS} hoursNote={hoursNote} />
                 <a className="primary-button visit-action-btn visit-order-btn" href="/menu">
                   <span>Order online</span>
                   <span className="btn-cart-glyph" aria-hidden="true" />
@@ -2159,6 +2223,8 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
           isOpen={cartOpen}
           isCovered={checkoutOpen}
           cart={cart}
+          notices={cartNotice}
+          onDismissNotices={() => setCartNotice([])}
           subtotal={subtotal}
           recommendations={recommendCartAddOns(cart.map((item) => item.id), products, availability)}
           onClose={() => setCartOpen(false)}
@@ -2205,7 +2271,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
         </span>
       )}
       {CUSTOM_CHECKOUT_ENABLED && checkoutOpen && (
-        <Checkout prepTime={prepTime} scheduling={scheduling} ordersPaused={ordersPaused} pausedUntil={pausedUntil} onPauseEnd={endPause} cart={cart} subtotal={subtotal} onClose={() => setCheckoutOpen(false)} onComplete={(number, eta) => { setCheckoutOpen(false); setCartOpen(false); setCart([]); setConfirmation({ number, eta }); }} />
+        <Checkout prepTime={prepTime} preOrderReady={preOrderReady} scheduling={scheduling} ordersPaused={ordersPaused} pausedUntil={pausedUntil} onPauseEnd={endPause} cart={cart} subtotal={subtotal} onClose={() => setCheckoutOpen(false)} onComplete={(number, eta) => { setCheckoutOpen(false); setCartOpen(false); setCart([]); setConfirmation({ number, eta }); }} />
       )}
       {CUSTOM_CHECKOUT_ENABLED && confirmation && (
         <div className="modal-backdrop">
@@ -2238,6 +2304,7 @@ export function Storefront({ page = "home" }: { page?: "home" | "menu" }) {
         />
       )}
     </main>
+    </ClosedOrderingContext.Provider>
   );
 }
 
@@ -2474,6 +2541,8 @@ function CartDrawer({
   isOpen,
   isCovered,
   cart,
+  notices = [],
+  onDismissNotices,
   subtotal,
   recommendations,
   ordersPaused,
@@ -2489,6 +2558,8 @@ function CartDrawer({
   isOpen: boolean;
   isCovered: boolean;
   cart: CartItem[];
+  notices?: string[];
+  onDismissNotices?: () => void;
   subtotal: number;
   recommendations: Product[];
   ordersPaused: boolean;
@@ -2501,6 +2572,7 @@ function CartDrawer({
   onCheckout: () => void;
   onRecommendation: (product: Product, source: HTMLButtonElement) => void;
 }) {
+  const closedOrdering = useClosedOrdering();
   return (
     <div
       className={`cart-backdrop ${isOpen ? "is-open" : ""} ${isCovered ? "is-covered" : ""}`}
@@ -2537,6 +2609,12 @@ function CartDrawer({
             </svg>
           </button>
         </div>
+        {notices.length > 0 && (
+          <div className="cart-notice" role="status">
+            <div>{notices.map((note, index) => <p key={index}>{note}</p>)}</div>
+            <button type="button" onClick={onDismissNotices} aria-label="Dismiss cart updates">OK</button>
+          </div>
+        )}
         <div className="cart-items">
           {cart.length === 0 && <div className="empty-cart"><img src="/favicon.png" alt="" /><h3>Your cart is ready when you are.</h3><p>Choose a drink, breakfast, sandwich, or bite from the menu.</p><a className="primary-button empty-cart-menu-button" href="/menu" onClick={onClose}>Go to menu</a></div>}
           {cart.map((item) => (
@@ -2585,7 +2663,7 @@ function CartDrawer({
             </section>
           )}
           {ordersPaused && <PauseNotice until={pausedUntil} onEnd={onPauseEnd} />}
-          <button className="primary-button" disabled={ordersPaused} onClick={onCheckout}>{ordersPaused ? "Online ordering paused" : "Continue to checkout"}</button>
+          <button className="primary-button" disabled={ordersPaused} onClick={onCheckout}>{ordersPaused ? (closedOrdering ? "Online ordering closed" : "Online ordering paused") : "Continue to checkout"}</button>
         </div>}
       </aside>
     </div>
@@ -2600,7 +2678,8 @@ function createIdempotencyKey() {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pausedUntil = null, onPauseEnd, onClose, onComplete }: { cart: CartItem[]; subtotal: number; prepTime?: number; scheduling: SchedulingSettings; ordersPaused: boolean; pausedUntil?: number | null; onPauseEnd?: () => void; onClose: () => void; onComplete: (number: string, eta: string, phone: string) => void }) {
+function Checkout({ cart, subtotal, prepTime = 15, preOrderReady = null, scheduling, ordersPaused, pausedUntil = null, onPauseEnd, onClose, onComplete }: { cart: CartItem[]; subtotal: number; prepTime?: number; preOrderReady?: string | null; scheduling: SchedulingSettings; ordersPaused: boolean; pausedUntil?: number | null; onPauseEnd?: () => void; onClose: () => void; onComplete: (number: string, eta: string, phone: string) => void }) {
+  const closedOrdering = useClosedOrdering();
   const dragRef = useRef<{ pointerId: number; startY: number; startedAt: number } | null>(null);
   const [dragOffset, setDragOffset] = useState(0);
   const [dragging, setDragging] = useState(false);
@@ -2608,6 +2687,8 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [fulfillmentType, setFulfillmentType] = useState<"asap" | "scheduled">("asap");
+  /* Before opening only ASAP pickup is offered. */
+  useEffect(() => { if (preOrderReady) setFulfillmentType("asap"); }, [preOrderReady]);
   const [diningOption, setDiningOption] = useState<"to_go" | "for_here">("to_go");
   const [scheduledFor, setScheduledFor] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -2685,7 +2766,9 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
   /* The welcome coupon needs the drink plus one more item in the order. */
   const welcomeOfferUsable = welcomeDrinkChoices.length > 0 && welcomeOfferHasEnoughItems(cart);
   const selectedReward = rewardOffers.find((reward) => reward.points === rewardPoints) ?? null;
-  const discountCents = discountChoice === "reward" && selectedReward
+  /* Points rewards need an order of $5 or more, checked again on the server. */
+  const rewardsUsable = subtotalCents >= REWARD_MIN_SUBTOTAL_CENTS;
+  const discountCents = discountChoice === "reward" && selectedReward && rewardsUsable
     ? Math.min(selectedReward.valueCents, subtotalCents)
     : discountChoice === "student" && studentVerified
       ? Math.floor((subtotalCents * 10) / 100)
@@ -2751,7 +2834,7 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
       return;
     }
     if (ordersPaused) {
-      setError("Online ordering is temporarily paused. Please order at the counter.");
+      setError(closedOrdering ? `${closedOrdering.title}. ${closedOrdering.detail}` : "Online ordering is temporarily paused. Please order at the counter.");
       return;
     }
     if (submitting) return;
@@ -2770,7 +2853,7 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
           scheduledFor: fulfillmentType === "scheduled" ? new Date(scheduledFor).toISOString() : undefined,
           turnstileToken,
           idempotencyKey,
-          discount: discountChoice === "reward" && selectedReward
+          discount: discountChoice === "reward" && selectedReward && rewardsUsable
             ? { kind: "reward", points: selectedReward.points }
             : discountChoice === "welcome"
               ? (welcomeOfferUsable ? { kind: "welcome", itemIndex: welcomeItemIndex } : { kind: "none" })
@@ -2847,8 +2930,8 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
         </fieldset>
         <fieldset className="payment-options pickup-options">
           <legend>Pickup time</legend>
-          <label htmlFor="fulfillment-asap" aria-label="As soon as possible"><input id="fulfillment-asap" type="radio" name="fulfillment" checked={fulfillmentType === "asap"} onChange={() => setFulfillmentType("asap")} /><span><strong>As soon as possible</strong><small>Estimated in about {prepTime} minutes</small></span></label>
-          {scheduling.enabled && <label htmlFor="fulfillment-scheduled" aria-label="Schedule pickup"><input id="fulfillment-scheduled" type="radio" name="fulfillment" checked={fulfillmentType === "scheduled"} onChange={() => { setFulfillmentType("scheduled"); if (!scheduledFor) setScheduledFor(localInputValue(firstScheduledDate)); }} /><span><strong>Schedule pickup</strong><small>Choose a time within the next few hours</small></span></label>}
+          <label htmlFor="fulfillment-asap" aria-label="As soon as possible"><input id="fulfillment-asap" type="radio" name="fulfillment" checked={fulfillmentType === "asap"} onChange={() => setFulfillmentType("asap")} /><span><strong>As soon as possible</strong><small>{preOrderReady ? `We open soon. Ready at about ${preOrderReady}` : `Estimated in about ${prepTime} minutes`}</small></span></label>
+          {scheduling.enabled && !preOrderReady && <label htmlFor="fulfillment-scheduled" aria-label="Schedule pickup"><input id="fulfillment-scheduled" type="radio" name="fulfillment" checked={fulfillmentType === "scheduled"} onChange={() => { setFulfillmentType("scheduled"); if (!scheduledFor) setScheduledFor(localInputValue(firstScheduledDate)); }} /><span><strong>Schedule pickup</strong><small>Choose a time within the next few hours</small></span></label>}
         </fieldset>
         {fulfillmentType === "scheduled" && <label className={fieldErrors.scheduledFor ? "has-error" : undefined}><span>Scheduled pickup</span><input type="datetime-local" value={scheduledFor} min={localInputValue(firstScheduledDate)} max={localInputValue(lastScheduledDate)} step={scheduling.slotMinutes * 60} onChange={(event) => { setScheduledFor(event.target.value); if (fieldErrors.scheduledFor) setFieldErrors((current) => ({ ...current, scheduledFor: undefined })); }} aria-invalid={fieldErrors.scheduledFor ? true : undefined} aria-describedby={fieldErrors.scheduledFor ? "checkout-schedule-error" : undefined} />{fieldErrors.scheduledFor && <small className="checkout-field-error" id="checkout-schedule-error" role="alert"><i aria-hidden="true">!</i>{fieldErrors.scheduledFor}</small>}</label>}
         <div className="checkout-pickup-info"><strong>Payment due at pickup</strong></div>
@@ -2861,7 +2944,7 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
             <legend>Rewards and discounts</legend>
             <p className="checkout-rewards-note">One per order.</p>
             <label htmlFor="discount-none"><input id="discount-none" type="radio" name="discount" checked={discountChoice === "none"} onChange={() => setDiscountChoice("none")} /><span>No discount</span></label>
-            {rewardOffers.map((reward) => <label key={reward.points} htmlFor={`discount-reward-${reward.points}`}><input id={`discount-reward-${reward.points}`} type="radio" name="discount" checked={discountChoice === "reward" && rewardPoints === reward.points} onChange={() => { setRewardPoints(reward.points); setDiscountChoice("reward"); }} /><span>Redeem {reward.label}<small>Uses {reward.points} points</small></span></label>)}
+            {rewardOffers.map((reward) => <label key={reward.points} htmlFor={`discount-reward-${reward.points}`}><input id={`discount-reward-${reward.points}`} type="radio" name="discount" checked={discountChoice === "reward" && rewardPoints === reward.points} onChange={() => { setRewardPoints(reward.points); setDiscountChoice("reward"); }} disabled={!rewardsUsable} /><span>Redeem {reward.label}<small>{rewardsUsable ? `Uses ${reward.points} points` : "Available on orders of $5 or more"}</small></span></label>)}
             {welcomeOfferReady && <>
               <label htmlFor="discount-welcome"><input id="discount-welcome" type="radio" name="discount" checked={discountChoice === "welcome"} onChange={() => { setWelcomeItemIndex((current) => current ?? welcomeDrinkChoices[0]?.itemIndex ?? null); setDiscountChoice("welcome"); }} disabled={!welcomeOfferUsable} /><span>50% off one drink<small>{welcomeDrinkChoices.length === 0 ? "Add a drink to use this" : !welcomeOfferUsable ? "Add one more item to use this" : "New member offer · with another item · one use only"}</small></span></label>
               {discountChoice === "welcome" && welcomeOfferUsable && <div className="welcome-drink-picker" role="group" aria-label="Choose the drink for your signup coupon">
@@ -2895,7 +2978,7 @@ function Checkout({ cart, subtotal, prepTime = 15, scheduling, ordersPaused, pau
         </div>
         <TurnstileWidget action="order" onToken={setTurnstileToken} resetKey={turnstileResetKey} />
         {error && <p className="form-error">{error}</p>}
-        <button className="primary-button" disabled={submitting || ordersPaused || !turnstileToken}>{submitting ? "Sending order..." : ordersPaused ? "Online ordering paused" : `Place pickup order · ${money(subtotal - discount + tax)}`}</button>
+        <button className="primary-button" disabled={submitting || ordersPaused || !turnstileToken}>{submitting ? "Sending order..." : ordersPaused ? (closedOrdering ? "Online ordering closed" : "Online ordering paused") : `Place pickup order · ${money(subtotal - discount + tax)}`}</button>
         </>}
       </form>
     </div>

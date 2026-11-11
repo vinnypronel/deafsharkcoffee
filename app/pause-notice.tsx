@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 
 /** 12:34, or 1:02:03 past an hour. */
 export function formatCountdown(ms: number) {
@@ -15,7 +15,14 @@ export function formatCountdown(ms: number) {
 /* Shown wherever a customer tries to order while the shop has paused online
    ordering. A timed pause counts down to the second and calls onEnd at zero,
    so ordering reopens without a reload. */
+/* Set by the menu page when ordering is off because the shop is closed rather
+   than paused by staff, so every notice can say when ordering opens again. */
+export type ClosedOrdering = { title: string; detail: string } | null;
+export const ClosedOrderingContext = createContext<ClosedOrdering>(null);
+export const useClosedOrdering = () => useContext(ClosedOrderingContext);
+
 export function PauseNotice({ until, onEnd }: { until: number | null; onEnd?: () => void }) {
+  const closed = useClosedOrdering();
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -29,6 +36,15 @@ export function PauseNotice({ until, onEnd }: { until: number | null; onEnd?: ()
   }, [now, until, onEnd]);
 
   const resumesAt = until ? new Date(until).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";
+
+  if (closed) {
+    return (
+      <div className="pause-notice">
+        <strong>{closed.title}</strong>
+        <span>{closed.detail}</span>
+      </div>
+    );
+  }
 
   return (
     <div className="pause-notice">

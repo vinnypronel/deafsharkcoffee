@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "../site-link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   menuProducts,
@@ -12,6 +12,7 @@ import { AvailabilityPanel } from "./availability-panel";
 import { formatCountdown } from "../pause-notice";
 import { StationBoard } from "../kds/station-board";
 import { itemBreakdown, money, orderTotalLines, signedMoney } from "../order-lines";
+import { AnalyticsPanel } from "./analytics-panel";
 
 type OrderItem = {
   id: string;
@@ -89,7 +90,7 @@ function orderItemDetails(item: OrderItem) {
   return itemBreakdown(item).details.map((detail) => detail.cents ? `${detail.label} +${money(detail.cents)}` : detail.label);
 }
 
-type DashboardView = "orders" | "coffee" | "kitchen" | "menu" | "history" | "loyalty" | "promotions" | "website" | "menuItems" | "hours" | "events" | "forms";
+type DashboardView = "orders" | "coffee" | "kitchen" | "menu" | "history" | "loyalty" | "promotions" | "website" | "menuItems" | "hours" | "events" | "forms" | "analytics";
 
 /* Two sections so the counter screen only shows what running orders needs,
    and editing the public site lives in its own place. */
@@ -107,6 +108,7 @@ const DASHBOARD_SECTIONS: Array<{ key: "orders" | "website"; label: string; tabs
     { view: "hours", label: "Hours" },
     { view: "events", label: "Events" },
     { view: "forms", label: "Forms" },
+    { view: "analytics", label: "Analytics" },
   ] },
 ];
 
@@ -124,6 +126,8 @@ export function Dashboard() {
      tabs, so it is measured from whichever tab is active. */
   const tabsRef = useRef<HTMLDivElement>(null);
   const [tabIndicator, setTabIndicator] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
+  const sectionsRef = useRef<HTMLDivElement>(null);
+  const [sectionIndicator, setSectionIndicator] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
   const [mobileColumn, setMobileColumn] = useState<Order["status"]>("new");
   const [connection, setConnection] = useState<"live" | "waiting">("waiting");
   const [soundArmed, setSoundArmed] = useState(false);
@@ -292,6 +296,20 @@ export function Dashboard() {
     observer.observe(tabs);
     return () => observer.disconnect();
   }, [activeView, openOrderCount]);
+  useEffect(() => {
+    const sections = sectionsRef.current;
+    if (!sections) return;
+    const measure = () => {
+      const active = sections.querySelector<HTMLElement>("button.active");
+      if (!active) return setSectionIndicator(null);
+      const next = { left: active.offsetLeft, top: active.offsetTop, width: active.offsetWidth, height: active.offsetHeight };
+      setSectionIndicator((current) => current && current.left === next.left && current.top === next.top && current.width === next.width && current.height === next.height ? current : next);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(sections);
+    return () => observer.disconnect();
+  }, [activeSection]);
   const newCount = orders.filter((order) => order.status === "new").length;
   /* The feed holds the latest 80 orders, which covers a full day at this shop. */
   const todayKey = new Date().toDateString();
@@ -357,7 +375,8 @@ export function Dashboard() {
       <header className="dashboard-header">
         <Link className="dashboard-brand" href="/"><img src="/favicon.png" alt="" /><span><strong>Deaf Shark Coffee</strong></span></Link>
         <div className="dashboard-nav">
-          <div className="dashboard-sections" role="tablist" aria-label="Dashboard section">
+          <div className={`dashboard-sections${sectionIndicator ? " has-indicator" : ""}`} role="tablist" aria-label="Dashboard section" ref={sectionsRef}>
+            {sectionIndicator && <i className="dashboard-sections-indicator" aria-hidden="true" style={{ width: sectionIndicator.width, height: sectionIndicator.height, transform: `translate(${sectionIndicator.left}px, ${sectionIndicator.top}px)` }} />}
             {DASHBOARD_SECTIONS.map((section) => (
               <button key={section.key} type="button" role="tab" aria-selected={activeSection === section.key} className={activeSection === section.key ? "active" : ""} onClick={() => setActiveView(section.tabs[0].view)}>{section.label}</button>
             ))}
@@ -438,6 +457,8 @@ export function Dashboard() {
         <AvailabilityPanel availability={availability} onChange={setItemAvailability} />
       ) : activeView === "coffee" || activeView === "kitchen" ? (
         <StationBoard station={activeView} embedded />
+      ) : activeView === "analytics" ? (
+        <AnalyticsPanel />
       ) : <AdminPanels view={activeView === "menuItems" ? "menu" : activeView} />}
     </main>
   );
@@ -473,7 +494,7 @@ function OrderCard({ order, onAdvance, onCancel }: { order: Order; onAdvance: ()
   return (
     <article className="order-card">
       <div className="order-card-top"><div><span className={`source-badge source-${order.source}`}>{order.source === "website" ? "Website" : order.source}</span></div><time dateTime={order.createdAt}>{formatDateTime(order.createdAt)}</time></div>
-      <div className="customer-line"><strong>{order.customerName}</strong><span><b className={`dining-tag ${order.diningOption === "for_here" ? "is-here" : ""}`}>{order.diningOption === "for_here" ? "For here" : "To go"}</b> · {order.fulfillmentType === "scheduled" ? "Scheduled" : "ASAP"} pickup · {order.pickupEta}</span></div>
+      <div className="customer-line"><strong>{order.customerName}</strong><span><b className={`dining-tag ${order.diningOption === "for_here" ? "is-here" : ""}`}>{order.diningOption === "for_here" ? "For here" : "To go"}</b> · {order.fulfillmentType === "scheduled" ? "Scheduled pickup" : /\b(AM|PM)\b/.test(order.pickupEta) ? "Pre-order, ready" : "ASAP pickup"} · {order.pickupEta}</span></div>
       <DiscountBadge order={order} />
       <div className="order-items">
         {visibleItems.map((item, index) => {

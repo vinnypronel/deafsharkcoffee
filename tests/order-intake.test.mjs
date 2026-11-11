@@ -606,3 +606,29 @@ test("hot chocolate: $3.50 with whole milk or water, other milks and marshmallow
   assert.equal(price({ base: "Milk", milk: "Almond", modifiers: { "Add-ons": ["Marshmallows"] } }).unitPrice, 5);
   assert.equal(price({ base: "Water", milk: "Oat" }).unitPrice, 3.5, "water has no milk to charge for");
 });
+
+test("closed hours get their own message saying when online ordering opens", async () => {
+  const { closedOrderingMessage, DEFAULT_WEEKLY_HOURS } = await import("../lib/store-hours.ts");
+  const at = (iso) => new Date(iso);
+  // Wednesday 2026-10-28, store time is UTC-4.
+  assert.equal(closedOrderingMessage(DEFAULT_WEEKLY_HOURS, 30, at("2026-10-28T16:00:00Z")), null, "open at noon");
+  assert.match(closedOrderingMessage(DEFAULT_WEEKLY_HOURS, 30, at("2026-10-28T09:00:00Z")).detail, /opens today at 5:30 AM/);
+  assert.equal(closedOrderingMessage(DEFAULT_WEEKLY_HOURS, 30, at("2026-10-28T09:40:00Z")), null, "pre-ordering is open from 5:30 AM");
+  assert.match(closedOrderingMessage(DEFAULT_WEEKLY_HOURS, 30, at("2026-10-28T22:10:00Z")).detail, /counter until 6:30 PM/);
+  assert.match(closedOrderingMessage(DEFAULT_WEEKLY_HOURS, 30, at("2026-10-28T23:00:00Z")).detail, /Come back when we open: online ordering opens tomorrow at 5:30 AM/);
+  // Saturday evening skips closed Sunday.
+  assert.match(closedOrderingMessage(DEFAULT_WEEKLY_HOURS, 30, at("2026-10-31T20:00:00Z")).detail, /opens Monday at 5:30 AM/);
+});
+
+test("pre-orders open 30 minutes before the shop, ASAP only, ready as if placed at opening", () => {
+  const weekly = { sun: { closed: true, open: "08:00", close: "14:00" }, mon: { closed: false, open: "06:00", close: "18:30" }, tue: { closed: false, open: "06:00", close: "18:30" }, wed: { closed: false, open: "06:00", close: "18:30" }, thu: { closed: false, open: "06:00", close: "18:30" }, fri: { closed: false, open: "06:00", close: "18:30" }, sat: { closed: false, open: "08:00", close: "14:00" } };
+  const settings = { ...openSettings, weeklyHours: weekly };
+  // Thursday 2026-09-10, store time is UTC-4.
+  const preOrder = resolveFulfillment({}, settings, new Date("2026-09-10T09:40:00Z"));
+  assert.equal(preOrder.fulfillmentType, "asap");
+  assert.equal(preOrder.pickupEta, "6:15 AM");
+  assert.throws(() => resolveFulfillment({ fulfillmentType: "scheduled", scheduledFor: "2026-09-10T11:00:00Z" }, settings, new Date("2026-09-10T09:40:00Z")), /ASAP/);
+  assert.throws(() => resolveFulfillment({}, settings, new Date("2026-09-10T09:20:00Z")), /opens today at 5:30 AM/);
+  assert.equal(resolveFulfillment({}, settings, new Date("2026-09-10T10:05:00Z")).pickupEta, "15 min");
+  assert.throws(() => resolveFulfillment({}, settings, new Date("2026-09-10T22:10:00Z")), /counter until 6:30 PM/);
+});

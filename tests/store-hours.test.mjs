@@ -36,8 +36,11 @@ test("saved weekly hours drive the ordering window", () => {
 
 test("ordering opens with the shop and closes exactly 30 minutes before closing", () => {
   const settings = { ...legacy, weeklyHours: DEFAULT_WEEKLY_HOURS };
-  assert.equal(orderingWindowStatus(settings, 30, new Date("2026-10-20T09:59:00Z")).orderingOpen, false);
+  assert.equal(orderingWindowStatus(settings, 30, new Date("2026-10-20T09:29:00Z")).orderingOpen, false);
+  assert.equal(orderingWindowStatus(settings, 30, new Date("2026-10-20T09:30:00Z")).orderingOpen, true, "pre-orders open 30 minutes early");
+  assert.equal(orderingWindowStatus(settings, 30, new Date("2026-10-20T09:30:00Z")).preOrder, true);
   assert.equal(orderingWindowStatus(settings, 30, new Date("2026-10-20T10:00:00Z")).orderingOpen, true);
+  assert.equal(orderingWindowStatus(settings, 30, new Date("2026-10-20T10:00:00Z")).preOrder, false);
   assert.equal(orderingWindowStatus(settings, 30, new Date("2026-10-20T21:59:00Z")).orderingOpen, true);
   assert.equal(orderingWindowStatus(settings, 30, new Date("2026-10-20T22:00:00Z")).orderingOpen, false);
   assert.deepEqual(orderingWindowStatus(settings, 30, new Date("2026-10-20T22:05:00Z")), {
@@ -46,6 +49,8 @@ test("ordering opens with the shop and closes exactly 30 minutes before closing"
     cutoffTime: "18:00",
     closed: false,
     orderingOpen: false,
+    preOrder: false,
+    preOrderTime: "05:30",
   });
 });
 

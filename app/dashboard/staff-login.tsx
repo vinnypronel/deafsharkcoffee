@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import Link from "../site-link";
 
 /* Staff sign in for the counter tablet. A successful sign in only opens the
    dashboard when the account is a verified admin; any other account is signed

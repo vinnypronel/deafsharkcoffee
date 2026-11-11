@@ -1,13 +1,20 @@
-import { getStaffSession } from "../../../lib/staff-auth";
+function sessionStatus(authenticated: boolean, staff: boolean) {
+  return Response.json({ authenticated, staff }, { headers: { "Cache-Control": "no-store" } });
+}
 
-/* Tells the page whether the visitor is signed in as verified staff, so the
-   footer only offers the dashboard link to them. Read-only; the dashboard
-   itself still checks access on the server. */
+/* Customer chrome shares this session check for order polling and the staff
+   link. The orders API and dashboard still authorize their own requests. */
 export async function GET(request: Request) {
+  if (!request.headers.get("cookie")) return sessionStatus(false, false);
   try {
-    const session = await getStaffSession(request);
-    return Response.json({ staff: Boolean(session) }, { headers: { "Cache-Control": "no-store" } });
+    const [{ getCustomerSession }, { isStaffEmail }] = await Promise.all([
+      import("../../../lib/auth"),
+      import("../../../lib/staff-auth"),
+    ]);
+    const session = await getCustomerSession(request);
+    const staff = session?.user.emailVerified === true && isStaffEmail(session.user.email);
+    return sessionStatus(Boolean(session), staff);
   } catch {
-    return Response.json({ staff: false }, { headers: { "Cache-Control": "no-store" } });
+    return sessionStatus(false, false);
   }
 }

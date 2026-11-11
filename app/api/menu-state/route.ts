@@ -71,6 +71,7 @@ export async function GET() {
         cutoffTime: hours.cutoffTime,
         closed: hours.closed,
         cutoffMinutes: settings.cutoffMinutes,
+        preOrder: hours.preOrder,
       },
       weeklyHours: storeHours.weeklyHours,
       hoursNote: storeHours.hoursNote,

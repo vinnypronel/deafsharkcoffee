@@ -97,6 +97,9 @@ export function welcomeOfferValue(items: DiscountableItem[], itemIndex: number) 
   return Math.floor((item.unitPriceCents * WELCOME_OFFER_PERCENT) / 100);
 }
 
+/** A points reward can only be used on an order of at least this much, before discounts. */
+export const REWARD_MIN_SUBTOTAL_CENTS = 500;
+
 export type AppliedDiscount = {
   kind: "reward" | "student" | "welcome" | null;
   amountCents: number;
@@ -122,6 +125,7 @@ export function resolveDiscount(input: {
     const tier = findTier(input.choice.points);
     if (!tier) throw new Error("That reward is not available.");
     if (input.pointsBalance < tier.points) throw new Error("You do not have enough points for that reward yet.");
+    if (input.subtotalCents < REWARD_MIN_SUBTOTAL_CENTS) throw new Error("Rewards can be used on orders of $5 or more.");
     return {
       kind: "reward",
       amountCents: Math.min(tier.valueCents, input.subtotalCents),

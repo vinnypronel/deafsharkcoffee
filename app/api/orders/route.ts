@@ -396,7 +396,7 @@ export async function POST(request: Request) {
         `Order ${createdOrder.orderNumber}`,
         `${customerName} · ${phone}`,
         diningOption === "for_here" ? "For here" : "To go",
-        fulfillmentType === "scheduled" ? `Scheduled pickup: ${pickupEta}` : `Pickup in about ${pickupEta}`,
+        fulfillmentType === "scheduled" ? `Scheduled pickup: ${pickupEta}` : /\b(AM|PM)\b/.test(pickupEta) ? `Pre-order before opening, ready at ${pickupEta}` : `Pickup in about ${pickupEta}`,
         ...orderItems.map((item) => `${item.quantity} x ${item.name}${item.options.length ? ` (${item.options.join(", ")})` : ""}`),
         `Total $${(totalCents / 100).toFixed(2)} · pay at pickup`,
         "Open the dashboard to accept it: https://deafsharkcoffee.com/dashboard",

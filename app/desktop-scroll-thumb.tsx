@@ -37,8 +37,13 @@ export function DesktopScrollThumb() {
     const currentScroll = () => (window as WindowWithLenis).__lenis?.scroll ?? window.scrollY;
 
     const place = (scroll: number) => {
+      if (!desktop.matches) {
+        thumb.style.opacity = "0";
+        thumb.style.pointerEvents = "none";
+        return false;
+      }
       const { maxScroll, thumbHeight, maxTop } = metrics();
-      if (!desktop.matches || maxScroll === 0) {
+      if (maxScroll === 0) {
         thumb.style.opacity = "0";
         thumb.style.pointerEvents = "none";
         return false;
@@ -76,13 +81,13 @@ export function DesktopScrollThumb() {
 
     const handleScroll = () => {
       /* While dragging, pointermove already placed the thumb this frame. */
-      if (!drag) scheduleUpdate(true);
+      if (desktop.matches && !drag) scheduleUpdate(true);
     };
 
     const handleResize = () => scheduleUpdate(false);
 
     const handleWindowPointerMove = (event: PointerEvent) => {
-      if (drag || event.pointerType !== "mouse") return;
+      if (!desktop.matches || drag || event.pointerType !== "mouse") return;
       const wasNear = nearEdge;
       nearEdge = event.clientX >= window.innerWidth - EDGE_REVEAL_PX;
       if (nearEdge && !wasNear && place(currentScroll())) show();

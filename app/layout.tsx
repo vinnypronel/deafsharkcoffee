@@ -77,8 +77,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               "}catch(e){}})();",
           }}
         />
-        <link rel="preload" as="image" href="/hero-scrub-poster.jpg" fetchPriority="high" />
-        <link rel="preload" as="image" href="/drink-strawberry-matcha.webp" fetchPriority="high" />
       </head>
       <body className={geist.variable} suppressHydrationWarning>
         <PageTransition />

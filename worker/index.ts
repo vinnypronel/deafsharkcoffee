@@ -35,12 +35,13 @@ function withSecurityHeaders(request: Request, response: Response): Response {
     "object-src 'none'",
     "frame-ancestors 'none'",
     "form-action 'self'",
-    "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com",
+    "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://static.cloudflareinsights.com",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "media-src 'self' blob: https:",
     "font-src 'self' data:",
-    "connect-src 'self' https://challenges.cloudflare.com https://api.resend.com",
+    /* cloudflareinsights: Cloudflare Web Analytics, which the dashboard links to. */
+    "connect-src 'self' https://challenges.cloudflare.com https://api.resend.com https://cloudflareinsights.com",
     /* Turnstile widget and its troubleshooting dialog, plus the Google Maps
        embed on the contact page. Anything not listed here renders blank. */
     "frame-src https://challenges.cloudflare.com https://www.cloudflare.com https://maps.google.com https://www.google.com",

@@ -1,6 +1,6 @@
 import "../kds.css";
 import { headers } from "next/headers";
-import Link from "next/link";
+import Link from "../../site-link";
 import { StationBoard } from "../station-board";
 
 export const dynamic = "force-dynamic";

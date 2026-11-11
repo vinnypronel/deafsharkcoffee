@@ -29,8 +29,8 @@ export default function ScrollHero({
     if (!ctx) return;
 
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    // Choose a memory budget once per mount; resizing never downloads both sets.
-    const mobile = window.matchMedia("(max-width: 767px)").matches;
+    const phone = window.matchMedia("(max-width: 780px)");
+    let mobile = phone.matches;
     const posterImg = new Image();
     posterImg.src = poster;
     let zoom = 1;
@@ -47,8 +47,7 @@ export default function ScrollHero({
       // backing store that adds raster cost without adding footage detail.
       // Mobile frames are 330px wide, so a 1x canvas already holds every source
       // pixel and halves the per-frame fill cost while scrolling.
-      const ratio = Math.min(window.devicePixelRatio || 1, 1,
-        (mobile ? 1440 : 1920) / Math.max(rect.width, rect.height, 1));
+      const ratio = Math.min(1, (mobile ? 840 : 1920) / Math.max(rect.width, rect.height, 1));
       const width = Math.max(1, Math.round(rect.width * ratio));
       const height = Math.max(1, Math.round(rect.height * ratio));
       const changed = canvas.width !== width || canvas.height !== height;
@@ -67,8 +66,6 @@ export default function ScrollHero({
       coverArm = readVar("--hero-arm-cover", 1) > 0.5;
       return changed;
     };
-    refresh();
-
     const drawSource = (source: CanvasImageSource, sw: number, sh: number, sx = 0, sy = 0) => {
       if (!sw || !sh) return;
       const cw = canvas.width;
@@ -103,12 +100,11 @@ export default function ScrollHero({
         ctx.restore();
       };
 
-      const srcL = Math.min(sw, dx / scale);
-      const srcR = Math.min(sw, gapR / scale);
-      const srcT = Math.min(sh, dy / scale);
-      const srcB = Math.min(sh, gapB / scale);
-
       if (mirrorEdges) {
+        const srcL = Math.min(sw, dx / scale);
+        const srcR = Math.min(sw, gapR / scale);
+        const srcT = Math.min(sh, dy / scale);
+        const srcB = Math.min(sh, gapB / scale);
         if (dx > 0) mirror(0, 0, srcL, sh, 0, dy, dx, dh, true, false);
         if (gapR > 0) mirror(sw - srcR, 0, srcR, sh, dx + dw, dy, gapR, dh, true, false);
         if (dy > 0) mirror(0, 0, sw, srcT, dx, 0, dw, dy, false, true);
@@ -117,9 +113,6 @@ export default function ScrollHero({
         if (dx > 0 && dy > 0) mirror(0, 0, srcL, srcT, 0, 0, dx, dy, true, true);
         if (gapR > 0 && dy > 0) mirror(sw - srcR, 0, srcR, srcT, dx + dw, 0, gapR, dy, true, true);
         if (dx > 0 && gapB > 0) mirror(0, sh - srcB, srcL, srcB, 0, dy + dh, dx, gapB, true, true);
-      } else {
-        ctx.fillStyle = BACKDROP;
-        ctx.fillRect(0, 0, cw, ch);
       }
       ctx.drawImage(source, sx, sy, sw, sh, dx, dy, dw, dh);
 
@@ -152,11 +145,22 @@ export default function ScrollHero({
       }
     };
 
+    refresh();
     const start = () => startHeroFrames(wrap, pin, drawSource, refresh, posterImg, motion.matches, mobile);
     let stop = start();
-    const motionChanged = () => { stop(); stop = start(); };
-    motion.addEventListener("change", motionChanged);
-    return () => { stop(); motion.removeEventListener("change", motionChanged); };
+    const restart = () => {
+      stop();
+      mobile = phone.matches;
+      refresh();
+      stop = start();
+    };
+    motion.addEventListener("change", restart);
+    phone.addEventListener("change", restart);
+    return () => {
+      stop();
+      motion.removeEventListener("change", restart);
+      phone.removeEventListener("change", restart);
+    };
   }, [poster]);
 
   return (
@@ -181,8 +185,7 @@ export default function ScrollHero({
         <img
           className="scroll-hero-poster"
           src={poster}
-          alt=""
-          aria-hidden="true"
+          alt="Coffee being prepared at Deaf Shark Coffee"
           loading="eager"
           decoding="sync"
           fetchPriority="high"

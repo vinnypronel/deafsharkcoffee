@@ -2,19 +2,11 @@ const SHEET_COUNT = 24;
 const FRAMES_PER_SHEET = 10;
 const COLUMNS = 5;
 const LAST_FRAME = SHEET_COUNT * FRAMES_PER_SHEET - 1;
-const MOBILE_SHEET_LIMIT = 8;
-// How far ahead of playback mobile decodes, in sheets of ten frames.
-const MOBILE_SHEETS_AHEAD = 3;
-// Mobile playback follows the finger with a short ease and a top speed, so a
-// fast flick plays the footage through instead of jumping across frames that
-// are not decoded yet. At the cap the whole clip takes about 0.8 seconds.
-const MOBILE_EASE_MS = 60;
-const MOBILE_MAX_FRAMES_PER_MS = 0.3;
-
-// Desktop keeps the complete sequence decoded. Mobile keeps the compressed
-// sheets cached but only eight decoded bitmaps resident (about 37 MiB instead
-// of 106 MiB), which avoids the memory pressure that made Safari scrolling jank
-// while leaving room to decode ahead of the scroll direction.
+const SHEET_LIMIT = 5;
+const PREVIEW_COLUMNS = 8;
+const PREVIEW_ROWS = 6;
+// Decode a moving window around the current frame. The preview is available
+// across the entire scroll range while full-resolution sheets arrive.
 export function startHeroFrames(
   wrap: HTMLElement,
   pin: HTMLElement,
@@ -27,105 +19,104 @@ export function startHeroFrames(
   // Mobile frames are a centered 760x810 crop of the 1440x810 source.
   const width = mobile ? 330 : 800;
   const height = mobile ? 352 : 450;
+  const previewWidth = mobile ? 110 : 240;
+  const previewHeight = mobile ? 118 : 135;
   const sheets = new Map<number, ImageBitmap>();
   const blobs = new Map<number, Blob>();
-  const fetching = new Map<number, Promise<Blob | null>>();
-  const decoding = new Map<number, Promise<ImageBitmap | null>>();
+  const decoding = new Set<number>();
+  const failedSheets = new Set<number>();
   const controller = new AbortController();
   let disposed = false;
   let raf = 0;
-  let ready = false;
-  let loading = false;
-  let current = 0;
   let painted = -1;
-  let lastTime = 0;
   let needsPaint = true;
   let geometryDirty = true;
   let top = 0;
   let distance = 1;
   let bottom = 0;
-  let retryTimer = 0;
-  let attempts = 0;
-  let wantedSheet = 0;
-  let wantedFrame = 0;
-  let lastWarmCenter = -1;
-  let lastWarmDirection = 0;
-  let lastViewportWidth = window.innerWidth || 0;
+  let wantedSheet = -1;
+  let direction = 1;
+  let previousScroll = window.scrollY;
+  let preview: ImageBitmap | null = null;
+  let previewRequested = false;
+  let previewFrame = -1;
 
-  const sheetUrl = (index: number) => `/${mobile ? "hero-frames-v4/mobile" : "hero-frames-v3/desktop"}/${String(index).padStart(2, "0")}.jpg`;
+  const sheetUrl = (index: number) => {
+    const number = String(index).padStart(2, "0");
+    return mobile ? `/hero-frames-v4/mobile/${number}.jpg` : `/hero-frames-v5/desktop/${number}.webp`;
+  };
   const touch = (index: number, bitmap: ImageBitmap) => {
     sheets.delete(index);
     sheets.set(index, bitmap);
   };
-  const trimMobile = () => {
-    if (!mobile) return;
-    while (sheets.size > MOBILE_SHEET_LIMIT) {
-      const oldest = [...sheets.keys()].find((index) => index !== wantedSheet);
+  const trimSheets = () => {
+    while (sheets.size > SHEET_LIMIT) {
+      const visibleSheet = Math.floor(painted / FRAMES_PER_SHEET);
+      const oldest = [...sheets.keys()].find((index) => index !== wantedSheet && index !== visibleSheet);
       if (oldest === undefined) break;
       const bitmap = sheets.get(oldest);
       sheets.delete(oldest);
       bitmap?.close();
     }
   };
-  const fetchSheet = (index: number) => {
-    if (index < 0 || index >= SHEET_COUNT) return Promise.resolve(null);
-    const cached = blobs.get(index);
-    if (cached) return Promise.resolve(cached);
-    const pending = fetching.get(index);
-    if (pending) return pending;
-    const request = fetch(sheetUrl(index), { signal: controller.signal, cache: "force-cache" })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Hero sheet unavailable");
-        const blob = await response.blob();
-        if (!disposed) blobs.set(index, blob);
-        return disposed ? null : blob;
-      })
-      .catch(() => null)
-      .finally(() => fetching.delete(index));
-    fetching.set(index, request);
-    return request;
+  const fetchFrameBlob = async (url: string) => {
+    const response = await fetch(url, { signal: controller.signal, cache: "force-cache" });
+    if (!response.ok) throw new Error("Hero frames unavailable");
+    return response.blob();
   };
-  const decodeSheet = (index: number) => {
-    const cached = sheets.get(index);
-    if (cached) { touch(index, cached); return Promise.resolve(cached); }
-    const pending = decoding.get(index);
-    if (pending) return pending;
-    const request = fetchSheet(index).then(async (blob) => {
-      if (blob === null || disposed) return null;
+  const decodeSheet = async (index: number) => {
+    const blob = blobs.get(index) ?? await fetchFrameBlob(sheetUrl(index));
+    if (disposed) return false;
+    blobs.set(index, blob);
+    const bitmap = await createImageBitmap(blob);
+    if (disposed || bitmap.width !== width * COLUMNS || bitmap.height !== height * 2) {
+      bitmap.close();
+      if (disposed) return false;
+      throw new Error("Incomplete hero sheet");
+    }
+    sheets.set(index, bitmap);
+    return true;
+  };
+
+  const loadPreview = async () => {
+    if (previewRequested) return;
+    previewRequested = true;
+    try {
+      const blob = await fetchFrameBlob(`/hero-scrub-preview-${mobile ? "mobile" : "desktop"}.webp`);
+      if (disposed) return;
       const bitmap = await createImageBitmap(blob);
-      if (disposed) { bitmap.close(); return null; }
-      if (bitmap.width !== width * COLUMNS || bitmap.height !== height * 2) {
+      if (disposed || bitmap.width !== previewWidth * PREVIEW_COLUMNS || bitmap.height !== previewHeight * PREVIEW_ROWS) {
         bitmap.close();
-        return null;
+        return;
       }
-      sheets.set(index, bitmap);
-      trimMobile();
-      return bitmap;
-    }).finally(() => decoding.delete(index));
-    decoding.set(index, request);
-    return request;
+      preview = bitmap;
+      schedule();
+    } catch { /* Full sheets and the poster are still available. */ }
   };
-  const warmMobileWindow = (index: number, direction: 1 | -1) => {
-    if (!mobile || disposed) return;
-    wantedSheet = index;
-    if (lastWarmCenter === index && lastWarmDirection === direction && sheets.has(index)) return;
-    lastWarmCenter = index;
-    lastWarmDirection = direction;
-    void decodeSheet(index).then((bitmap) => {
-      if (!bitmap || disposed) return;
-      ready = true;
-      if (wantedSheet === index && painted !== wantedFrame) schedule();
-      void (async () => {
-        /* Decode the sheets playback is heading into, one at a time so the
-           work never spikes, then the one behind for a change of direction. */
-        const nearby = [];
-        for (let step = 1; step <= MOBILE_SHEETS_AHEAD; step++) nearby.push(index + direction * step);
-        nearby.push(index - direction);
-        for (const sheet of nearby) {
-          if (disposed || wantedSheet !== index) return;
-          if (sheet >= 0 && sheet < SHEET_COUNT) await decodeSheet(sheet);
-        }
-      })();
+
+  const warmWindow = () => {
+    if (wantedSheet < 0 || disposed || document.hidden || decoding.size >= 2) return;
+    // Give the requested sheet the spare slot when a swipe overtakes a preload.
+    // Speculative sheets are loaded one at a time only after the target is ready.
+    const candidates = sheets.has(wantedSheet) && !decoding.size
+      ? [wantedSheet + direction, wantedSheet + 2 * direction, wantedSheet - direction]
+      : [wantedSheet];
+    const index = candidates.find((candidate) => candidate >= 0 && candidate < SHEET_COUNT
+      && !sheets.has(candidate) && !decoding.has(candidate) && !failedSheets.has(candidate));
+    if (index === undefined) return;
+    decoding.add(index);
+    void decodeSheet(index).then((decoded) => {
+      if (!decoded || disposed) return;
+      trimSheets();
+      if (wantedSheet === index) schedule();
+    }).catch(() => {
+      if (disposed) return;
+      // Retry on reconnect or when scrolling back into this part of the clip.
+      failedSheets.add(index);
+      blobs.delete(index);
+    }).finally(() => {
+      decoding.delete(index);
+      warmWindow();
     });
   };
 
@@ -146,11 +137,21 @@ export function startHeroFrames(
   const paint = (index: number) => {
     const sheetIndex = Math.floor(index / FRAMES_PER_SHEET);
     const sheet = sheets.get(sheetIndex);
-    if (!sheet || (painted === index && !needsPaint)) return;
+    if (!sheet || (painted === index && previewFrame < 0 && !needsPaint)) return;
     touch(sheetIndex, sheet);
     const cell = index % FRAMES_PER_SHEET;
     draw(sheet, width, height, (cell % COLUMNS) * width, Math.floor(cell / COLUMNS) * height);
     painted = index;
+    previewFrame = -1;
+    needsPaint = false;
+  };
+
+  const paintPreview = (index: number) => {
+    if (!preview) return;
+    const frame = Math.round(index * (PREVIEW_COLUMNS * PREVIEW_ROWS - 1) / LAST_FRAME);
+    if (previewFrame === frame && !needsPaint) return;
+    draw(preview, previewWidth, previewHeight, (frame % PREVIEW_COLUMNS) * previewWidth, Math.floor(frame / PREVIEW_COLUMNS) * previewHeight);
+    previewFrame = frame;
     needsPaint = false;
   };
 
@@ -160,8 +161,7 @@ export function startHeroFrames(
       const rect = wrap.getBoundingClientRect();
       // Use the stable media height on mobile, so Safari's toolbar animation
       // cannot move the timeline backwards while the user scrolls forwards.
-      const pinHeight = mobile ? pin.querySelector("canvas")?.getBoundingClientRect().height
-        : pin.getBoundingClientRect().height;
+      const pinHeight = pin.querySelector("canvas")?.getBoundingClientRect().height;
       const pinTop = parseFloat(getComputedStyle(pin).top) || 0;
       top = rect.top + window.scrollY - pinTop;
       bottom = rect.bottom + window.scrollY;
@@ -169,153 +169,78 @@ export function startHeroFrames(
       geometryDirty = false;
     }
   };
-  const update = (now: number) => {
+  const update = () => {
     raf = 0;
     if (disposed || document.hidden) return;
     measure();
-    if (!ready || reduced) { paintPoster(); return; }
     const scroll = window.scrollY;
-    if (scroll > bottom || scroll + window.innerHeight < top) { lastTime = 0; return; }
-    const target = Math.min(1, Math.max(0, (scroll - top) / distance)) * LAST_FRAME;
-    if (mobile) {
-      const elapsed = lastTime ? Math.min(Math.max(now - lastTime, 0), 50) : 16.67;
-      const gap = target - current;
-      const limit = elapsed * MOBILE_MAX_FRAMES_PER_MS;
-      const step = Math.min(Math.max(gap * (1 - Math.exp(-elapsed / MOBILE_EASE_MS)), -limit), limit);
-      const next = Math.abs(gap - step) < 0.05 ? target : current + step;
-      const frame = Math.round(next);
-      const sheet = Math.floor(frame / FRAMES_PER_SHEET);
-      wantedFrame = frame;
-      warmMobileWindow(sheet, gap >= 0 ? 1 : -1);
-      if (!sheets.has(sheet)) {
-        /* Hold the current frame until its sheet is decoded; the decode
-           schedules the next update itself. */
-        lastTime = 0;
-        return;
-      }
-      lastTime = now;
-      current = next;
-      paint(frame);
-      if (current !== target) raf = requestAnimationFrame(update);
-      else lastTime = 0;
+    if (scroll > bottom || scroll + window.innerHeight < top) {
+      wantedSheet = -1;
       return;
     }
-    const dt = lastTime ? Math.min(Math.max(now - lastTime, 0), 50) : 16.67;
-    lastTime = now;
-    current += (target - current) * (1 - Math.exp(-dt / 45));
-    if (Math.abs(target - current) < 0.05) current = target;
-    paint(Math.round(current));
-    if (current !== target) raf = requestAnimationFrame(update);
-    else lastTime = 0;
+    const target = Math.min(1, Math.max(0, (scroll - top) / distance)) * LAST_FRAME;
+    if (reduced) { paintPoster(); return; }
+    if (scroll !== previousScroll) direction = scroll > previousScroll ? 1 : -1;
+    previousScroll = scroll;
+    const frame = Math.round(target);
+    const sheet = Math.floor(frame / FRAMES_PER_SHEET);
+    if (wantedSheet !== sheet) {
+      wantedSheet = sheet;
+      failedSheets.delete(sheet);
+    }
+    if (sheets.has(sheet)) paint(frame);
+    else if (preview) paintPreview(frame);
+    else if (needsPaint) {
+      if (painted >= 0) paint(painted);
+      else paintPoster();
+    }
+    warmWindow();
+    void loadPreview();
   };
   const schedule = () => {
     if (!raf && !disposed && !document.hidden) raf = requestAnimationFrame(update);
   };
 
-  const load = async () => {
-    if (disposed || reduced || (!mobile && ready) || loading || document.hidden) return;
-    loading = true;
-    attempts++;
-    measure();
-    if (mobile) {
-      const initialFrame = Math.round(Math.min(1, Math.max(0, (window.scrollY - top) / distance)) * LAST_FRAME);
-      wantedFrame = initialFrame;
-      // Open on the frame for the current scroll position, not a play-in from zero.
-      if (painted < 0) current = initialFrame;
-      warmMobileWindow(Math.floor(initialFrame / FRAMES_PER_SHEET), 1);
-      /* Cache the remaining compressed JPEGs without retaining their decoded
-         pixels. Two workers keep network time short without a decode storm. */
-      let nextBlob = 0;
-      const cacheWorker = async () => {
-        while (nextBlob < SHEET_COUNT && !disposed && !document.hidden) await fetchSheet(nextBlob++);
-      };
-      await Promise.all([cacheWorker(), cacheWorker()]);
-      loading = false;
-      return;
-    }
-    let next = 0;
-    const worker = async () => {
-      while (next < SHEET_COUNT && !disposed && !document.hidden) {
-        const index = next++;
-        if (sheets.has(index)) continue;
-        try {
-          const blob = await fetchSheet(index);
-          if (blob === null) throw new Error("Hero sheet unavailable");
-          const bitmap = await createImageBitmap(blob);
-          if (disposed) { bitmap.close(); return; }
-          if (bitmap.width !== width * COLUMNS || bitmap.height !== height * 2) {
-            bitmap.close();
-            throw new Error("Incomplete hero sheet");
-          }
-          sheets.set(index, bitmap);
-        } catch { /* Keep the poster until all frames are decoded. */ }
-      }
-    };
-    await Promise.all([worker(), worker()]);
-    loading = false;
-    if (disposed) return;
-    ready = sheets.size === SHEET_COUNT;
-    if (ready) {
-      // On a fast initial scroll, begin at the latest position, not frame zero.
-      measure();
-      current = Math.min(1, Math.max(0, (window.scrollY - top) / distance)) * LAST_FRAME;
-      schedule();
-    } else if (!document.hidden && attempts < 3) {
-      retryTimer = window.setTimeout(() => { retryTimer = 0; void load(); }, attempts * 1000);
-    }
-  };
   const resize = () => {
-    const viewportWidth = window.innerWidth || 0;
-    /* Safari changes the visual viewport height while its address bar moves.
-       The mobile canvas uses stable lvh sizing, so remeasuring the entire hero
-       on those height-only events creates work without changing the timeline. */
-    if (!mobile || viewportWidth !== lastViewportWidth) {
-      lastViewportWidth = viewportWidth;
-      geometryDirty = true;
-    }
+    geometryDirty = true;
     needsPaint = true;
     schedule();
   };
   const resume = () => {
-    lastTime = 0;
-    window.clearTimeout(retryTimer);
-    retryTimer = 0;
     if (document.hidden) {
       cancelAnimationFrame(raf);
       raf = 0;
     } else {
-      attempts = 0;
-      void load();
+      failedSheets.clear();
       resize();
     }
   };
   const observer = new ResizeObserver(resize);
   observer.observe(wrap);
-  observer.observe(pin);
+  observer.observe(pin.querySelector("canvas") ?? pin);
   window.addEventListener("scroll", schedule, { passive: true });
-  window.addEventListener("resize", resize, { passive: true });
+  // On phones the wrapper and canvas use stable viewport units. Observe those
+  // surfaces directly so toolbar movement does not invalidate the canvas.
   window.addEventListener("pageshow", resume);
   window.addEventListener("online", resume);
   document.addEventListener("visibilitychange", resume);
-  void load();
   schedule();
 
   return () => {
+    if (disposed) return;
     disposed = true;
     cancelAnimationFrame(raf);
-    window.clearTimeout(retryTimer);
     controller.abort();
     observer.disconnect();
     window.removeEventListener("scroll", schedule);
-    window.removeEventListener("resize", resize);
     window.removeEventListener("pageshow", resume);
     window.removeEventListener("online", resume);
     document.removeEventListener("visibilitychange", resume);
     poster.removeEventListener("load", paintPoster);
     sheets.forEach((bitmap) => bitmap.close());
+    preview?.close();
     sheets.clear();
     blobs.clear();
-    fetching.clear();
     decoding.clear();
   };
 }

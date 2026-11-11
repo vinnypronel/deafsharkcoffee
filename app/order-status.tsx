@@ -48,6 +48,8 @@ function pickupWindow(order: CustomerOrder) {
     const scheduled = new Date(order.scheduledFor);
     if (!Number.isNaN(scheduled.getTime())) return storeClockTime(scheduled);
   }
+  /* A pre-order placed before opening carries its ready time as a clock time. */
+  if (/\b(AM|PM)\b/.test(order.pickupEta)) return order.pickupEta;
   const placed = order.createdAt ? new Date(order.createdAt) : null;
   if (!placed || Number.isNaN(placed.getTime())) return order.pickupEta;
   const start = new Date(placed.getTime() + PICKUP_WINDOW_MINUTES[0] * 60_000);

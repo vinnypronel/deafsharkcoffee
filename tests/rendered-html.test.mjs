@@ -25,6 +25,17 @@ test("server-renders the Deaf Shark storefront", async () => {
   assert.match(html, /<b>Sat:<\/b>\s*8:00 AM . 2:00 PM/i);
   assert.match(html, /<b>Sun:<\/b>\s*Closed/i);
   assert.match(html, /Order online/i);
+  assert.doesNotMatch(html, /Join the club!/i);
+  assert.match(html, /<img[^>]*class="scroll-hero-poster"[^>]*alt="Coffee being prepared at Deaf Shark Coffee"/);
+  const cafe = JSON.parse(html.match(/<script type="application\/ld\+json">([^<]+)<\/script>/)?.[1] ?? "null");
+  assert.equal(cafe?.["@type"], "CafeOrCoffeeShop");
+  assert.equal(cafe.address.streetAddress, "900 Green Lane");
+  assert.deepEqual(cafe.openingHoursSpecification.find((hours) => hours.dayOfWeek === "Saturday"), {
+    "@type": "OpeningHoursSpecification",
+    dayOfWeek: "Saturday",
+    opens: "08:00",
+    closes: "14:00",
+  });
   assert.doesNotMatch(html, /codex-preview/);
   assert.doesNotMatch(html, /Your site is taking shape/);
   assert.equal(response.headers.get("x-content-type-options"), "nosniff");
@@ -37,6 +48,13 @@ test("serves a non-cacheable liveness endpoint without exposing configuration", 
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("cache-control"), "no-store");
   assert.deepEqual(await response.json(), { status: "ok", service: "deaf-shark-coffee" });
+});
+
+test("the shared session check returns a signed-out state for anonymous visitors", async () => {
+  const response = await render("/api/staff-status", { accept: "application/json" });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.deepEqual(await response.json(), { authenticated: false, staff: false });
 });
 
 test("server-renders public support and legal routes", async () => {
@@ -103,7 +121,8 @@ test("server-renders the expanded photographed menu", async () => {
   assert.doesNotMatch(html, /Tropicana Juice \(15 oz\)/i);
   assert.doesNotMatch(html, /Arnold Palmer/i);
   assert.doesNotMatch(html, /Passion Fruit Dessert/i);
-  assert.match(html, /role="tab"[^>]*><span class="category-nav-label">Matcha<\/span>/i);
-  assert.match(html, /role="tab"[^>]*><span class="category-nav-label">Tea<\/span>/i);
-  assert.match(html, /role="tab"[^>]*><span class="category-nav-label">Smoothies<\/span>/i);
+  assert.match(html, /<button[^>]*type="button"[^>]*><span class="category-nav-label">Matcha<\/span>/i);
+  assert.match(html, /<button[^>]*type="button"[^>]*><span class="category-nav-label">Tea<\/span>/i);
+  assert.match(html, /<button[^>]*type="button"[^>]*><span class="category-nav-label">Smoothies<\/span>/i);
+  assert.equal([...html.matchAll(/<h3>Special Drinks<\/h3>/g)].length, 1);
 });

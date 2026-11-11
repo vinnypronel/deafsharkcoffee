@@ -56,8 +56,13 @@ test("redeems a reward and never exceeds the subtotal", () => {
   assert.equal(applied.amountCents, 700);
   assert.equal(applied.pointsSpent, 100);
 
-  const small = resolveDiscount({ subtotalCents: 450, choice: { kind: "reward", points: 100 }, pointsBalance: 100, studentVerified: false });
-  assert.equal(small.amountCents, 450, "a $7 reward on a $4.50 order cannot pay out more than the order");
+  const small = resolveDiscount({ subtotalCents: 550, choice: { kind: "reward", points: 100 }, pointsBalance: 100, studentVerified: false });
+  assert.equal(small.amountCents, 550, "a $7 reward on a $5.50 order cannot pay out more than the order");
+});
+
+test("points rewards need an order of $5 or more", () => {
+  assert.throws(() => resolveDiscount({ subtotalCents: 450, choice: { kind: "reward", points: 50 }, pointsBalance: 100, studentVerified: false }), /\$5 or more/);
+  assert.equal(resolveDiscount({ subtotalCents: 500, choice: { kind: "reward", points: 50 }, pointsBalance: 100, studentVerified: false }).amountCents, 300);
 });
 
 test("refuses a reward the balance cannot cover", () => {

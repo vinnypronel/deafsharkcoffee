@@ -701,9 +701,7 @@ const catalogProducts: Product[] = [
     price: 19,
     description: "12 oz medium roast coffee from El Salvador.",
     popular: true,
-    configurable: true,
-    flavorLabel: "Grind",
-    flavors: ["Whole bean", "Ground"],
+    /* Sold as one bag with no grind choice. */
     visual: "bag",
     photo: "/menu/coffee/ocean-blend-single-bag-catalog-v1.png",
     video: "/featured-ocean-blend.mp4",

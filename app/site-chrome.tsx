@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "./site-link";
 import Lenis from "lenis";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { menuProducts, type Product } from "./menu-data";
@@ -99,6 +99,19 @@ async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit, ti
   } finally {
     window.clearTimeout(timeout);
   }
+}
+
+type SessionStatus = { authenticated: boolean; staff: boolean };
+let pendingSession: { event?: Event; promise: Promise<SessionStatus | null> } | undefined;
+
+function readSessionStatus(event?: Event) {
+  if (pendingSession && (!event || pendingSession.event === event)) return pendingSession.promise;
+  const promise = fetchWithTimeout("/api/staff-status", { cache: "no-store", credentials: "include" })
+    .then((response) => response.ok ? response.json() as Promise<SessionStatus> : null)
+    .catch(() => null)
+    .finally(() => { if (pendingSession?.promise === promise) pendingSession = undefined; });
+  pendingSession = { event, promise };
+  return promise;
 }
 
 function seenCancelledOrder(orderNumber: string) {
@@ -222,11 +235,30 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
 
   useEffect(() => {
     let stopped = false;
+    let authenticated = false;
+    let sessionVersion = 0;
+    let request: AbortController | null = null;
+
     async function loadActiveOrder() {
+      if (!authenticated || request || document.hidden) return;
+      const controller = new AbortController();
+      request = controller;
+      const timeout = window.setTimeout(() => controller.abort(), 6000);
       try {
-        const response = await fetch("/api/customer-orders", { cache: "no-store", credentials: "include" });
-        if (!response.ok) { if (!stopped) setActiveOrder(null); return; }
-        const data = await response.json() as { orders?: Array<{ orderNumber: string; status: string; createdAt?: string | number }> };
+        const response = await fetch("/api/customer-orders", {
+          cache: "no-store",
+          credentials: "include",
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted || stopped) return;
+        if (response.status === 401) {
+          authenticated = false;
+          setActiveOrder(null);
+          setRecentOrders([]);
+        }
+        if (!response.ok) return;
+        const data = await response.json() as { orders?: typeof recentOrders };
+        if (controller.signal.aborted || stopped) return;
         const list = data.orders ?? [];
         const open = list.find((order) => ["new", "preparing", "ready"].includes(order.status));
         /* While ordering is closed, orders that slipped through were cancelled by
@@ -237,26 +269,46 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
             && Date.now() - new Date(order.createdAt ?? 0).getTime() < 30 * 86_400_000
             && !seenCancelledOrder(order.orderNumber))
           : undefined;
-        if (!stopped) setActiveOrder(open ?? cancelledNotice ?? null);
+        setActiveOrder(open ?? cancelledNotice ?? null);
+        setRecentOrders(list);
       } catch {
-        if (!stopped) setActiveOrder(null);
+        // Keep the last known order status during a temporary network failure.
+      } finally {
+        window.clearTimeout(timeout);
+        if (request === controller) request = null;
       }
     }
-    void loadActiveOrder();
-    const timer = window.setInterval(() => {
-      if (document.visibilityState === "visible") void loadActiveOrder();
-    }, 20000);
+
+    const refreshSession = async (event?: Event) => {
+      const version = ++sessionVersion;
+      authenticated = false;
+      request?.abort();
+      request = null;
+      const session = await readSessionStatus(event);
+      if (stopped || version !== sessionVersion) return;
+      authenticated = session?.authenticated === true;
+      if (authenticated) void loadActiveOrder();
+      else {
+        setActiveOrder(null);
+        setRecentOrders([]);
+      }
+    };
+    void refreshSession();
+    const timer = window.setInterval(loadActiveOrder, 20000);
     const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") void loadActiveOrder();
+      if (document.hidden) return;
+      if (authenticated) void loadActiveOrder();
+      else void refreshSession();
     };
     document.addEventListener("visibilitychange", refreshWhenVisible);
-    window.addEventListener("deaf-shark-session-changed", loadActiveOrder);
+    window.addEventListener("deaf-shark-session-changed", refreshSession);
     window.addEventListener("deaf-shark-order-placed", loadActiveOrder);
     return () => {
       stopped = true;
+      request?.abort();
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", refreshWhenVisible);
-      window.removeEventListener("deaf-shark-session-changed", loadActiveOrder);
+      window.removeEventListener("deaf-shark-session-changed", refreshSession);
       window.removeEventListener("deaf-shark-order-placed", loadActiveOrder);
     };
   }, []);
@@ -470,10 +522,6 @@ export function CustomerHeader({ active, action }: { active?: string; action?: R
         setProfileName(nextProfile.profile.displayName);
         setProfilePhone(nextProfile.profile.phone ?? "");
         setMarketingEmail(nextProfile.profile.preferences?.marketingEmail === true);
-        try {
-          const response = await fetchWithTimeout("/api/customer-orders", { cache: "no-store" });
-          if (response.ok) setRecentOrders(((await response.json()) as { orders?: typeof recentOrders }).orders ?? []);
-        } catch { setRecentOrders([]); }
       }
       window.dispatchEvent(new Event("deaf-shark-session-changed"));
     } else {
@@ -1548,14 +1596,11 @@ export function SiteFooter() {
   const [isStaff, setIsStaff] = useState(false);
   useEffect(() => {
     let stopped = false;
-    const check = async () => {
-      try {
-        const response = await fetch("/api/staff-status", { cache: "no-store", credentials: "include" });
-        const data = response.ok ? await response.json() as { staff?: boolean } : null;
-        if (!stopped) setIsStaff(data?.staff === true);
-      } catch {
-        if (!stopped) setIsStaff(false);
-      }
+    let version = 0;
+    const check = async (event?: Event) => {
+      const current = ++version;
+      const data = await readSessionStatus(event);
+      if (!stopped && current === version) setIsStaff(data?.staff === true);
     };
     void check();
     window.addEventListener("deaf-shark-session-changed", check);
@@ -1568,49 +1613,6 @@ export function SiteFooter() {
   return (
     <footer className="site-footer">
       <div className="footer-container">
-        {/* Top Newsletter / Club Section */}
-        <div className="footer-newsletter">
-          <div className="newsletter-copy">
-            <h2>Join the club!</h2>
-            <p>A free upgrade on your birthday, early access to new roasts, and invites to coffee tastings in Union.</p>
-          </div>
-          <div className="newsletter-form-wrap">
-            <div className="newsletter-coming-soon-wrapper">
-              <span className="newsletter-coming-soon-badge" aria-hidden="true">Coming soon!</span>
-              <form className="newsletter-form newsletter-disabled" onSubmit={(e) => e.preventDefault()} noValidate>
-                <label htmlFor="footer-email">E-MAIL</label>
-                <div className="newsletter-input-row is-disabled">
-                  <input
-                    id="footer-email"
-                    type="email"
-                    value=""
-                    readOnly
-                    disabled
-                    tabIndex={-1}
-                    placeholder="you@example.com"
-                    aria-label="Email address (newsletter coming soon)"
-                  />
-                  <button type="button" disabled tabIndex={-1} aria-disabled="true">
-                    Join <span>→</span>
-                  </button>
-                </div>
-                <label className="newsletter-consent is-disabled">
-                  <input
-                    type="checkbox"
-                    disabled
-                    readOnly
-                    tabIndex={-1}
-                    aria-disabled="true"
-                  />
-                  <span>I agree to receive Deaf Shark Coffee news and promotions by email. I can unsubscribe at any time.</span>
-                </label>
-              </form>
-            </div>
-          </div>
-        </div>
-
-        <div className="footer-divider" />
-
         {/* 4-Column Navigation Section */}
         <div className="footer-columns">
           <div className="footer-col footer-col-brand">

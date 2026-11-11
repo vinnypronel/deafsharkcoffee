@@ -150,12 +150,6 @@ export function AdminPanels({ view }: { view: View }) {
 
   if (view === "history") return (
     <AdminSection title="Complete order history" description="Every website order is retained here with its date, payment method, pickup type, total, and final status.">
-      <div className="record-summary order-history-totals" aria-label="All-time order totals">
-        <span><strong>{records.orderSummary.totalOrders.toLocaleString()}</strong> total orders</span>
-        <span><strong>{records.orderSummary.completedOrders.toLocaleString()}</strong> completed orders</span>
-        <span><strong>{records.orderSummary.cancelledOrders.toLocaleString()}</strong> cancelled orders</span>
-        <span><strong>{dollars(records.orderSummary.subtotalCents)}</strong> online order subtotal</span>
-      </div>
       <OrderHistoryTable orders={records.orders} />
     </AdminSection>
   );
@@ -241,6 +235,14 @@ function OrderHistoryTable({ orders: allOrders }: { orders: OrderRecord[] }) {
   const orders = allOrders
     .filter((order) => !onlyStatuses.size || onlyStatuses.has(order.status))
     .filter((order) => !todayOnly || shopDay(order.createdAt) === today);
+  /* The summary describes exactly what is visible below it. Cancelled orders
+     remain in the counts but never contribute to the sales subtotal. */
+  const summary = orders.reduce<OrderSummary>((totals, order) => ({
+    totalOrders: totals.totalOrders + 1,
+    completedOrders: totals.completedOrders + (order.status === "complete" ? 1 : 0),
+    cancelledOrders: totals.cancelledOrders + (order.status === "cancelled" ? 1 : 0),
+    subtotalCents: totals.subtotalCents + (order.status === "cancelled" ? 0 : Number(order.subtotalCents ?? order.totalCents ?? 0)),
+  }), { totalOrders: 0, completedOrders: 0, cancelledOrders: 0, subtotalCents: 0 });
   const toggle = (orderId: number) => setExpanded((current) => {
     const next = new Set(current);
     if (next.has(orderId)) next.delete(orderId);
@@ -249,6 +251,12 @@ function OrderHistoryTable({ orders: allOrders }: { orders: OrderRecord[] }) {
   });
 
   return <>
+  <div className="record-summary order-history-totals" aria-label="Totals for the orders shown">
+    <span><strong>{summary.totalOrders.toLocaleString()}</strong> total orders</span>
+    <span><strong>{summary.completedOrders.toLocaleString()}</strong> completed orders</span>
+    <span><strong>{summary.cancelledOrders.toLocaleString()}</strong> cancelled orders</span>
+    <span><strong>{dollars(summary.subtotalCents)}</strong> online order subtotal</span>
+  </div>
   <div className="order-history-filters" role="group" aria-label="Filter orders by status">
     <label><input type="checkbox" checked={onlyStatuses.has("cancelled")} onChange={() => toggleStatus("cancelled")} /><span>Show cancelled only</span></label>
     <label><input type="checkbox" checked={onlyStatuses.has("complete")} onChange={() => toggleStatus("complete")} /><span>Show completed only</span></label>

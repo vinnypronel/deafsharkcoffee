@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "./site-link";
 
 /* Replaces the framework's bare 404. Anyone who mistypes a URL, or follows an
    old link after the DreamHost cutover, lands here with a way back. */

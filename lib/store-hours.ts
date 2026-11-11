@@ -67,7 +67,15 @@ type EffectiveOrderingHours = { openTime: string; closeTime: string; closed: boo
 export type OrderingWindowStatus = EffectiveOrderingHours & {
   cutoffTime: string;
   orderingOpen: boolean;
+  /** True in the pre-order window before opening: ASAP only, ready shortly after opening. */
+  preOrder: boolean;
+  /** When online ordering starts each open day (opening time minus the pre-order window). */
+  preOrderTime: string;
 };
+
+/* Online ordering opens this many minutes before the shop does. Orders placed in
+   that window are ASAP only and are treated as if placed right at opening. */
+export const PREORDER_MINUTES = 30;
 
 function storeWeekday(date: Date): Weekday {
   const short = new Intl.DateTimeFormat("en-US", { timeZone: STORE_TIME_ZONE, weekday: "short" }).format(date);
@@ -116,15 +124,47 @@ export function orderingWindowStatus(
   date = new Date(),
 ): OrderingWindowStatus {
   const hours = effectiveOrderingHours(settings, date);
-  if (hours.closed) return { ...hours, cutoffTime: "00:00", orderingOpen: false };
+  if (hours.closed) return { ...hours, cutoffTime: "00:00", orderingOpen: false, preOrder: false, preOrderTime: "00:00" };
   const openMinutes = minutes(hours.openTime);
+  const preOrderStart = Math.max(0, openMinutes - PREORDER_MINUTES);
   const cutoff = Math.max(openMinutes, minutes(hours.closeTime) - Math.max(0, cutoffMinutes));
   const now = storeClockMinutes(date);
   return {
     ...hours,
     cutoffTime: clockFromMinutes(cutoff),
-    orderingOpen: now >= openMinutes && now < cutoff,
+    orderingOpen: now >= preOrderStart && now < cutoff,
+    preOrder: now >= preOrderStart && now < openMinutes,
+    preOrderTime: clockFromMinutes(preOrderStart),
   };
+}
+
+/** What to tell a customer when online ordering is closed because of the
+ * shop's hours (not a staff pause). Null while ordering is open. */
+export function closedOrderingMessage(weekly: WeeklyHours, cutoffMinutes: number, date = new Date()): { title: string; detail: string } | null {
+  const status = orderingWindowStatus({ openTime: "06:00", closeTime: "18:30", weeklyHours: weekly }, cutoffMinutes, date);
+  if (status.orderingOpen) return null;
+  const now = storeClockMinutes(date);
+  const today = storeWeekday(date);
+  const title = "We're closed for online orders right now";
+  if (!status.closed && now < minutes(status.openTime)) {
+    return { title, detail: `Online ordering opens today at ${formatClock(status.preOrderTime)}, ${PREORDER_MINUTES} minutes before we open. Your cart stays saved.` };
+  }
+  if (!status.closed && now < minutes(status.closeTime)) {
+    return {
+      title: "Online ordering has closed for today",
+      detail: `Online orders stop at ${formatClock(status.cutoffTime)}, ${cutoffMinutes} minutes before we close. You can still order at the counter until ${formatClock(status.closeTime)}.`,
+    };
+  }
+  const start = WEEKDAYS.indexOf(today);
+  for (let ahead = 1; ahead <= 7; ahead++) {
+    const weekday = WEEKDAYS[(start + ahead) % 7];
+    const day = weekly[weekday];
+    if (day.closed) continue;
+    const when = ahead === 1 ? "tomorrow" : WEEKDAY_NAMES[weekday];
+    const opensAt = clockFromMinutes(Math.max(0, minutes(day.open) - PREORDER_MINUTES));
+    return { title, detail: `Come back when we open: online ordering opens ${when} at ${formatClock(opensAt)}. Your cart stays saved.` };
+  }
+  return { title, detail: "Please check our hours or order at the counter." };
 }
 
 export function formatClock(clock: string) {

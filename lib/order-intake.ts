@@ -8,7 +8,7 @@ import {
   type PrepStation,
   type ProductSelection,
 } from "../app/menu-data.ts";
-import { effectiveOrderingHours, type WeeklyHours } from "./store-hours.ts";
+import { PREORDER_MINUTES, closedOrderingMessage, effectiveOrderingHours, formatClock, type WeeklyHours } from "./store-hours.ts";
 import { BodyTooLargeError, readCappedText } from "./http-body.ts";
 
 /* Pure validation and pricing for public pickup orders.
@@ -381,19 +381,29 @@ export function resolveFulfillment(
     );
   }
 
+  /* Says when online ordering opens next, so a closed shop never tells the
+     customer to do something they cannot do right now. */
+  const closedMessage = () => {
+    const next = settings.weeklyHours ? closedOrderingMessage(settings.weeklyHours, settings.cutoffMinutes, now) : null;
+    return next ? `${next.title}. ${next.detail}` : "Online ordering is closed right now. Please come back when we open.";
+  };
+
   const hours = effectiveOrderingHours(settings, now);
   if (hours.closed) {
-    throw new OrderRequestError(
-      "Online ordering is closed today. Please order during store hours.",
-      409,
-      "ordering_closed",
-    );
+    throw new OrderRequestError(closedMessage(), 409, "ordering_closed");
   }
   const openMinutes = clockMinutes(hours.openTime);
   const closingCutoff = clockMinutes(hours.closeTime) - settings.cutoffMinutes;
   const fulfillmentType = payload.fulfillmentType === "scheduled" ? "scheduled" : "asap";
 
+  const nowMinutes = localClockMinutes(now);
+  const preOrderStart = Math.max(0, openMinutes - PREORDER_MINUTES);
+  const preOrdering = nowMinutes >= preOrderStart && nowMinutes < openMinutes;
+
   if (fulfillmentType === "scheduled") {
+    if (preOrdering) {
+      throw new OrderRequestError("Before we open, orders are for pickup as soon as we open. Choose ASAP pickup.", 400, "preorder_asap_only");
+    }
     if (!settings.schedulingEnabled) {
       throw new OrderRequestError("Scheduled pickup is not available right now.", 409, "scheduling_disabled");
     }
@@ -421,13 +431,15 @@ export function resolveFulfillment(
     return { fulfillmentType, scheduledFor, pickupEta: scheduledLabel(scheduledFor) };
   }
 
-  const nowMinutes = localClockMinutes(now);
-  if (nowMinutes < openMinutes || nowMinutes >= closingCutoff) {
-    throw new OrderRequestError(
-      "Online ordering is closed for today. Please schedule during store hours.",
-      409,
-      "ordering_closed",
-    );
+  if (nowMinutes < preOrderStart || nowMinutes >= closingCutoff) {
+    throw new OrderRequestError(closedMessage(), 409, "ordering_closed");
+  }
+  if (preOrdering) {
+    /* Treated as if placed the moment the shop opens: ready at opening plus the
+       usual prep time, shown as a clock time. */
+    const readyMinutes = openMinutes + settings.prepTimeMinutes;
+    const readyClock = `${String(Math.floor(readyMinutes / 60) % 24).padStart(2, "0")}:${String(readyMinutes % 60).padStart(2, "0")}`;
+    return { fulfillmentType, scheduledFor: null, pickupEta: formatClock(readyClock) };
   }
   return { fulfillmentType, scheduledFor: null, pickupEta: `${settings.prepTimeMinutes} min` };
 }
